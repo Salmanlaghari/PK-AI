@@ -33,6 +33,19 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
+    <!-- Settings Button (Electric Blue Glow gear in toolbar) -->
+    <ImageButton
+        android:id="@+id/btn_settings"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:background="?android:attr/selectableItemBackgroundBorderless"
+        android:src="@drawable/ic_settings"
+        app:tint="@color/electric_blue_glow"
+        app:layout_constraintBottom_toBottomOf="@id/tv_profile_header"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@id/tv_profile_header"
+        tools:ignore="ContentDescription" />
+
     <!-- Central Premium Profile Card Container -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/card_profile_container"

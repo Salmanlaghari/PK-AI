@@ -55,6 +55,11 @@ class ProfileFragment : Fragment() {
             }
         }
 
+        // Navigate to settings screen
+        binding.btnSettings.setOnClickListener {
+            findNavController().navigate(R.id.action_profileFragment_to_settingsFragment)
+        }
+
         // Handle sign out
         binding.btnLogout.setOnClickListener {
             viewModel.logout {

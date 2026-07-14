@@ -16,4 +16,11 @@
     <string name="error_auth_failed">Authentication failed. Please try again.</string>
     <string name="lbl_loading">Securing credentials…</string>
     <string name="default_web_client_id">104828514-placeholder.apps.googleusercontent.com</string>
+
+    <!-- Profile Screen -->
+    <string name="lbl_profile">My Account</string>
+    <string name="lbl_login_type">Access Mode</string>
+    <string name="lbl_login_google">Google Account</string>
+    <string name="lbl_login_guest">Guest Session</string>
+    <string name="btn_sign_out">Sign Out</string>
 </resources>

@@ -6,6 +6,8 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.navigation.fragment.findNavController
+import com.salmanlaghari.pkai.R
 import com.salmanlaghari.pkai.databinding.FragmentHomeBinding
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -23,6 +25,16 @@ class HomeFragment : Fragment() {
     ): View {
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
         return binding.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        binding.btnLogout.setOnClickListener {
+            viewModel.logout {
+                findNavController().navigate(R.id.action_homeFragment_to_loginFragment)
+            }
+        }
     }
 
     override fun onDestroyView() {

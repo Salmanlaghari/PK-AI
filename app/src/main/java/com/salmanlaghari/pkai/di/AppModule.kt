@@ -2,9 +2,12 @@ package com.salmanlaghari.pkai.di
 
 import android.content.Context
 import androidx.room.Room
+import com.salmanlaghari.pkai.data.local.datastore.PreferencesManager
 import com.salmanlaghari.pkai.data.local.room.AppDatabase
 import com.salmanlaghari.pkai.data.local.room.AppLogDao
 import com.salmanlaghari.pkai.data.remote.ApiService
+import com.salmanlaghari.pkai.data.repository.AuthRepository
+import com.salmanlaghari.pkai.data.repository.AuthRepositoryImpl
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -54,5 +57,11 @@ object AppModule {
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(ApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideAuthRepository(preferencesManager: PreferencesManager): AuthRepository {
+        return AuthRepositoryImpl(preferencesManager)
     }
 }

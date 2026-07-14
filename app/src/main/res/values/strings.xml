@@ -7,4 +7,13 @@
     <string name="btn_get_started">Get Started</string>
     <string name="title_home">Home Dashboard</string>
     <string name="desc_home_placeholder">Premium AI Super App features will be available here.</string>
+
+    <!-- Login & Authentication -->
+    <string name="title_login">PK AI Portal</string>
+    <string name="subtitle_login">Premium access to next generation intelligence</string>
+    <string name="btn_sign_in_google">Sign in with Google</string>
+    <string name="btn_guest_mode">Continue as Guest</string>
+    <string name="error_auth_failed">Authentication failed. Please try again.</string>
+    <string name="lbl_loading">Securing credentials…</string>
+    <string name="default_web_client_id">104828514-placeholder.apps.googleusercontent.com</string>
 </resources>

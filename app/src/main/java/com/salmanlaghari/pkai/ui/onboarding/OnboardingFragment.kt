@@ -32,7 +32,7 @@ class OnboardingFragment : Fragment() {
 
         binding.btnGetStarted.setOnClickListener {
             viewModel.completeOnboarding()
-            findNavController().navigate(R.id.action_onboardingFragment_to_homeFragment)
+            findNavController().navigate(R.id.action_onboardingFragment_to_loginFragment)
         }
     }
 

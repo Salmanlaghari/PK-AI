@@ -32,4 +32,13 @@
     <color name="on_error_container">#991B1B</color>
 
     <color name="outline">#D1D5DB</color>
+
+    <!-- PK AI Premium Theme Colors -->
+    <color name="premium_black">#0F0F10</color>
+    <color name="electric_blue_glow">#00E5FF</color>
+    <color name="purple_accent">#7C3AED</color>
+    <color name="glass_background">#13FFFFFF</color>
+    <color name="glass_stroke">#22FFFFFF</color>
+
+    <color name="white">#FFFFFF</color>
 </resources>

@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">PK AI</string>
+    <string name="title_splash">PK AI</string>
+    <string name="subtitle_splash">Premium AI Super App</string>
+    <string name="title_onboarding">Welcome to PK AI</string>
+    <string name="desc_onboarding">Your premium access to state of the art AI models. Let\'s get started.</string>
+    <string name="btn_get_started">Get Started</string>
+    <string name="title_home">Home Dashboard</string>
+    <string name="desc_home_placeholder">Premium AI Super App features will be available here.</string>
+</resources>

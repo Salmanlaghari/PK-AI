@@ -4,11 +4,13 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.salmanlaghari.pkai.MainActivity
 import com.salmanlaghari.pkai.R
 import com.salmanlaghari.pkai.data.model.AiModel
 import com.salmanlaghari.pkai.databinding.FragmentHomeBinding
@@ -80,15 +82,44 @@ class HomeFragment : Fragment() {
             }
         }
 
-        // 7. Header Actions (Clear Conversation & Sign Out)
-        binding.btnClearChat.setOnClickListener {
-            viewModel.clearConversation()
+        // 7. Premium Header Toolbar Actions
+        binding.btnMenu.setOnClickListener {
+            (activity as? MainActivity)?.openDrawer()
         }
 
-        binding.btnLogout.setOnClickListener {
-            viewModel.logout {
-                findNavController().navigate(R.id.action_homeFragment_to_loginFragment)
-            }
+        binding.btnNotifications.setOnClickListener {
+            Toast.makeText(requireContext(), "🔔 Notifications clicked!", Toast.LENGTH_SHORT).show()
+        }
+
+        binding.btnSettings.setOnClickListener {
+            findNavController().navigate(R.id.settingsFragment)
+        }
+
+        // 8. Quick Actions Click Listeners (Placeholders only)
+        setupQuickActions()
+    }
+
+    private fun setupQuickActions() {
+        binding.cardQaChat.setOnClickListener {
+            Toast.makeText(requireContext(), "💬 Premium Chat Generator is active", Toast.LENGTH_SHORT).show()
+        }
+        binding.cardQaImage.setOnClickListener {
+            Toast.makeText(requireContext(), "🖼 Premium Image Generator Placeholder", Toast.LENGTH_SHORT).show()
+        }
+        binding.cardQaVideo.setOnClickListener {
+            Toast.makeText(requireContext(), "🎥 Premium Video Generator Placeholder", Toast.LENGTH_SHORT).show()
+        }
+        binding.cardQaMusic.setOnClickListener {
+            Toast.makeText(requireContext(), "🎵 Premium Music Generator Placeholder", Toast.LENGTH_SHORT).show()
+        }
+        binding.cardQaPdf.setOnClickListener {
+            Toast.makeText(requireContext(), "📄 Premium PDF AI Analyst Placeholder", Toast.LENGTH_SHORT).show()
+        }
+        binding.cardQaCode.setOnClickListener {
+            Toast.makeText(requireContext(), "💻 Premium Code Assistant Placeholder", Toast.LENGTH_SHORT).show()
+        }
+        binding.cardQaSearch.setOnClickListener {
+            Toast.makeText(requireContext(), "🌐 Premium Web Search Assistant Placeholder", Toast.LENGTH_SHORT).show()
         }
     }
 

@@ -38,4 +38,8 @@
         <!-- Status bar styling -->
         <item name="android:statusBarColor">@color/primary</item>
     </style>
+
+    <style name="ShapeAppearanceOverlay.App.Circular" parent="">
+        <item name="cornerSize">50%</item>
+    </style>
 </resources>

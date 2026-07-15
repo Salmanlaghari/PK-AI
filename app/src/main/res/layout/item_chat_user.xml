@@ -3,38 +3,40 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:paddingHorizontal="16dp"
-    android:paddingVertical="4dp">
+    android:paddingHorizontal="12dp"
+    android:paddingVertical="6dp">
 
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/card_user_bubble"
         style="@style/Widget.Material3.CardView.Filled"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        app:cardBackgroundColor="?attr/colorPrimary"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="1dp"
-        app:strokeWidth="0dp"
+        app:cardBackgroundColor="@color/primary"
+        app:cardCornerRadius="18dp"
+        app:strokeColor="@color/glass_stroke"
+        app:strokeWidth="1dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="1.0"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintWidth_max="280dp">
+        app:layout_constraintWidth_max="290dp">
 
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:paddingHorizontal="16dp"
-            android:paddingVertical="10dp">
+            android:paddingVertical="12dp">
 
             <TextView
                 android:id="@+id/tv_user_message"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="?attr/colorOnPrimary"
+                android:textColor="@color/white"
                 android:textSize="15sp"
+                android:fontFamily="@font/poppins"
+                android:lineSpacingExtra="3dp"
                 android:textIsSelectable="true" />
 
         </LinearLayout>

@@ -74,6 +74,47 @@ class MainActivity : AppCompatActivity() {
         }
 
         setupDrawerNavigation()
+        setupDrawerHeader()
+    }
+
+    private fun setupDrawerHeader() {
+        val headerView = binding.navView.getHeaderView(0)
+        val tvUserName = headerView.findViewById<android.widget.TextView>(R.id.tv_drawer_user_name)
+        val tvMarquee = headerView.findViewById<android.widget.TextView>(R.id.tv_drawer_marquee)
+        val cardGithub = headerView.findViewById<android.view.View>(R.id.card_drawer_github)
+
+        // Make marquee scroll loop infinitely
+        tvMarquee?.isSelected = true
+
+        // Click to open GitHub repository url
+        cardGithub?.setOnClickListener {
+            try {
+                val intent = android.content.Intent(
+                    android.content.Intent.ACTION_VIEW,
+                    android.net.Uri.parse("https://github.com/Salmanlaghari/PK-AI")
+                )
+                startActivity(intent)
+            } catch (e: Exception) {
+                Toast.makeText(this, "Unable to open GitHub link", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        // Dynamic loaded user name from login session
+        lifecycleScope.launch {
+            preferencesManager.userSession.collect { session ->
+                if (session.isLoggedIn) {
+                    tvUserName?.text = if (!session.displayName.isNullOrBlank()) {
+                        session.displayName
+                    } else if (session.isGuest) {
+                        "Guest User"
+                    } else {
+                        "Prince Laghari"
+                    }
+                } else {
+                    tvUserName?.text = "Prince Laghari"
+                }
+            }
+        }
     }
 
     private fun setupDrawerNavigation() {

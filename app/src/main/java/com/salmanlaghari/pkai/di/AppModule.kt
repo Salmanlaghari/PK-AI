@@ -30,12 +30,24 @@ object AppModule {
             context,
             AppDatabase::class.java,
             "pk_ai_database"
-        ).build()
+        )
+        .fallbackToDestructiveMigration()
+        .build()
     }
 
     @Provides
     fun provideAppLogDao(database: AppDatabase): AppLogDao {
         return database.appLogDao()
+    }
+
+    @Provides
+    fun provideChatMessageDao(database: AppDatabase): com.salmanlaghari.pkai.data.local.room.ChatMessageDao {
+        return database.chatMessageDao()
+    }
+
+    @Provides
+    fun provideChatHistoryDao(database: AppDatabase): com.salmanlaghari.pkai.data.local.room.ChatHistoryDao {
+        return database.chatHistoryDao()
     }
 
     @Provides

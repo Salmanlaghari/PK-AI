@@ -64,6 +64,30 @@
     </fragment>
 
     <fragment
+        android:id="@+id/chatsFragment"
+        android:name="com.salmanlaghari.pkai.ui.chats.ChatsFragment"
+        android:label="ChatsFragment"
+        tools:layout="@layout/fragment_chats">
+        <action
+            android:id="@+id/action_chatsFragment_to_loginFragment"
+            app:destination="@id/loginFragment"
+            app:popUpTo="@id/chatsFragment"
+            app:popUpToInclusive="true" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/aiHubFragment"
+        android:name="com.salmanlaghari.pkai.ui.aihub.AiHubFragment"
+        android:label="AiHubFragment"
+        tools:layout="@layout/fragment_ai_hub" />
+
+    <fragment
+        android:id="@+id/historyFragment"
+        android:name="com.salmanlaghari.pkai.ui.history.HistoryFragment"
+        android:label="HistoryFragment"
+        tools:layout="@layout/fragment_history" />
+
+    <fragment
         android:id="@+id/profileFragment"
         android:name="com.salmanlaghari.pkai.ui.profile.ProfileFragment"
         android:label="ProfileFragment"

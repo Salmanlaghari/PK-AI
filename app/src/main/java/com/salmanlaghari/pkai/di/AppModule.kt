@@ -46,6 +46,11 @@ object AppModule {
     }
 
     @Provides
+    fun provideChatHistoryDao(database: AppDatabase): com.salmanlaghari.pkai.data.local.room.ChatHistoryDao {
+        return database.chatHistoryDao()
+    }
+
+    @Provides
     @Singleton
     fun provideOkHttpClient(): OkHttpClient {
         return OkHttpClient.Builder()

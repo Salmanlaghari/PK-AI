@@ -32,6 +32,7 @@
             android:layout_height="wrap_content"
             android:textColor="@color/white"
             android:textSize="16sp"
+            android:fontFamily="@font/poppins"
             android:textStyle="bold" />
 
         <TextView
@@ -39,7 +40,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textColor="@color/outline"
-            android:textSize="12sp" />
+            android:textSize="12sp"
+            android:fontFamily="@font/poppins" />
     </LinearLayout>
 
     <ImageView

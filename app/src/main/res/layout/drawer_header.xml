@@ -5,53 +5,159 @@
     android:layout_height="wrap_content"
     android:background="@color/premium_black"
     android:orientation="vertical"
-    android:padding="24dp">
+    android:padding="16dp">
 
-    <!-- Circular Profile Picture using CardView or ShapeableImageView -->
-    <com.google.android.material.imageview.ShapeableImageView
-        android:id="@+id/iv_drawer_profile_pic"
-        android:layout_width="64dp"
-        android:layout_height="64dp"
-        android:src="@drawable/ic_person"
-        android:scaleType="centerCrop"
-        android:tint="@color/electric_blue_glow"
-        app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.App.Circular" />
-
-    <TextView
-        android:id="@+id/tv_drawer_user_name"
-        android:layout_width="wrap_content"
+    <!-- Card containing the Glassmorphic Header Info -->
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:text="Admin Prince Laghari"
-        android:textColor="@color/white"
-        android:textSize="18sp"
-        android:textStyle="bold" />
+        style="@style/Widget.Material3.CardView.Filled"
+        app:cardBackgroundColor="@color/glass_background"
+        app:cardCornerRadius="16dp"
+        app:strokeColor="@color/glass_stroke"
+        app:strokeWidth="1dp">
 
-    <!-- Premium Badge -->
-    <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:background="@drawable/bg_glass_card"
-        android:gravity="center"
-        android:orientation="horizontal"
-        android:paddingHorizontal="10dp"
-        android:paddingVertical="4dp">
-
-        <TextView
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="💎"
-            android:textSize="12sp"
-            android:layout_marginEnd="4dp" />
+            android:orientation="vertical"
+            android:padding="16dp">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Premium User"
-            android:textColor="@color/electric_blue_glow"
-            android:textSize="11sp"
-            android:textStyle="bold" />
-    </LinearLayout>
+            <!-- Profile row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
 
+                <com.google.android.material.imageview.ShapeableImageView
+                    android:id="@+id/iv_drawer_profile_pic"
+                    android:layout_width="54dp"
+                    android:layout_height="54dp"
+                    android:src="@drawable/ic_person"
+                    android:scaleType="centerCrop"
+                    android:tint="@color/electric_blue_glow"
+                    app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.App.Circular" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tv_drawer_user_name"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Prince Laghari"
+                        android:textColor="@color/white"
+                        android:textSize="16sp"
+                        android:fontFamily="@font/poppins"
+                        android:textStyle="bold" />
+
+                    <!-- Premium Badge -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:background="@drawable/bg_glass_card"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="6dp"
+                        android:paddingVertical="2dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="💎"
+                            android:textSize="10sp"
+                            android:layout_marginEnd="3dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Premium Active"
+                            android:textColor="@color/electric_blue_glow"
+                            android:textSize="10sp"
+                            android:fontFamily="@font/poppins"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/glass_stroke"
+                android:layout_marginTop="12dp"
+                android:layout_marginBottom="12dp" />
+
+            <!-- Developed By Always Visible Credit -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Developed by Prince Laghari ❤️"
+                android:textColor="@color/purple_accent"
+                android:textSize="12sp"
+                android:fontFamily="@font/poppins"
+                android:textStyle="bold"
+                android:layout_gravity="center"
+                android:layout_marginBottom="8dp" />
+
+            <!-- Infinite Marquee Text -->
+            <TextView
+                android:id="@+id/tv_drawer_marquee"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="✨ Welcome to PK AI — Developed by Prince Laghari ❤️ ✨"
+                android:textColor="@color/white"
+                android:textSize="12sp"
+                android:fontFamily="@font/poppins"
+                android:ellipsize="marquee"
+                android:marqueeRepeatLimit="marquee_forever"
+                android:scrollHorizontally="true"
+                android:singleLine="true"
+                android:focusable="true"
+                android:focusableInTouchMode="true"
+                android:freezesText="true"
+                android:requiresFadingEdge="horizontal"
+                android:fadingEdgeLength="16dp"
+                android:gravity="center"
+                android:layout_marginBottom="12dp" />
+
+            <!-- GitHub Button Card -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_drawer_github"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                style="@style/Widget.Material3.CardView.Filled"
+                app:cardBackgroundColor="@color/premium_black"
+                app:cardCornerRadius="8dp"
+                app:strokeColor="@color/glass_stroke"
+                app:strokeWidth="1dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackground">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center"
+                    android:paddingVertical="8dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="📂 View on GitHub"
+                        android:textColor="@color/electric_blue_glow"
+                        android:textSize="11sp"
+                        android:fontFamily="@font/poppins"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
 </LinearLayout>

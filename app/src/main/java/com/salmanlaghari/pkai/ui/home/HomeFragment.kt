@@ -94,6 +94,50 @@ class HomeFragment : Fragment() {
             }
         }
 
+        // 1. Setup Chat Adapter
+        val chatAdapter = ChatAdapter()
+        binding.rvChatMessages.adapter = chatAdapter
+
+        // 2. Setup Model Selector Click (Shows Bottom Sheet)
+        binding.btnModelSelector.setOnClickListener {
+            showModelSelectionBottomSheet()
+        }
+
+        // 3. Observe Selected Model StateFlow
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.selectedModel.collect { model ->
+                binding.btnModelSelector.text = "💎 ${model.displayName} ▼"
+            }
+        }
+
+        // 4. Observe Messages StateFlow
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.chatMessages.collect { messages ->
+                chatAdapter.submitList(messages) {
+                    if (messages.isNotEmpty()) {
+                        binding.rvChatMessages.scrollToPosition(messages.size - 1)
+                    }
+                }
+            }
+        }
+
+        // 5. Observe Typing StateFlow
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.isGenerating.collect { isGenerating ->
+                binding.layoutTyping.visibility = if (isGenerating) View.VISIBLE else View.GONE
+                binding.btnSend.isEnabled = !isGenerating
+            }
+        }
+
+        // 6. Send Button Click Action
+        binding.btnSend.setOnClickListener {
+            val content = binding.etMessageInput.text?.toString().orEmpty()
+            if (content.isNotBlank()) {
+                viewModel.sendMessage(content)
+                binding.etMessageInput.text?.clear()
+            }
+        }
+
         // 7. Premium Header Toolbar Actions
         binding.btnMenu.setOnClickListener {
             (activity as? MainActivity)?.openDrawer()

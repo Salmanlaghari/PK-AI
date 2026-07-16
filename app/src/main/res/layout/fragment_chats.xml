@@ -16,11 +16,13 @@
         app:layout_constraintTop_toTopOf="parent">
 
         <TextView
+            android:id="@+id/tv_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="💬 Active Chats"
+            android:text="💬 Active Chat Channels"
             android:textColor="@color/white"
             android:textSize="20sp"
+            android:fontFamily="@font/poppins"
             android:textStyle="bold"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
@@ -28,41 +30,34 @@
             app:layout_constraintTop_toTopOf="parent" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- Placeholder Graphic -->
-    <LinearLayout
-        android:layout_width="wrap_content"
+    <!-- Subtitle Banner -->
+    <TextView
+        android:id="@+id/tv_subtitle"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="8dp"
         android:gravity="center"
-        android:orientation="vertical"
-        android:padding="24dp"
+        android:text="Manage ongoing sessions and start live premium conversations with specialized AI engines."
+        android:textColor="@color/outline"
+        android:fontFamily="@font/poppins"
+        android:textSize="12sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/layout_header" />
+
+    <!-- Active Chats RecyclerView -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_active_chats"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="16dp"
+        android:paddingBottom="16dp"
+        android:clipToPadding="false"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/layout_header">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="✨"
-            android:textSize="48sp" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="Your Live Conversations"
-            android:textColor="@color/white"
-            android:textSize="18sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:gravity="center"
-            android:text="All of your active live chat rooms and ongoing sessions with multiple AI models are managed from this portal."
-            android:textColor="@color/outline"
-            android:textSize="14sp" />
-    </LinearLayout>
+        app:layout_constraintTop_toBottomOf="@id/tv_subtitle" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

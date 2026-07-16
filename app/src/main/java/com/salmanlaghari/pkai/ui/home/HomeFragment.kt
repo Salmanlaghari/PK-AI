@@ -38,6 +38,18 @@ class HomeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        // 0. Parse potential model argument passed from other destinations (e.g. ChatsFragment)
+        arguments?.getString("selectedModelName")?.let { modelName ->
+            try {
+                val model = AiModel.valueOf(modelName)
+                viewModel.selectModel(model)
+                // Clear the argument so it doesn't persist on configuration changes / subsequent navigations
+                arguments?.remove("selectedModelName")
+            } catch (e: Exception) {
+                // Ignore invalid model name
+            }
+        }
+
         // 1. Setup Chat Adapter
         val chatAdapter = ChatAdapter()
         binding.rvChatMessages.adapter = chatAdapter

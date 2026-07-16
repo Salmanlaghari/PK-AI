@@ -15,8 +15,5 @@ class AiProviderFactory @Inject constructor(
         } else {
             NetworkAiProvider(model, apiService)
         }
-class AiProviderFactory @Inject constructor() {
-    fun getProvider(model: AiModel): AiProvider {
-        return PlaceholderAiProvider(model)
     }
 }

@@ -1,6 +1,9 @@
 package com.salmanlaghari.pkai.data.remote.provider
 
 import com.salmanlaghari.pkai.data.model.AiModel
+import com.salmanlaghari.pkai.data.remote.ApiService
+import com.salmanlaghari.pkai.data.remote.ChatCompletionRequest
+import com.salmanlaghari.pkai.data.remote.ChatMessageDto
 
 interface AiProvider {
     suspend fun generateResponse(prompt: String): String
@@ -20,6 +23,24 @@ class PlaceholderAiProvider(private val model: AiModel) : AiProvider {
             AiModel.LLAMA -> "Hi there! I am Llama, Meta's open-weights model. I provide high-performance text comprehension and logical output."
             AiModel.MISTRAL -> "Welcome! I am Mistral, a highly optimized, high-efficiency model crafted in France. Let's solve things quickly and elegantly!"
             AiModel.PERPLEXITY -> "Hello! I am Perplexity. I specialize in contextual search, research summarization, and citation-based logical thinking."
+        }
+    }
+}
+
+class NetworkAiProvider(
+    private val model: AiModel,
+    private val apiService: ApiService
+) : AiProvider {
+    override suspend fun generateResponse(prompt: String): String {
+        val request = ChatCompletionRequest(
+            model = model.name.lowercase(),
+            messages = listOf(ChatMessageDto(role = "user", content = prompt))
+        )
+        return try {
+            val response = apiService.generateChatResponse(request)
+            response.choices.firstOrNull()?.message?.content ?: "Empty response from server"
+        } catch (e: Exception) {
+            "Error: ${e.localizedMessage ?: "Unknown network error"}"
         }
     }
 }

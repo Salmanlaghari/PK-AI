@@ -37,5 +37,13 @@
 
         <!-- Status bar styling -->
         <item name="android:statusBarColor">@color/primary</item>
+
+        <!-- Global Typography Configuration -->
+        <item name="android:fontFamily">@font/poppins</item>
+        <item name="fontFamily">@font/poppins</item>
+    </style>
+
+    <style name="ShapeAppearanceOverlay.App.Circular" parent="">
+        <item name="cornerSize">50%</item>
     </style>
 </resources>

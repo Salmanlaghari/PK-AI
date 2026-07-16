@@ -6,6 +6,14 @@ plugins {
     alias(libs.plugins.navigation.safeargs)
 }
 
+import java.util.Properties
+
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.inputStream().use { localProperties.load(it) }
+}
+
 android {
     namespace = "com.salmanlaghari.pkai"
     compileSdk = 35
@@ -18,6 +26,22 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        val geminiApiKey = localProperties.getProperty("GEMINI_API_KEY") ?: ""
+        val openrouterApiKey = localProperties.getProperty("OPENROUTER_API_KEY") ?: ""
+        val groqApiKey = localProperties.getProperty("GROQ_API_KEY") ?: ""
+        val togetherApiKey = localProperties.getProperty("TOGETHER_API_KEY") ?: ""
+        val cerebrasApiKey = localProperties.getProperty("CEREBRAS_API_KEY") ?: ""
+        val openaiApiKey = localProperties.getProperty("OPENAI_API_KEY") ?: ""
+        val sambanovaApiKey = localProperties.getProperty("SAMBANOVA_API_KEY") ?: ""
+
+        buildConfigField("String", "GEMINI_API_KEY", "\"$geminiApiKey\"")
+        buildConfigField("String", "OPENROUTER_API_KEY", "\"$openrouterApiKey\"")
+        buildConfigField("String", "GROQ_API_KEY", "\"$groqApiKey\"")
+        buildConfigField("String", "TOGETHER_API_KEY", "\"$togetherApiKey\"")
+        buildConfigField("String", "CEREBRAS_API_KEY", "\"$cerebrasApiKey\"")
+        buildConfigField("String", "OPENAI_API_KEY", "\"$openaiApiKey\"")
+        buildConfigField("String", "SAMBANOVA_API_KEY", "\"$sambanovaApiKey\"")
     }
 
     buildTypes {
@@ -38,6 +62,7 @@ android {
     }
     buildFeatures {
         viewBinding = true
+        buildConfig = true
     }
 }
 

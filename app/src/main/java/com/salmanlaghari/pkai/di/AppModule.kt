@@ -73,6 +73,83 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideGeminiApiService(okHttpClient: OkHttpClient): com.salmanlaghari.pkai.data.remote.GeminiApiService {
+        return Retrofit.Builder()
+            .baseUrl("https://generativelanguage.googleapis.com/")
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(com.salmanlaghari.pkai.data.remote.GeminiApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideOpenRouterApiService(okHttpClient: OkHttpClient): com.salmanlaghari.pkai.data.remote.OpenRouterApiService {
+        return Retrofit.Builder()
+            .baseUrl("https://openrouter.ai/api/v1/")
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(com.salmanlaghari.pkai.data.remote.OpenRouterApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideGroqApiService(okHttpClient: OkHttpClient): com.salmanlaghari.pkai.data.remote.GroqApiService {
+        return Retrofit.Builder()
+            .baseUrl("https://api.groq.com/openai/v1/")
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(com.salmanlaghari.pkai.data.remote.GroqApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideTogetherApiService(okHttpClient: OkHttpClient): com.salmanlaghari.pkai.data.remote.TogetherApiService {
+        return Retrofit.Builder()
+            .baseUrl("https://api.together.xyz/v1/")
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(com.salmanlaghari.pkai.data.remote.TogetherApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideOpenAiApiService(okHttpClient: OkHttpClient): com.salmanlaghari.pkai.data.remote.OpenAiApiService {
+        return Retrofit.Builder()
+            .baseUrl("https://api.openai.com/v1/")
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(com.salmanlaghari.pkai.data.remote.OpenAiApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideCerebrasApiService(okHttpClient: OkHttpClient): com.salmanlaghari.pkai.data.remote.CerebrasApiService {
+        return Retrofit.Builder()
+            .baseUrl("https://api.cerebras.ai/v1/")
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(com.salmanlaghari.pkai.data.remote.CerebrasApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideSambaNovaApiService(okHttpClient: OkHttpClient): com.salmanlaghari.pkai.data.remote.SambaNovaApiService {
+        return Retrofit.Builder()
+            .baseUrl("https://api.sambanova.ai/v1/")
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(com.salmanlaghari.pkai.data.remote.SambaNovaApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
     fun provideAuthRepository(preferencesManager: PreferencesManager): AuthRepository {
         return AuthRepositoryImpl(preferencesManager)
     }

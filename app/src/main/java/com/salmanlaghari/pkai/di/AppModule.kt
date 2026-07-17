@@ -150,6 +150,17 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideCohereApiService(okHttpClient: OkHttpClient): com.salmanlaghari.pkai.data.remote.CohereApiService {
+        return Retrofit.Builder()
+            .baseUrl("https://api.cohere.com/")
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(com.salmanlaghari.pkai.data.remote.CohereApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
     fun provideAuthRepository(preferencesManager: PreferencesManager): AuthRepository {
         return AuthRepositoryImpl(preferencesManager)
     }

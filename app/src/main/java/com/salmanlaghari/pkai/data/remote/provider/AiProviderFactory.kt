@@ -14,15 +14,25 @@ class AiProviderFactory @Inject constructor(
     private val togetherApiService: com.salmanlaghari.pkai.data.remote.TogetherApiService,
     private val openAiApiService: com.salmanlaghari.pkai.data.remote.OpenAiApiService,
     private val cerebrasApiService: com.salmanlaghari.pkai.data.remote.CerebrasApiService,
-    private val sambaNovaApiService: com.salmanlaghari.pkai.data.remote.SambaNovaApiService
+    private val sambaNovaApiService: com.salmanlaghari.pkai.data.remote.SambaNovaApiService,
+    private val cohereApiService: com.salmanlaghari.pkai.data.remote.CohereApiService
 ) {
-    fun getProvider(model: AiModel, usePlaceholder: Boolean = false): AiProvider {
-        if (usePlaceholder) {
-            return PlaceholderAiProvider(model)
-        }
+    fun getProvider(model: AiModel): AiProvider {
         return when (model) {
             AiModel.GEMINI -> GeminiAiProvider(geminiApiService)
-            AiModel.CHATGPT -> OpenAiAiProvider(model, openAiApiService)
+            AiModel.CHATGPT -> {
+                // Since user didn't supply an explicit OpenAI key, fallback to Cohere (or OpenRouter)
+                val openaiKey = com.salmanlaghari.pkai.BuildConfig.OPENAI_API_KEY
+                val cohereKey = com.salmanlaghari.pkai.BuildConfig.COHERE_API_KEY
+                if (openaiKey.isNotBlank()) {
+                    OpenAiAiProvider(model, openAiApiService)
+                } else if (cohereKey.isNotBlank()) {
+                    CohereAiProvider(cohereApiService)
+                } else {
+                    // Default to OpenRouter since it can also serve ChatGPT model IDs
+                    OpenRouterAiProvider(model, openRouterApiService)
+                }
+            }
             AiModel.CLAUDE -> OpenRouterAiProvider(model, openRouterApiService)
             AiModel.GROK -> GroqAiProvider(model, groqApiService)
             AiModel.DEEPSEEK -> OpenRouterAiProvider(model, openRouterApiService)

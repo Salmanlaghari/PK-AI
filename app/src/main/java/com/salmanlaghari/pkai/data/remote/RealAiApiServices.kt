@@ -35,6 +35,24 @@ interface OpenRouterApiService {
     ): ChatCompletionResponse
 }
 
+// --- Cohere API Models ---
+data class CohereChatRequest(
+    val message: String,
+    val model: String = "command-r-plus"
+)
+
+data class CohereChatResponse(
+    val text: String?
+)
+
+interface CohereApiService {
+    @POST("v1/chat")
+    suspend fun generateChatResponse(
+        @Header("Authorization") authorization: String,
+        @Body request: CohereChatRequest
+    ): CohereChatResponse
+}
+
 interface GroqApiService {
     @POST("chat/completions")
     suspend fun generateChatResponse(

@@ -27,6 +27,27 @@ class PlaceholderAiProvider(private val model: AiModel) : AiProvider {
     }
 }
 
+class CohereAiProvider(
+    private val apiService: com.salmanlaghari.pkai.data.remote.CohereApiService
+) : AiProvider {
+    override suspend fun generateResponse(prompt: String): String {
+        val apiKey = com.salmanlaghari.pkai.BuildConfig.COHERE_API_KEY
+        if (apiKey.isBlank()) {
+            return "API key not configured."
+        }
+        val request = com.salmanlaghari.pkai.data.remote.CohereChatRequest(
+            message = prompt,
+            model = "command-r-plus"
+        )
+        return try {
+            val response = apiService.generateChatResponse("Bearer $apiKey", request)
+            response.text ?: "Empty response from Cohere server."
+        } catch (e: Exception) {
+            "Error: ${e.localizedMessage ?: "Unknown network error"}"
+        }
+    }
+}
+
 class NetworkAiProvider(
     private val model: AiModel,
     private val apiService: ApiService

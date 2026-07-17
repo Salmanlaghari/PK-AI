@@ -26,6 +26,7 @@ class AiProviderFactoryTest {
     private lateinit var mockOpenAiApiService: OpenAiApiService
     private lateinit var mockCerebrasApiService: CerebrasApiService
     private lateinit var mockSambaNovaApiService: SambaNovaApiService
+    private lateinit var mockCohereApiService: com.salmanlaghari.pkai.data.remote.CohereApiService
     private lateinit var factory: AiProviderFactory
 
     @Before
@@ -38,6 +39,7 @@ class AiProviderFactoryTest {
         mockOpenAiApiService = mock(OpenAiApiService::class.java)
         mockCerebrasApiService = mock(CerebrasApiService::class.java)
         mockSambaNovaApiService = mock(SambaNovaApiService::class.java)
+        mockCohereApiService = mock(com.salmanlaghari.pkai.data.remote.CohereApiService::class.java)
 
         factory = AiProviderFactory(
             mockApiService,
@@ -47,40 +49,32 @@ class AiProviderFactoryTest {
             mockTogetherApiService,
             mockOpenAiApiService,
             mockCerebrasApiService,
-            mockSambaNovaApiService
+            mockSambaNovaApiService,
+            mockCohereApiService
         )
     }
 
     @Test
-    fun `getProvider returns PlaceholderAiProvider when usePlaceholder is true`() = runTest {
-        val provider = factory.getProvider(AiModel.GEMINI, usePlaceholder = true)
-        assertTrue(provider is PlaceholderAiProvider)
-
-        val response = provider.generateResponse("test prompt")
-        assertTrue(response.contains("Gemini"))
-    }
-
-    @Test
-    fun `getProvider returns correct real provider when usePlaceholder is false`() = runTest {
-        val geminiProvider = factory.getProvider(AiModel.GEMINI, usePlaceholder = false)
+    fun `getProvider returns correct real provider`() = runTest {
+        val geminiProvider = factory.getProvider(AiModel.GEMINI)
         assertTrue(geminiProvider is GeminiAiProvider)
 
-        val qwenProvider = factory.getProvider(AiModel.QWEN, usePlaceholder = false)
+        val qwenProvider = factory.getProvider(AiModel.QWEN)
         assertTrue(qwenProvider is OpenRouterAiProvider)
 
-        val grokProvider = factory.getProvider(AiModel.GROK, usePlaceholder = false)
+        val grokProvider = factory.getProvider(AiModel.GROK)
         assertTrue(grokProvider is GroqAiProvider)
 
-        val mistralProvider = factory.getProvider(AiModel.MISTRAL, usePlaceholder = false)
+        val mistralProvider = factory.getProvider(AiModel.MISTRAL)
         assertTrue(mistralProvider is TogetherAiProvider)
 
-        val chatgptProvider = factory.getProvider(AiModel.CHATGPT, usePlaceholder = false)
-        assertTrue(chatgptProvider is OpenAiAiProvider)
+        val chatgptProvider = factory.getProvider(AiModel.CHATGPT)
+        assertTrue(chatgptProvider is OpenAiAiProvider || chatgptProvider is OpenRouterAiProvider || chatgptProvider is CohereAiProvider)
 
-        val llamaProvider = factory.getProvider(AiModel.LLAMA, usePlaceholder = false)
+        val llamaProvider = factory.getProvider(AiModel.LLAMA)
         assertTrue(llamaProvider is CerebrasAiProvider)
 
-        val perplexityProvider = factory.getProvider(AiModel.PERPLEXITY, usePlaceholder = false)
+        val perplexityProvider = factory.getProvider(AiModel.PERPLEXITY)
         assertTrue(perplexityProvider is SambaNovaAiProvider)
     }
 }

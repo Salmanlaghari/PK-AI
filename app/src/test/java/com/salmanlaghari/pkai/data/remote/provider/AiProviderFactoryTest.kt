@@ -2,79 +2,79 @@ package com.salmanlaghari.pkai.data.remote.provider
 
 import com.salmanlaghari.pkai.data.model.AiModel
 import com.salmanlaghari.pkai.data.remote.ApiService
-import com.salmanlaghari.pkai.data.remote.ChatChoiceDto
-import com.salmanlaghari.pkai.data.remote.ChatCompletionRequest
-import com.salmanlaghari.pkai.data.remote.ChatCompletionResponse
-import com.salmanlaghari.pkai.data.remote.ChatMessageDto
+import com.salmanlaghari.pkai.data.remote.GeminiApiService
+import com.salmanlaghari.pkai.data.remote.OpenRouterApiService
+import com.salmanlaghari.pkai.data.remote.GroqApiService
+import com.salmanlaghari.pkai.data.remote.TogetherApiService
+import com.salmanlaghari.pkai.data.remote.OpenAiApiService
+import com.salmanlaghari.pkai.data.remote.CerebrasApiService
+import com.salmanlaghari.pkai.data.remote.SambaNovaApiService
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.mockito.Mockito.mock
-import org.mockito.Mockito.`when` as whenever
 
 class AiProviderFactoryTest {
 
     private lateinit var mockApiService: ApiService
+    private lateinit var mockGeminiApiService: GeminiApiService
+    private lateinit var mockOpenRouterApiService: OpenRouterApiService
+    private lateinit var mockGroqApiService: GroqApiService
+    private lateinit var mockTogetherApiService: TogetherApiService
+    private lateinit var mockOpenAiApiService: OpenAiApiService
+    private lateinit var mockCerebrasApiService: CerebrasApiService
+    private lateinit var mockSambaNovaApiService: SambaNovaApiService
+    private lateinit var mockCohereApiService: com.salmanlaghari.pkai.data.remote.CohereApiService
     private lateinit var factory: AiProviderFactory
 
     @Before
     fun setUp() {
         mockApiService = mock(ApiService::class.java)
-        factory = AiProviderFactory(mockApiService)
-    }
+        mockGeminiApiService = mock(GeminiApiService::class.java)
+        mockOpenRouterApiService = mock(OpenRouterApiService::class.java)
+        mockGroqApiService = mock(GroqApiService::class.java)
+        mockTogetherApiService = mock(TogetherApiService::class.java)
+        mockOpenAiApiService = mock(OpenAiApiService::class.java)
+        mockCerebrasApiService = mock(CerebrasApiService::class.java)
+        mockSambaNovaApiService = mock(SambaNovaApiService::class.java)
+        mockCohereApiService = mock(com.salmanlaghari.pkai.data.remote.CohereApiService::class.java)
 
-    @Test
-    fun `getProvider returns PlaceholderAiProvider when usePlaceholder is true`() = runTest {
-        val provider = factory.getProvider(AiModel.GEMINI, usePlaceholder = true)
-        assertTrue(provider is PlaceholderAiProvider)
-
-        val response = provider.generateResponse("test prompt")
-        assertTrue(response.contains("Gemini"))
-    }
-
-    @Test
-    fun `getProvider returns NetworkAiProvider when usePlaceholder is false`() = runTest {
-        val provider = factory.getProvider(AiModel.GEMINI, usePlaceholder = false)
-        assertTrue(provider is NetworkAiProvider)
-    }
-
-    @Test
-    fun `NetworkAiProvider calls generateChatResponse on ApiService successfully`() = runTest {
-        // Given
-        val provider = factory.getProvider(AiModel.GEMINI, usePlaceholder = false)
-        val expectedResponse = ChatCompletionResponse(
-            choices = listOf(ChatChoiceDto(message = ChatMessageDto(role = "assistant", content = "Gemini raw response")))
+        factory = AiProviderFactory(
+            mockApiService,
+            mockGeminiApiService,
+            mockOpenRouterApiService,
+            mockGroqApiService,
+            mockTogetherApiService,
+            mockOpenAiApiService,
+            mockCerebrasApiService,
+            mockSambaNovaApiService,
+            mockCohereApiService
         )
-
-        val request = ChatCompletionRequest(
-            model = "gemini",
-            messages = listOf(ChatMessageDto(role = "user", content = "What is PK AI?"))
-        )
-        whenever(mockApiService.generateChatResponse(request)).thenReturn(expectedResponse)
-
-        // When
-        val response = provider.generateResponse("What is PK AI?")
-
-        // Then
-        assertEquals("Gemini raw response", response)
     }
 
     @Test
-    fun `NetworkAiProvider handles ApiService failure gracefully`() = runTest {
-        // Given
-        val provider = factory.getProvider(AiModel.GEMINI, usePlaceholder = false)
-        val request = ChatCompletionRequest(
-            model = "gemini",
-            messages = listOf(ChatMessageDto(role = "user", content = "What is PK AI?"))
-        )
-        whenever(mockApiService.generateChatResponse(request)).thenThrow(RuntimeException("Network Timeout"))
+    fun `getProvider returns correct real provider`() = runTest {
+        val geminiProvider = factory.getProvider(AiModel.GEMINI)
+        assertTrue(geminiProvider is GeminiAiProvider)
 
-        // When
-        val response = provider.generateResponse("What is PK AI?")
+        val qwenProvider = factory.getProvider(AiModel.QWEN)
+        assertTrue(qwenProvider is OpenRouterAiProvider)
 
-        // Then
-        assertTrue(response.contains("Error: Network Timeout"))
+        val grokProvider = factory.getProvider(AiModel.GROK)
+        assertTrue(grokProvider is GroqAiProvider)
+
+        val mistralProvider = factory.getProvider(AiModel.MISTRAL)
+        assertTrue(mistralProvider is TogetherAiProvider)
+
+        val chatgptProvider = factory.getProvider(AiModel.CHATGPT)
+        assertTrue(chatgptProvider is OpenAiAiProvider || chatgptProvider is OpenRouterAiProvider || chatgptProvider is CohereAiProvider)
+
+        val llamaProvider = factory.getProvider(AiModel.LLAMA)
+        assertTrue(llamaProvider is CerebrasAiProvider)
+
+        val perplexityProvider = factory.getProvider(AiModel.PERPLEXITY)
+        assertTrue(perplexityProvider is SambaNovaAiProvider)
     }
 }

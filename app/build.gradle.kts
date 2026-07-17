@@ -27,23 +27,14 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Secure helper to read non-blank values from System Env or local.properties
-        fun getSecureProperty(propKey: String): String {
-            val envVal = System.getenv(propKey)
-            if (!envVal.isNullOrBlank()) return envVal
-            val propVal = localProperties.getProperty(propKey)
-            if (!propVal.isNullOrBlank()) return propVal
-            return ""
-        }
-
-        val geminiApiKey = getSecureProperty("GEMINI_API_KEY")
-        val openrouterApiKey = getSecureProperty("OPENROUTER_API_KEY")
-        val groqApiKey = getSecureProperty("GROQ_API_KEY")
-        val togetherApiKey = getSecureProperty("TOGETHER_API_KEY")
-        val cohereApiKey = getSecureProperty("COHERE_API_KEY")
-        val cerebrasApiKey = getSecureProperty("CEREBRAS_API_KEY")
-        val openaiApiKey = getSecureProperty("OPENAI_API_KEY")
-        val sambanovaApiKey = getSecureProperty("SAMBANOVA_API_KEY")
+        val geminiApiKey = System.getenv("GEMINI_API_KEY") ?: localProperties.getProperty("GEMINI_API_KEY") ?: ""
+        val openrouterApiKey = System.getenv("OPENROUTER_API_KEY") ?: localProperties.getProperty("OPENROUTER_API_KEY") ?: ""
+        val groqApiKey = System.getenv("GROQ_API_KEY") ?: localProperties.getProperty("GROQ_API_KEY") ?: ""
+        val togetherApiKey = System.getenv("TOGETHER_API_KEY") ?: localProperties.getProperty("TOGETHER_API_KEY") ?: ""
+        val cohereApiKey = System.getenv("COHERE_API_KEY") ?: localProperties.getProperty("COHERE_API_KEY") ?: ""
+        val cerebrasApiKey = System.getenv("CEREBRAS_API_KEY") ?: localProperties.getProperty("CEREBRAS_API_KEY") ?: ""
+        val openaiApiKey = System.getenv("OPENAI_API_KEY") ?: localProperties.getProperty("OPENAI_API_KEY") ?: ""
+        val sambanovaApiKey = System.getenv("SAMBANOVA_API_KEY") ?: localProperties.getProperty("SAMBANOVA_API_KEY") ?: ""
 
         buildConfigField("String", "GEMINI_API_KEY", "\"$geminiApiKey\"")
         buildConfigField("String", "OPENROUTER_API_KEY", "\"$openrouterApiKey\"")

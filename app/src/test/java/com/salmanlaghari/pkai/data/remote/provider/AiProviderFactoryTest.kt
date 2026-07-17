@@ -63,18 +63,18 @@ class AiProviderFactoryTest {
         assertTrue(qwenProvider is OpenRouterAiProvider)
 
         val grokProvider = factory.getProvider(AiModel.GROK)
-        assertTrue(grokProvider is OpenRouterAiProvider)
+        assertTrue(grokProvider is GroqAiProvider)
 
         val mistralProvider = factory.getProvider(AiModel.MISTRAL)
-        assertTrue(mistralProvider is OpenRouterAiProvider)
+        assertTrue(mistralProvider is TogetherAiProvider)
 
         val chatgptProvider = factory.getProvider(AiModel.CHATGPT)
-        assertTrue(chatgptProvider is OpenRouterAiProvider || chatgptProvider is CohereAiProvider)
+        assertTrue(chatgptProvider is OpenAiAiProvider || chatgptProvider is OpenRouterAiProvider || chatgptProvider is CohereAiProvider)
 
         val llamaProvider = factory.getProvider(AiModel.LLAMA)
-        assertTrue(llamaProvider is OpenRouterAiProvider)
+        assertTrue(llamaProvider is CerebrasAiProvider)
 
         val perplexityProvider = factory.getProvider(AiModel.PERPLEXITY)
-        assertTrue(perplexityProvider is OpenRouterAiProvider)
+        assertTrue(perplexityProvider is SambaNovaAiProvider)
     }
 }

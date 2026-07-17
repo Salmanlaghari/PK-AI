@@ -29,25 +29,11 @@ class ActiveChatsAdapter(
             binding.tvName.text = model.displayName
             binding.tvProvider.text = "by ${model.providerName}"
 
-            if (model == AiModel.CHATGPT) {
-                binding.tvStatusBadge.text = "● Coming Soon"
-                binding.tvStatusBadge.setTextColor(binding.root.context.resources.getColor(android.R.color.darker_gray, null))
-                binding.tvName.setTextColor(binding.root.context.resources.getColor(android.R.color.darker_gray, null))
-                binding.tvProvider.setTextColor(binding.root.context.resources.getColor(android.R.color.darker_gray, null))
-                val disabledClick = {
-                    android.widget.Toast.makeText(binding.root.context, "ChatGPT model is coming soon!", android.widget.Toast.LENGTH_SHORT).show()
-                }
-                binding.root.setOnClickListener { disabledClick() }
-                binding.btnOpenChat.setOnClickListener { disabledClick() }
-            } else {
-                binding.tvStatusBadge.text = "● Online"
-                binding.tvStatusBadge.setTextColor(binding.root.context.resources.getColor(com.salmanlaghari.pkai.R.color.electric_blue_glow, null))
-                binding.tvName.setTextColor(binding.root.context.resources.getColor(com.salmanlaghari.pkai.R.color.white, null))
-                binding.tvProvider.setTextColor(binding.root.context.resources.getColor(com.salmanlaghari.pkai.R.color.outline, null))
+            // Status Badge is set statically to "● Online"
+            binding.tvStatusBadge.text = "● Online"
 
-                binding.root.setOnClickListener { onClick(model) }
-                binding.btnOpenChat.setOnClickListener { onClick(model) }
-            }
+            binding.root.setOnClickListener { onClick(model) }
+            binding.btnOpenChat.setOnClickListener { onClick(model) }
         }
 
         private fun getEmoji(model: AiModel): String {

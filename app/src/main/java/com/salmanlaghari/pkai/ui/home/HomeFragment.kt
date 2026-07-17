@@ -154,24 +154,12 @@ class HomeFragment : Fragment() {
                 itemBinding.tvModelName.setTextColor(resources.getColor(R.color.electric_blue_glow, null))
             } else {
                 itemBinding.ivModelCheck.visibility = View.GONE
-                if (model == AiModel.CHATGPT) {
-                    itemBinding.tvModelName.setTextColor(resources.getColor(R.color.outline, null))
-                } else {
-                    itemBinding.tvModelName.setTextColor(resources.getColor(R.color.white, null))
-                }
+                itemBinding.tvModelName.setTextColor(resources.getColor(R.color.white, null))
             }
 
-            if (model == AiModel.CHATGPT) {
-                itemBinding.tvModelProvider.text = "Coming Soon"
-                itemBinding.tvModelProvider.setTextColor(resources.getColor(R.color.outline, null))
-                itemBinding.btnModelItem.setOnClickListener {
-                    android.widget.Toast.makeText(context, "ChatGPT model is coming soon!", android.widget.Toast.LENGTH_SHORT).show()
-                }
-            } else {
-                itemBinding.btnModelItem.setOnClickListener {
-                    viewModel.selectModel(model)
-                    dialog.dismiss()
-                }
+            itemBinding.btnModelItem.setOnClickListener {
+                viewModel.selectModel(model)
+                dialog.dismiss()
             }
 
             sheetBinding.layoutModelsList.addView(itemBinding.root)

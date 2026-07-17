@@ -30,6 +30,15 @@ class AiHubViewModel @Inject constructor() : ViewModel() {
                 availability = "Free Access"
             ),
             AiHubModel(
+                id = "chatgpt",
+                name = "ChatGPT",
+                provider = "OpenAI",
+                emojiLogo = "🤖",
+                shortDesc = "OpenAI's benchmark text-generation wizard.",
+                longDesc = "ChatGPT is a state-of-the-art language model optimized for conversational interaction, writing generation, brainstorming, programming help, and multi-turn complex logical workflows.",
+                availability = "Free Access"
+            ),
+            AiHubModel(
                 id = "claude",
                 name = "Claude",
                 provider = "Anthropic",
@@ -91,15 +100,6 @@ class AiHubViewModel @Inject constructor() : ViewModel() {
                 shortDesc = "Conversational real-time web search synthesizer.",
                 longDesc = "Perplexity specializes in contextual real-time web searches, automatically scanning multiple sources across the live web and summarizing citations with deep logical research capabilities.",
                 availability = "Premium"
-            ),
-            AiHubModel(
-                id = "chatgpt",
-                name = "ChatGPT (Coming Soon)",
-                provider = "OpenAI",
-                emojiLogo = "🤖",
-                shortDesc = "OpenAI's benchmark text-generation wizard.",
-                longDesc = "ChatGPT is optimized for conversational interaction, writing generation, brainstorming, programming help, and multi-turn complex logical workflows.",
-                availability = "Coming Soon"
             )
         )
         _modelsList.value = list

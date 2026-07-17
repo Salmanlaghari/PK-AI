@@ -105,12 +105,11 @@ class OpenRouterAiProvider(
         val modelId = when (model) {
             AiModel.QWEN -> "qwen/qwen-2.5-72b-instruct"
             AiModel.DEEPSEEK -> "deepseek/deepseek-chat"
-            AiModel.LLAMA -> "meta-llama/llama-3.3-70b-instruct"
+            AiModel.LLAMA -> "meta-llama/llama-3.1-8b-instruct"
             AiModel.MISTRAL -> "mistralai/mistral-7b-instruct"
             AiModel.CHATGPT -> "openai/gpt-4o-mini"
             AiModel.CLAUDE -> "anthropic/claude-3-haiku"
-            AiModel.PERPLEXITY -> "perplexity/sonar"
-            AiModel.GROK -> "x-ai/grok-beta"
+            AiModel.PERPLEXITY -> "perplexity/sonar-chat"
             else -> "google/gemma-2-9b-it"
         }
         val request = ChatCompletionRequest(

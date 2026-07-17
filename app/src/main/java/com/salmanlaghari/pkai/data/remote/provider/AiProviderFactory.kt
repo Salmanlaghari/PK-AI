@@ -21,21 +21,25 @@ class AiProviderFactory @Inject constructor(
         return when (model) {
             AiModel.GEMINI -> GeminiAiProvider(geminiApiService)
             AiModel.CHATGPT -> {
-                // OpenAI is disabled in selection, but fallback to OpenRouter or Cohere if accessed
+                // Since user didn't supply an explicit OpenAI key, fallback to Cohere (or OpenRouter)
+                val openaiKey = com.salmanlaghari.pkai.BuildConfig.OPENAI_API_KEY
                 val cohereKey = com.salmanlaghari.pkai.BuildConfig.COHERE_API_KEY
-                if (cohereKey.isNotBlank()) {
+                if (openaiKey.isNotBlank()) {
+                    OpenAiAiProvider(model, openAiApiService)
+                } else if (cohereKey.isNotBlank()) {
                     CohereAiProvider(cohereApiService)
                 } else {
+                    // Default to OpenRouter since it can also serve ChatGPT model IDs
                     OpenRouterAiProvider(model, openRouterApiService)
                 }
             }
-            AiModel.CLAUDE,
-            AiModel.GROK,
-            AiModel.DEEPSEEK,
-            AiModel.QWEN,
-            AiModel.LLAMA,
-            AiModel.MISTRAL,
-            AiModel.PERPLEXITY -> OpenRouterAiProvider(model, openRouterApiService)
+            AiModel.CLAUDE -> OpenRouterAiProvider(model, openRouterApiService)
+            AiModel.GROK -> GroqAiProvider(model, groqApiService)
+            AiModel.DEEPSEEK -> OpenRouterAiProvider(model, openRouterApiService)
+            AiModel.QWEN -> OpenRouterAiProvider(model, openRouterApiService)
+            AiModel.LLAMA -> CerebrasAiProvider(model, cerebrasApiService)
+            AiModel.MISTRAL -> TogetherAiProvider(model, togetherApiService)
+            AiModel.PERPLEXITY -> SambaNovaAiProvider(model, sambaNovaApiService)
         }
     }
 }

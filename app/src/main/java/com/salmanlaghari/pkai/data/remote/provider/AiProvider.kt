@@ -27,6 +27,27 @@ class PlaceholderAiProvider(private val model: AiModel) : AiProvider {
     }
 }
 
+class CohereAiProvider(
+    private val apiService: com.salmanlaghari.pkai.data.remote.CohereApiService
+) : AiProvider {
+    override suspend fun generateResponse(prompt: String): String {
+        val apiKey = com.salmanlaghari.pkai.BuildConfig.COHERE_API_KEY
+        if (apiKey.isBlank()) {
+            return "API key not configured."
+        }
+        val request = com.salmanlaghari.pkai.data.remote.CohereChatRequest(
+            message = prompt,
+            model = "command-r-plus"
+        )
+        return try {
+            val response = apiService.generateChatResponse("Bearer $apiKey", request)
+            response.text ?: "Empty response from Cohere server."
+        } catch (e: Exception) {
+            "Error: ${e.localizedMessage ?: "Unknown network error"}"
+        }
+    }
+}
+
 class NetworkAiProvider(
     private val model: AiModel,
     private val apiService: ApiService
@@ -39,6 +60,191 @@ class NetworkAiProvider(
         return try {
             val response = apiService.generateChatResponse(request)
             response.choices.firstOrNull()?.message?.content ?: "Empty response from server"
+        } catch (e: Exception) {
+            "Error: ${e.localizedMessage ?: "Unknown network error"}"
+        }
+    }
+}
+
+// --- Real Providers (Phase 4.3) ---
+
+class GeminiAiProvider(
+    private val apiService: com.salmanlaghari.pkai.data.remote.GeminiApiService
+) : AiProvider {
+    override suspend fun generateResponse(prompt: String): String {
+        val apiKey = com.salmanlaghari.pkai.BuildConfig.GEMINI_API_KEY
+        if (apiKey.isBlank()) {
+            return "API key not configured."
+        }
+        val request = com.salmanlaghari.pkai.data.remote.GeminiRequest(
+            contents = listOf(
+                com.salmanlaghari.pkai.data.remote.GeminiContent(
+                    parts = listOf(com.salmanlaghari.pkai.data.remote.GeminiPart(prompt))
+                )
+            )
+        )
+        return try {
+            val response = apiService.generateContent(apiKey, request)
+            response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+                ?: "Empty response from Gemini server."
+        } catch (e: Exception) {
+            "Error: ${e.localizedMessage ?: "Unknown network error"}"
+        }
+    }
+}
+
+class OpenRouterAiProvider(
+    private val model: AiModel,
+    private val apiService: com.salmanlaghari.pkai.data.remote.OpenRouterApiService
+) : AiProvider {
+    override suspend fun generateResponse(prompt: String): String {
+        val apiKey = com.salmanlaghari.pkai.BuildConfig.OPENROUTER_API_KEY
+        if (apiKey.isBlank()) {
+            return "API key not configured."
+        }
+        val modelId = when (model) {
+            AiModel.QWEN -> "qwen/qwen-2.5-72b-instruct"
+            AiModel.DEEPSEEK -> "deepseek/deepseek-chat"
+            AiModel.LLAMA -> "meta-llama/llama-3.1-8b-instruct"
+            AiModel.MISTRAL -> "mistralai/mistral-7b-instruct"
+            AiModel.CHATGPT -> "openai/gpt-4o-mini"
+            AiModel.CLAUDE -> "anthropic/claude-3-haiku"
+            AiModel.PERPLEXITY -> "perplexity/sonar-chat"
+            else -> "google/gemma-2-9b-it"
+        }
+        val request = ChatCompletionRequest(
+            model = modelId,
+            messages = listOf(ChatMessageDto(role = "user", content = prompt))
+        )
+        return try {
+            val response = apiService.generateChatResponse("Bearer $apiKey", request = request)
+            response.choices.firstOrNull()?.message?.content ?: "Empty response from OpenRouter server."
+        } catch (e: Exception) {
+            "Error: ${e.localizedMessage ?: "Unknown network error"}"
+        }
+    }
+}
+
+class GroqAiProvider(
+    private val model: AiModel,
+    private val apiService: com.salmanlaghari.pkai.data.remote.GroqApiService
+) : AiProvider {
+    override suspend fun generateResponse(prompt: String): String {
+        val apiKey = com.salmanlaghari.pkai.BuildConfig.GROQ_API_KEY
+        if (apiKey.isBlank()) {
+            return "API key not configured."
+        }
+        val modelId = when (model) {
+            AiModel.GROK -> "llama3-8b-8192"
+            AiModel.LLAMA -> "llama3-8b-8192"
+            else -> "gemma2-9b-it"
+        }
+        val request = ChatCompletionRequest(
+            model = modelId,
+            messages = listOf(ChatMessageDto(role = "user", content = prompt))
+        )
+        return try {
+            val response = apiService.generateChatResponse("Bearer $apiKey", request)
+            response.choices.firstOrNull()?.message?.content ?: "Empty response from Groq server."
+        } catch (e: Exception) {
+            "Error: ${e.localizedMessage ?: "Unknown network error"}"
+        }
+    }
+}
+
+class TogetherAiProvider(
+    private val model: AiModel,
+    private val apiService: com.salmanlaghari.pkai.data.remote.TogetherApiService
+) : AiProvider {
+    override suspend fun generateResponse(prompt: String): String {
+        val apiKey = com.salmanlaghari.pkai.BuildConfig.TOGETHER_API_KEY
+        if (apiKey.isBlank()) {
+            return "API key not configured."
+        }
+        val modelId = when (model) {
+            AiModel.MISTRAL -> "mistralai/Mistral-7B-Instruct-v0.1"
+            AiModel.LLAMA -> "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo"
+            else -> "meta-llama/Meta-Llama-3-8B-Instruct-Lite"
+        }
+        val request = ChatCompletionRequest(
+            model = modelId,
+            messages = listOf(ChatMessageDto(role = "user", content = prompt))
+        )
+        return try {
+            val response = apiService.generateChatResponse("Bearer $apiKey", request)
+            response.choices.firstOrNull()?.message?.content ?: "Empty response from Together AI server."
+        } catch (e: Exception) {
+            "Error: ${e.localizedMessage ?: "Unknown network error"}"
+        }
+    }
+}
+
+class OpenAiAiProvider(
+    private val model: AiModel,
+    private val apiService: com.salmanlaghari.pkai.data.remote.OpenAiApiService
+) : AiProvider {
+    override suspend fun generateResponse(prompt: String): String {
+        val apiKey = com.salmanlaghari.pkai.BuildConfig.OPENAI_API_KEY
+        if (apiKey.isBlank()) {
+            return "API key not configured."
+        }
+        val modelId = when (model) {
+            AiModel.CHATGPT -> "gpt-4o-mini"
+            else -> "gpt-3.5-turbo"
+        }
+        val request = ChatCompletionRequest(
+            model = modelId,
+            messages = listOf(ChatMessageDto(role = "user", content = prompt))
+        )
+        return try {
+            val response = apiService.generateChatResponse("Bearer $apiKey", request)
+            response.choices.firstOrNull()?.message?.content ?: "Empty response from OpenAI server."
+        } catch (e: Exception) {
+            "Error: ${e.localizedMessage ?: "Unknown network error"}"
+        }
+    }
+}
+
+class CerebrasAiProvider(
+    private val model: AiModel,
+    private val apiService: com.salmanlaghari.pkai.data.remote.CerebrasApiService
+) : AiProvider {
+    override suspend fun generateResponse(prompt: String): String {
+        val apiKey = com.salmanlaghari.pkai.BuildConfig.CEREBRAS_API_KEY
+        if (apiKey.isBlank()) {
+            return "API key not configured."
+        }
+        val modelId = "llama3.1-8b"
+        val request = ChatCompletionRequest(
+            model = modelId,
+            messages = listOf(ChatMessageDto(role = "user", content = prompt))
+        )
+        return try {
+            val response = apiService.generateChatResponse("Bearer $apiKey", request)
+            response.choices.firstOrNull()?.message?.content ?: "Empty response from Cerebras server."
+        } catch (e: Exception) {
+            "Error: ${e.localizedMessage ?: "Unknown network error"}"
+        }
+    }
+}
+
+class SambaNovaAiProvider(
+    private val model: AiModel,
+    private val apiService: com.salmanlaghari.pkai.data.remote.SambaNovaApiService
+) : AiProvider {
+    override suspend fun generateResponse(prompt: String): String {
+        val apiKey = com.salmanlaghari.pkai.BuildConfig.SAMBANOVA_API_KEY
+        if (apiKey.isBlank()) {
+            return "API key not configured."
+        }
+        val modelId = "Meta-Llama-3.1-8B-Instruct"
+        val request = ChatCompletionRequest(
+            model = modelId,
+            messages = listOf(ChatMessageDto(role = "user", content = prompt))
+        )
+        return try {
+            val response = apiService.generateChatResponse("Bearer $apiKey", request)
+            response.choices.firstOrNull()?.message?.content ?: "Empty response from SambaNova server."
         } catch (e: Exception) {
             "Error: ${e.localizedMessage ?: "Unknown network error"}"
         }

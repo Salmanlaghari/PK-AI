@@ -6,6 +6,14 @@ plugins {
     alias(libs.plugins.navigation.safeargs)
 }
 
+import java.util.Properties
+
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.inputStream().use { localProperties.load(it) }
+}
+
 android {
     namespace = "com.salmanlaghari.pkai"
     compileSdk = 35
@@ -18,6 +26,33 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Secure helper to read non-blank values from System Env or local.properties
+        fun getSecureProperty(propKey: String): String {
+            val envVal = System.getenv(propKey)
+            if (!envVal.isNullOrBlank()) return envVal
+            val propVal = localProperties.getProperty(propKey)
+            if (!propVal.isNullOrBlank()) return propVal
+            return ""
+        }
+
+        val geminiApiKey = getSecureProperty("GEMINI_API_KEY")
+        val openrouterApiKey = getSecureProperty("OPENROUTER_API_KEY")
+        val groqApiKey = getSecureProperty("GROQ_API_KEY")
+        val togetherApiKey = getSecureProperty("TOGETHER_API_KEY")
+        val cohereApiKey = getSecureProperty("COHERE_API_KEY")
+        val cerebrasApiKey = getSecureProperty("CEREBRAS_API_KEY")
+        val openaiApiKey = getSecureProperty("OPENAI_API_KEY")
+        val sambanovaApiKey = getSecureProperty("SAMBANOVA_API_KEY")
+
+        buildConfigField("String", "GEMINI_API_KEY", "\"$geminiApiKey\"")
+        buildConfigField("String", "OPENROUTER_API_KEY", "\"$openrouterApiKey\"")
+        buildConfigField("String", "GROQ_API_KEY", "\"$groqApiKey\"")
+        buildConfigField("String", "TOGETHER_API_KEY", "\"$togetherApiKey\"")
+        buildConfigField("String", "COHERE_API_KEY", "\"$cohereApiKey\"")
+        buildConfigField("String", "CEREBRAS_API_KEY", "\"$cerebrasApiKey\"")
+        buildConfigField("String", "OPENAI_API_KEY", "\"$openaiApiKey\"")
+        buildConfigField("String", "SAMBANOVA_API_KEY", "\"$sambanovaApiKey\"")
     }
 
     buildTypes {
@@ -38,6 +73,7 @@ android {
     }
     buildFeatures {
         viewBinding = true
+        buildConfig = true
     }
 }
 
@@ -85,6 +121,8 @@ dependencies {
     // Testing
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.androidx.core.testing)
+    testImplementation(libs.mockito.core)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 }

@@ -29,8 +29,8 @@ class ActiveChatsAdapter(
             binding.tvAvatar.text = getEmoji(model)
             binding.tvName.text = model.displayName
 
-            // If ChatGPT/OpenAI is chosen, check if key is available
-            if (model == AiModel.CHATGPT && com.salmanlaghari.pkai.BuildConfig.OPENAI_API_KEY.isBlank()) {
+            // ChatGPT/OpenAI is always Coming Soon and disabled
+            if (model == AiModel.CHATGPT) {
                 binding.tvProvider.text = "Coming Soon"
                 binding.tvProvider.setTextColor(binding.root.resources.getColor(R.color.error, null))
                 binding.tvStatusBadge.text = "● Offline"

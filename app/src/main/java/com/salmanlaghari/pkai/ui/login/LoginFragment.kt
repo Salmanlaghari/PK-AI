@@ -145,21 +145,17 @@ class LoginFragment : Fragment() {
     }
 
     private fun showDiagnosticDialog() {
-        MaterialAlertDialogBuilder(requireContext(), R.style.Theme_PkAi)
-            .setTitle("⚙️ Google Sign-In Diagnostic")
-            .setMessage(
-                "Google Sign-In requires active Google Play Services and correct developer certificates registered in the Firebase Console.\n\n" +
-                "🔧 Action Required for Developers:\n\n" +
-                "1. Add 'google-services.json' in your 'app/' directory.\n\n" +
-                "2. Configure SHA-1 and SHA-256 fingerprints in Firebase Console project settings from your local './gradlew signingReport' output.\n\n" +
-                "3. In Firebase Auth under 'Sign-in method', ensure the 'Google' provider is fully Enabled.\n\n" +
-                "4. Update 'default_web_client_id' in strings.xml with your exact Firebase Web Client ID.\n\n" +
-                "For detailed step-by-step instructions, please read GOOGLE_SIGN_IN_SETUP.md in your repository root."
-            )
-            .setPositiveButton("I Understand") { dialog, _ ->
-                dialog.dismiss()
-            }
-            .show()
+        val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_google_signin_diagnostic, null)
+        val dialog = MaterialAlertDialogBuilder(requireContext(), R.style.Theme_PkAi)
+            .setView(dialogView)
+            .create()
+
+        dialogView.findViewById<View>(R.id.btn_diagnostic_dismiss)?.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+        dialog.show()
     }
 
     override fun onDestroyView() {

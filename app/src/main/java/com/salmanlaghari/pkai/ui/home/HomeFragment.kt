@@ -171,8 +171,8 @@ class HomeFragment : Fragment() {
                 AiModel.PERPLEXITY -> "🔍"
             }
 
-            // If ChatGPT/OpenAI is chosen, check if key is available
-            val isOpenAiDisabled = model == AiModel.CHATGPT && com.salmanlaghari.pkai.BuildConfig.OPENAI_API_KEY.isBlank()
+            // ChatGPT/OpenAI is always Coming Soon and disabled
+            val isOpenAiDisabled = model == AiModel.CHATGPT
             if (isOpenAiDisabled) {
                 itemBinding.tvModelProvider.text = "Coming Soon"
                 itemBinding.tvModelProvider.setTextColor(resources.getColor(R.color.error, null))

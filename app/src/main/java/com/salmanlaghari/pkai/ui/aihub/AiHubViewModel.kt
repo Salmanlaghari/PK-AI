@@ -99,7 +99,7 @@ class AiHubViewModel @Inject constructor() : ViewModel() {
                 emojiLogo = "🤖",
                 shortDesc = "OpenAI's benchmark text-generation wizard.",
                 longDesc = "ChatGPT is a state-of-the-art language model optimized for conversational interaction, writing generation, brainstorming, programming help, and multi-turn complex logical workflows.",
-                availability = if (com.salmanlaghari.pkai.BuildConfig.OPENAI_API_KEY.isBlank()) "Coming Soon" else "Free Access"
+                availability = "Coming Soon"
             )
         )
         _modelsList.value = list

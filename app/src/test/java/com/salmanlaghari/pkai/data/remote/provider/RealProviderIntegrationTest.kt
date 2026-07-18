@@ -29,7 +29,7 @@ class RealProviderIntegrationTest {
         report.append("==================================================\n")
 
         // 1. Google Gemini (Official API)
-        val geminiKey = System.getenv("GEMINI_API_KEY") ?: ""
+        val geminiKey = com.salmanlaghari.pkai.BuildConfig.GEMINI_API_KEY
         if (geminiKey.isNotBlank()) {
             try {
                 val service = Retrofit.Builder()
@@ -57,7 +57,7 @@ class RealProviderIntegrationTest {
         }
 
         // 2. OpenRouter Mapped Models
-        val openrouterKey = System.getenv("OPENROUTER_API_KEY") ?: ""
+        val openrouterKey = com.salmanlaghari.pkai.BuildConfig.OPENROUTER_API_KEY
         if (openrouterKey.isNotBlank()) {
             val openRouterService = Retrofit.Builder()
                 .baseUrl("https://openrouter.ai/api/v1/")

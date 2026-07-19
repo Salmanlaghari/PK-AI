@@ -13,7 +13,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.salmanlaghari.pkai.R
 import com.salmanlaghari.pkai.databinding.FragmentLoginBinding
 import dagger.hilt.android.AndroidEntryPoint
@@ -128,8 +127,10 @@ class LoginFragment : Fragment() {
                         "Sign-In cancelled by user."
                     }
                     is androidx.credentials.exceptions.NoCredentialException -> {
-                        showDiagnosticDialog()
-                        "Google Sign-In configuration error on this device."
+                        "Google Sign-In is not configured correctly on this device.\n\n" +
+                        "🔧 Action required:\n" +
+                        "1. Replace 'default_web_client_id' in strings.xml with your real Firebase Web Client ID.\n" +
+                        "2. Register your Android app package 'com.salmanlaghari.pkai' with your debug SHA-1/SHA-256 fingerprint in Firebase / Google Developer Console."
                     }
                     else -> {
                         "Google Sign-In error: ${e.message}\n\nPlease check your Firebase client configuration, package name, and SHA-1 fingerprints."
@@ -142,20 +143,6 @@ class LoginFragment : Fragment() {
                 binding.tvErrorBanner.text = "Google Sign-In failed: ${e.localizedMessage ?: "Unknown Error"}.\n\nPlease ensure you have replaced 'default_web_client_id' in strings.xml and configured Firebase."
             }
         }
-    }
-
-    private fun showDiagnosticDialog() {
-        val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_google_signin_diagnostic, null)
-        val dialog = MaterialAlertDialogBuilder(requireContext(), R.style.Theme_PkAi)
-            .setView(dialogView)
-            .create()
-
-        dialogView.findViewById<View>(R.id.btn_diagnostic_dismiss)?.setOnClickListener {
-            dialog.dismiss()
-        }
-
-        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
-        dialog.show()
     }
 
     override fun onDestroyView() {

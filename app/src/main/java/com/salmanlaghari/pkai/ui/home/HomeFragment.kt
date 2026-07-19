@@ -62,18 +62,7 @@ class HomeFragment : Fragment() {
         // 3. Observe Selected Model StateFlow
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.selectedModel.collect { model ->
-                val emoji = when (model) {
-                    AiModel.GEMINI -> "💎"
-                    AiModel.CHATGPT -> "🤖"
-                    AiModel.CLAUDE -> "🧠"
-                    AiModel.GROK -> "⚡"
-                    AiModel.DEEPSEEK -> "🌊"
-                    AiModel.QWEN -> "🐪"
-                    AiModel.LLAMA -> "🦙"
-                    AiModel.MISTRAL -> "🌪️"
-                    AiModel.PERPLEXITY -> "🔍"
-                }
-                binding.btnModelSelector.text = "$emoji ${model.displayName} ▼"
+                binding.btnModelSelector.text = "💎 ${model.displayName} ▼"
             }
         }
 
@@ -157,37 +146,7 @@ class HomeFragment : Fragment() {
         models.forEach { model ->
             val itemBinding = ItemModelSheetBinding.inflate(layoutInflater, sheetBinding.layoutModelsList, false)
             itemBinding.tvModelName.text = model.displayName
-
-            // Emoji mapping
-            itemBinding.tvModelEmoji.text = when (model) {
-                AiModel.GEMINI -> "💎"
-                AiModel.CHATGPT -> "🤖"
-                AiModel.CLAUDE -> "🧠"
-                AiModel.GROK -> "⚡"
-                AiModel.DEEPSEEK -> "🌊"
-                AiModel.QWEN -> "🐪"
-                AiModel.LLAMA -> "🦙"
-                AiModel.MISTRAL -> "🌪️"
-                AiModel.PERPLEXITY -> "🔍"
-            }
-
-            // ChatGPT/OpenAI is always Coming Soon and disabled
-            val isOpenAiDisabled = model == AiModel.CHATGPT
-            if (isOpenAiDisabled) {
-                itemBinding.tvModelProvider.text = "Coming Soon"
-                itemBinding.tvModelProvider.setTextColor(resources.getColor(R.color.error, null))
-                itemBinding.tvModelName.alpha = 0.5f
-                itemBinding.tvModelEmoji.alpha = 0.5f
-                itemBinding.btnModelItem.isEnabled = false
-                itemBinding.btnModelItem.alpha = 0.6f
-            } else {
-                itemBinding.tvModelProvider.text = model.providerName
-                itemBinding.tvModelProvider.setTextColor(resources.getColor(R.color.outline, null))
-                itemBinding.tvModelName.alpha = 1.0f
-                itemBinding.tvModelEmoji.alpha = 1.0f
-                itemBinding.btnModelItem.isEnabled = true
-                itemBinding.btnModelItem.alpha = 1.0f
-            }
+            itemBinding.tvModelProvider.text = model.providerName
 
             // Highlight current selected model
             if (model == currentSelected) {
@@ -198,11 +157,9 @@ class HomeFragment : Fragment() {
                 itemBinding.tvModelName.setTextColor(resources.getColor(R.color.white, null))
             }
 
-            if (!isOpenAiDisabled) {
-                itemBinding.btnModelItem.setOnClickListener {
-                    viewModel.selectModel(model)
-                    dialog.dismiss()
-                }
+            itemBinding.btnModelItem.setOnClickListener {
+                viewModel.selectModel(model)
+                dialog.dismiss()
             }
 
             sheetBinding.layoutModelsList.addView(itemBinding.root)

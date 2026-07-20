@@ -1,0 +1,40 @@
+<resources>
+    <string name="app_name">پی کے اے آئی</string>
+    <string name="title_splash">پی کے اے آئی</string>
+    <string name="subtitle_splash">پریمیم اے آئی سپر ایپ</string>
+    <string name="title_onboarding">پی کے اے آئی میں خوش آمدید</string>
+    <string name="desc_onboarding">آرٹ اے آئی ماڈلز کی جدید ترین حالت تک آپ کی پریمیم رسائی۔ چلو شروع کرتے ہیں۔</string>
+    <string name="btn_get_started">شروع کریں</string>
+    <string name="title_home">ہوم ڈیش بورڈ</string>
+    <string name="desc_home_placeholder">پریمیم اے آئی سپر ایپ کی خصوصیات یہاں دستیاب ہوں گی۔</string>
+
+    <!-- Login & Authentication -->
+    <string name="title_login">پی کے اے آئی پورٹل</string>
+    <string name="subtitle_login">اگلی نسل کی ذہانت تک پریمیم رسائی</string>
+    <string name="btn_sign_in_google">گوگل کے ساتھ سائن ان کریں</string>
+    <string name="btn_guest_mode">بطور مہمان جاری رکھیں</string>
+    <string name="error_auth_failed">تصدیق ناکام ہو گئی۔ براہ کرم دوبارہ کوشش کریں۔</string>
+    <string name="lbl_loading">سندیں محفوظ کی جا رہی ہیں…</string>
+
+    <!-- Profile Screen -->
+    <string name="lbl_profile">میرا کھاتہ</string>
+    <string name="lbl_login_type">رسائی کا طریقہ</string>
+    <string name="lbl_login_google">گوگل اکاؤنٹ</string>
+    <string name="lbl_login_guest">مہمان سیشن</string>
+    <string name="btn_sign_out">سائن آؤٹ</string>
+
+    <!-- Settings Screen -->
+    <string name="title_settings">ترتیبات</string>
+    <string name="lbl_dark_mode">ڈارک موڈ</string>
+    <string name="lbl_language">زبان</string>
+    <string name="lbl_notifications">پش اطلاعات</string>
+    <string name="lbl_privacy">رازداری کی پالیسی</string>
+    <string name="lbl_terms">سروس کی شرائط</string>
+    <string name="lbl_about">پی کے اے آئی کے بارے میں</string>
+    <string name="lbl_app_version">ایپ ورژن</string>
+
+    <!-- About Screen -->
+    <string name="title_about">پی کے اے آئی کے بارے میں</string>
+    <string name="desc_about_app">پی کے اے آئی ایک پریمیم آرٹ نیٹیو اے آئی سپر ایپ ہے جو آپ کی انگلیوں پر اگلی نسل کے ڈیپ لرننگ ماڈلز لانے کے لیے ڈیزائن کی گئی ہے۔</string>
+    <string name="lbl_developer_branding">تیار کردہ از ❤️ ایڈمن پرنس لغاری ❤️</string>
+</resources>

@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <group android:id="@+id/group_chat_core" android:checkableBehavior="single">
+        <item
+            android:id="@+id/nav_new_chat"
+            android:icon="@drawable/ic_send"
+            android:title="New Chat" />
+        <item
+            android:id="@+id/nav_chat_history"
+            android:icon="@drawable/ic_history"
+            android:title="Chat History" />
+        <item
+            android:id="@+id/nav_favorites"
+            android:icon="@drawable/ic_star"
+            android:title="Favorites" />
+    </group>
+
+    <item android:title="AI Hub">
+        <menu>
+            <item
+                android:id="@+id/nav_model_gemini"
+                android:icon="@drawable/ic_check"
+                android:title="Gemini" />
+            <item
+                android:id="@+id/nav_model_chatgpt"
+                android:icon="@drawable/ic_check"
+                android:title="ChatGPT" />
+            <item
+                android:id="@+id/nav_model_claude"
+                android:icon="@drawable/ic_check"
+                android:title="Claude" />
+            <item
+                android:id="@+id/nav_model_grok"
+                android:icon="@drawable/ic_check"
+                android:title="Grok" />
+            <item
+                android:id="@+id/nav_model_deepseek"
+                android:icon="@drawable/ic_check"
+                android:title="DeepSeek" />
+            <item
+                android:id="@+id/nav_model_qwen"
+                android:icon="@drawable/ic_check"
+                android:title="Qwen" />
+            <item
+                android:id="@+id/nav_model_llama"
+                android:icon="@drawable/ic_check"
+                android:title="Llama" />
+            <item
+                android:id="@+id/nav_model_mistral"
+                android:icon="@drawable/ic_check"
+                android:title="Mistral" />
+            <item
+                android:id="@+id/nav_model_perplexity"
+                android:icon="@drawable/ic_check"
+                android:title="Perplexity" />
+        </menu>
+    </item>
+
+    <item android:title="Generative Studio">
+        <menu>
+            <item
+                android:id="@+id/nav_studio_image"
+                android:icon="@drawable/ic_ai_hub"
+                android:title="Image Generator" />
+            <item
+                android:id="@+id/nav_studio_video"
+                android:icon="@drawable/ic_ai_hub"
+                android:title="Video Generator" />
+            <item
+                android:id="@+id/nav_studio_music"
+                android:icon="@drawable/ic_ai_hub"
+                android:title="Music Generator" />
+            <item
+                android:id="@+id/nav_studio_voice"
+                android:icon="@drawable/ic_person"
+                android:title="Voice AI" />
+            <item
+                android:id="@+id/nav_studio_pdf"
+                android:icon="@drawable/ic_chats"
+                android:title="PDF AI" />
+            <item
+                android:id="@+id/nav_studio_code"
+                android:icon="@drawable/ic_settings"
+                android:title="Coding Assistant" />
+            <item
+                android:id="@+id/nav_studio_web"
+                android:icon="@drawable/ic_search"
+                android:title="Web Search" />
+        </menu>
+    </item>
+
+    <item android:title="Management">
+        <menu>
+            <item
+                android:id="@+id/nav_mgr_downloads"
+                android:icon="@drawable/ic_download"
+                android:title="Downloads" />
+            <item
+                android:id="@+id/nav_mgr_shared"
+                android:icon="@drawable/ic_share"
+                android:title="Shared Chats" />
+            <item
+                android:id="@+id/nav_mgr_trash"
+                android:icon="@drawable/ic_delete"
+                android:title="Trash" />
+        </menu>
+    </item>
+
+    <item android:title="System">
+        <menu>
+            <item
+                android:id="@+id/nav_sys_settings"
+                android:icon="@drawable/ic_settings"
+                android:title="Settings" />
+            <item
+                android:id="@+id/nav_sys_about"
+                android:icon="@drawable/ic_info"
+                android:title="About PK AI" />
+            <item
+                android:id="@+id/nav_sys_logout"
+                android:icon="@drawable/ic_arrow_back"
+                android:title="Logout" />
+        </menu>
+    </item>
+
+</menu>

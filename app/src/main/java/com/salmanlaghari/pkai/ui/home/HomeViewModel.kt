@@ -59,22 +59,38 @@ class HomeViewModel @Inject constructor(
 
             // 2. Trigger AI generating response
             _isGenerating.value = true
+
+            // Insert empty/placeholder AI message to start streaming into it
+            val aiMessageId = java.util.UUID.randomUUID().toString()
+            val aiMessage = ChatMessage(
+                id = aiMessageId,
+                content = "Thinking...",
+                isUser = false,
+                modelUsed = model.displayName
+            )
+            chatMessageDao.insertMessage(aiMessage)
+
             try {
                 val provider = aiProviderFactory.getProvider(model)
-                val responseText = provider.generateResponse(content)
-                val aiMessage = ChatMessage(
-                    content = responseText,
-                    isUser = false,
-                    modelUsed = model.displayName
-                )
-                chatMessageDao.insertMessage(aiMessage)
+                provider.generateResponseStream(content).collect { accumulatedText ->
+                    if (accumulatedText.isNotBlank()) {
+                        chatMessageDao.insertMessage(
+                            aiMessage.copy(content = accumulatedText)
+                        )
+                    }
+                }
             } catch (e: Exception) {
-                val errorMessage = ChatMessage(
-                    content = "Unable to fetch response. Please try again. (${e.localizedMessage ?: "Unknown Error"})",
-                    isUser = false,
-                    modelUsed = model.displayName
+                val currentMsg = chatMessageDao.getMessageById(aiMessageId)
+                val currentText = currentMsg?.content?.takeIf { it != "Thinking..." && it.isNotBlank() }
+                val errorSuffix = "\n\n[Error: ${e.localizedMessage ?: "Unknown network error"}]"
+                val finalText = if (currentText != null) {
+                    currentText + errorSuffix
+                } else {
+                    "Unable to fetch response. Please try again. (${e.localizedMessage ?: "Unknown Error"})"
+                }
+                chatMessageDao.insertMessage(
+                    aiMessage.copy(content = finalText)
                 )
-                chatMessageDao.insertMessage(errorMessage)
             } finally {
                 _isGenerating.value = false
             }

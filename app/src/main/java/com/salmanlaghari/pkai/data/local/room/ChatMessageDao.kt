@@ -18,6 +18,9 @@ interface ChatMessageDao {
     @Query("SELECT * FROM chat_messages ORDER BY timestamp ASC")
     suspend fun getAllMessages(): List<ChatMessage>
 
+    @Query("SELECT * FROM chat_messages WHERE id = :id")
+    suspend fun getMessageById(id: String): ChatMessage?
+
     @Query("DELETE FROM chat_messages")
     suspend fun clearAllMessages()
 }

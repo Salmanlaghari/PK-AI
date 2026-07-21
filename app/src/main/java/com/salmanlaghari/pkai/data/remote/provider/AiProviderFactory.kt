@@ -26,8 +26,10 @@ class AiProviderFactory @Inject constructor(
                     OpenAiAiProvider(model, openAiApiService)
                 } else {
                     object : AiProvider {
-                        override suspend fun generateResponse(prompt: String): String {
-                            return "ChatGPT/OpenAI is currently Coming Soon."
+                        override fun generateResponseStream(prompt: String): kotlinx.coroutines.flow.Flow<String> {
+                            return kotlinx.coroutines.flow.flow {
+                                emit("ChatGPT/OpenAI is currently Coming Soon.")
+                            }
                         }
                     }
                 }

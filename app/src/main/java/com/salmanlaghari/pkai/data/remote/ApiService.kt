@@ -5,8 +5,8 @@ import retrofit2.http.GET
 import retrofit2.http.POST
 
 data class ChatMessageDto(
-    val role: String?,
-    val content: String?
+    val role: String,
+    val content: String
 )
 
 data class ChatCompletionRequest(
@@ -15,11 +15,11 @@ data class ChatCompletionRequest(
 )
 
 data class ChatChoiceDto(
-    val message: ChatMessageDto?
+    val message: ChatMessageDto
 )
 
 data class ChatCompletionResponse(
-    val choices: List<ChatChoiceDto>?
+    val choices: List<ChatChoiceDto>
 )
 
 interface ApiService {

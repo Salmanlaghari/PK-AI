@@ -4,13 +4,14 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/bg_gradient_mesh">
+    android:background="@color/premium_black">
 
     <!-- Premium Header Toolbar -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/layout_header"
         android:layout_width="0dp"
         android:layout_height="64dp"
+        android:background="@color/premium_black"
         android:paddingHorizontal="12dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -27,7 +28,7 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:tint="@color/cyan" />
+            app:tint="@color/electric_blue_glow" />
 
         <!-- Center Container for Title, Logo and Subtitle -->
         <LinearLayout
@@ -67,11 +68,14 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="NEXT-GEN PREMIUM ASSISTANT"
-                android:textColor="@color/cyan"
+                android:text="Next-Gen Premium Assistant"
+                android:textColor="@color/electric_blue_glow"
                 android:textSize="9sp"
                 android:fontFamily="@font/poppins"
-                android:letterSpacing="0.05" />
+                android:shadowColor="@color/electric_blue_glow"
+                android:shadowRadius="4"
+                android:shadowDx="0"
+                android:shadowDy="0" />
         </LinearLayout>
 
         <!-- Right Notifications Icon -->
@@ -86,7 +90,7 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@id/btn_settings"
             app:layout_constraintTop_toTopOf="parent"
-            app:tint="@color/cyan" />
+            app:tint="@color/electric_blue_glow" />
 
         <!-- Right Settings Icon -->
         <ImageButton
@@ -99,221 +103,363 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:tint="@color/cyan" />
+            app:tint="@color/electric_blue_glow" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- Scrollable Area -->
-    <androidx.core.widget.NestedScrollView
-        android:id="@+id/scroll_container"
+    <!-- Chat Messages RecyclerView -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_chat_messages"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:fillViewport="true"
-        android:layout_marginBottom="8dp"
-        app:layout_constraintBottom_toTopOf="@id/btn_model_selector"
+        android:clipToPadding="false"
+        android:paddingBottom="12dp"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+        app:layout_constraintBottom_toTopOf="@id/layout_quick_actions"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/layout_header">
+        app:layout_constraintTop_toBottomOf="@id/layout_header" />
+
+    <!-- Horizontally Scrollable Premium Quick Actions (Above Chat Input) -->
+    <HorizontalScrollView
+        android:id="@+id/layout_quick_actions"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:background="@color/premium_black"
+        android:scrollbars="none"
+        android:paddingVertical="8dp"
+        app:layout_constraintBottom_toTopOf="@id/layout_typing"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
 
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:paddingHorizontal="16dp"
-            android:paddingBottom="100dp">
+            android:orientation="horizontal"
+            android:paddingHorizontal="16dp">
 
-            <!-- Section: AI Tools -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:layout_marginBottom="8dp"
-                android:text="AI TOOLS"
-                android:textColor="@color/text_dim"
-                android:textSize="11sp"
-                android:textStyle="bold"
-                android:fontFamily="@font/poppins"
-                android:letterSpacing="0.15" />
-
-            <!-- Active Tools Grid -->
-            <GridLayout
-                android:id="@+id/grid_active_tools"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:columnCount="2"
-                android:alignmentMode="alignMargins"
-                android:columnOrderPreserved="false"
-                android:useDefaultMargins="true" />
-
-            <!-- Section: Baki Tools (Divider Note) -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
-                android:layout_marginBottom="8dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="BAKI TOOLS"
-                    android:textColor="@color/text_dim"
-                    android:textSize="11sp"
-                    android:textStyle="bold"
-                    android:fontFamily="@font/poppins"
-                    android:letterSpacing="0.15" />
-
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:layout_marginStart="8dp"
-                    android:background="#20FFFFFF" />
-            </LinearLayout>
-
-            <!-- Baki Tools Grid -->
-            <GridLayout
-                android:id="@+id/grid_baki_tools"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:columnCount="2"
-                android:alignmentMode="alignMargins"
-                android:columnOrderPreserved="false"
-                android:useDefaultMargins="true" />
-
-            <!-- Section: Chat Preview -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="24dp"
-                android:layout_marginBottom="8dp"
-                android:text="CHAT PREVIEW"
-                android:textColor="@color/text_dim"
-                android:textSize="11sp"
-                android:textStyle="bold"
-                android:fontFamily="@font/poppins"
-                android:letterSpacing="0.15" />
-
+            <!-- Chat Card -->
             <com.google.android.material.card.MaterialCardView
-                android:layout_width="match_parent"
+                android:id="@+id/card_qa_chat"
+                style="@style/Widget.Material3.CardView.Filled"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:clickable="true"
+                android:focusable="true"
                 app:cardBackgroundColor="@color/glass_background"
-                app:cardCornerRadius="20dp"
+                app:cardCornerRadius="12dp"
                 app:strokeColor="@color/glass_stroke"
                 app:strokeWidth="1dp">
-
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/rv_chat_messages"
-                    android:layout_width="match_parent"
+                <LinearLayout
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:minHeight="150dp"
-                    android:nestedScrollingEnabled="false"
-                    android:padding="12dp"
-                    app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+                    android:gravity="center"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="8dp">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="💬 Chat"
+                        android:textColor="@color/white"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
 
+            <!-- Image Card -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_qa_image"
+                style="@style/Widget.Material3.CardView.Filled"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:clickable="true"
+                android:focusable="true"
+                app:cardBackgroundColor="@color/glass_background"
+                app:cardCornerRadius="12dp"
+                app:strokeColor="@color/glass_stroke"
+                app:strokeWidth="1dp">
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="8dp">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🖼 Image"
+                        android:textColor="@color/white"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Video Card -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_qa_video"
+                style="@style/Widget.Material3.CardView.Filled"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:clickable="true"
+                android:focusable="true"
+                app:cardBackgroundColor="@color/glass_background"
+                app:cardCornerRadius="12dp"
+                app:strokeColor="@color/glass_stroke"
+                app:strokeWidth="1dp">
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="8dp">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🎥 Video"
+                        android:textColor="@color/white"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Music Card -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_qa_music"
+                style="@style/Widget.Material3.CardView.Filled"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:clickable="true"
+                android:focusable="true"
+                app:cardBackgroundColor="@color/glass_background"
+                app:cardCornerRadius="12dp"
+                app:strokeColor="@color/glass_stroke"
+                app:strokeWidth="1dp">
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="8dp">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🎵 Music"
+                        android:textColor="@color/white"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- PDF Card -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_qa_pdf"
+                style="@style/Widget.Material3.CardView.Filled"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:clickable="true"
+                android:focusable="true"
+                app:cardBackgroundColor="@color/glass_background"
+                app:cardCornerRadius="12dp"
+                app:strokeColor="@color/glass_stroke"
+                app:strokeWidth="1dp">
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="8dp">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="📄 PDF"
+                        android:textColor="@color/white"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Code Card -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_qa_code"
+                style="@style/Widget.Material3.CardView.Filled"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:clickable="true"
+                android:focusable="true"
+                app:cardBackgroundColor="@color/glass_background"
+                app:cardCornerRadius="12dp"
+                app:strokeColor="@color/glass_stroke"
+                app:strokeWidth="1dp">
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="8dp">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="💻 Code"
+                        android:textColor="@color/white"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Search Card -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_qa_search"
+                style="@style/Widget.Material3.CardView.Filled"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:clickable="true"
+                android:focusable="true"
+                app:cardBackgroundColor="@color/glass_background"
+                app:cardCornerRadius="12dp"
+                app:strokeColor="@color/glass_stroke"
+                app:strokeWidth="1dp">
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="8dp">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🌐 Search"
+                        android:textColor="@color/white"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
         </LinearLayout>
-    </androidx.core.widget.NestedScrollView>
+    </HorizontalScrollView>
 
     <!-- Typing Indicator -->
     <LinearLayout
         android:id="@+id/layout_typing"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginHorizontal="24dp"
-        android:layout_marginBottom="6dp"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginBottom="8dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:visibility="gone"
-        app:layout_constraintBottom_toTopOf="@id/btn_model_selector"
+        app:layout_constraintBottom_toTopOf="@id/layout_input"
         app:layout_constraintStart_toStartOf="parent"
         tools:visibility="visible">
 
         <ProgressBar
             android:id="@+id/pb_typing"
             style="?android:attr/progressBarStyleSmall"
-            android:layout_width="14dp"
-            android:layout_height="14dp"
-            android:layout_marginEnd="6dp"
-            android:indeterminateTint="@color/cyan" />
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_marginEnd="8dp"
+            android:indeterminateTint="@color/electric_blue_glow" />
 
         <TextView
             android:id="@+id/tv_typing"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="AI is processing..."
-            android:textColor="@color/cyan"
-            android:textSize="11sp"
-            android:fontFamily="@font/poppins" />
+            android:textColor="@color/outline"
+            android:textSize="13sp" />
     </LinearLayout>
 
-    <!-- Model Select indicator right above the input bar -->
-    <TextView
-        android:id="@+id/btn_model_selector"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="24dp"
-        android:layout_marginBottom="8dp"
-        android:text="◆ Gemini ▾"
-        android:textColor="@color/cyan"
-        android:textSize="13sp"
-        android:textStyle="bold"
-        android:fontFamily="@font/poppins"
-        android:shadowColor="@color/cyan_soft"
-        android:shadowRadius="8"
-        app:layout_constraintBottom_toTopOf="@id/layout_input"
-        app:layout_constraintStart_toStartOf="parent" />
-
-    <!-- Floating Frosted Input Bar -->
+    <!-- Bottom Input Container Area -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/layout_input"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginHorizontal="16dp"
-        android:layout_marginBottom="90dp"
-        android:background="@drawable/bg_frosted_glass_pill"
-        android:padding="6dp"
+        android:background="@color/premium_black"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="8dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
 
-        <EditText
-            android:id="@+id/et_message_input"
+        <!-- Input Box (Row 1) -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/input_message_layout"
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="14dp"
-            android:background="@null"
-            android:hint="Ask anything..."
-            android:textColor="@color/white"
-            android:textColorHint="@color/text_dim"
-            android:textSize="14sp"
-            android:fontFamily="@font/poppins"
-            android:inputType="textMultiLine"
-            android:maxLines="3"
-            app:layout_constraintBottom_toBottomOf="parent"
+            android:layout_marginEnd="8dp"
+            app:boxBackgroundColor="@color/glass_background"
+            app:boxCornerRadiusTopStart="24dp"
+            app:boxCornerRadiusTopEnd="24dp"
+            app:boxCornerRadiusBottomStart="24dp"
+            app:boxCornerRadiusBottomEnd="24dp"
+            app:boxStrokeColor="@color/glass_stroke"
+            app:boxStrokeWidth="1dp"
+            app:boxStrokeWidthFocused="1.5dp"
+            app:hintTextColor="@color/electric_blue_glow"
+            app:layout_constraintBottom_toTopOf="@id/btn_model_selector"
             app:layout_constraintEnd_toStartOf="@id/btn_send"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="parent">
 
-        <com.google.android.material.button.MaterialButton
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/et_message_input"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Ask anything..."
+                android:textColor="@color/white"
+                android:textColorHint="@color/outline"
+                android:fontFamily="@font/poppins"
+                android:inputType="textMultiLine|textCapSentences"
+                android:maxLines="4" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Send FAB (Row 1) -->
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/btn_send"
-            android:layout_width="38dp"
-            android:layout_height="38dp"
-            android:layout_marginEnd="2dp"
-            android:insetLeft="0dp"
-            android:insetTop="0dp"
-            android:insetRight="0dp"
-            android:insetBottom="0dp"
-            android:background="@drawable/bg_gradient_button"
-            app:backgroundTint="@null"
-            android:text="➤"
-            android:textColor="@color/white"
-            android:textSize="12sp"
-            android:textStyle="bold"
-            app:cornerRadius="19dp"
-            app:layout_constraintBottom_toBottomOf="parent"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:contentDescription="Send Message"
+            app:backgroundTint="@color/primary"
+            app:fabSize="normal"
+            app:layout_constraintBottom_toBottomOf="@id/input_message_layout"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="@id/input_message_layout"
+            app:srcCompat="@drawable/ic_send"
+            app:tint="@color/white" />
+
+        <!-- AI Selector Label (Row 2 - BELOW the message box) -->
+        <TextView
+            android:id="@+id/btn_model_selector"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="4dp"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="6dp"
+            android:text="💎 Gemini ▼"
+            android:textColor="@color/electric_blue_glow"
+            android:textSize="14sp"
+            android:fontFamily="@font/poppins"
+            android:textStyle="bold"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/input_message_layout" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

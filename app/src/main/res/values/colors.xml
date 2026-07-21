@@ -1,57 +1,44 @@
 <resources>
     <!-- Primary brand color -->
-    <color name="primary">#A800FF</color>
-    <color name="primary_container">#181C3D</color>
+    <color name="primary">#2563EB</color>
+    <color name="primary_container">#DBEAFE</color>
     <color name="on_primary">#FFFFFF</color>
-    <color name="on_primary_container">#CBD1FC</color>
+    <color name="on_primary_container">#1E40AF</color>
 
     <!-- Secondary brand color -->
-    <color name="secondary">#00F0FF</color>
-    <color name="secondary_container">#132A44</color>
+    <color name="secondary">#4B5563</color>
+    <color name="secondary_container">#F3F4F6</color>
     <color name="on_secondary">#FFFFFF</color>
-    <color name="on_secondary_container">#00E5FF</color>
+    <color name="on_secondary_container">#1F2937</color>
 
     <!-- Tertiary brand color -->
-    <color name="tertiary">#7000FF</color>
-    <color name="tertiary_container">#1A0033</color>
+    <color name="tertiary">#7C3AED</color>
+    <color name="tertiary_container">#F3E8FF</color>
     <color name="on_tertiary">#FFFFFF</color>
-    <color name="on_tertiary_container">#E8C6FF</color>
+    <color name="on_tertiary_container">#5B21B6</color>
 
     <!-- Background / Surface -->
-    <color name="background">#010410</color>
-    <color name="on_background">#F5F6FF</color>
-    <color name="surface">#0D1026</color>
-    <color name="on_surface">#FFFFFF</color>
-    <color name="surface_variant">#181C3D</color>
-    <color name="on_surface_variant">#CBD1FC</color>
+    <color name="background">#F9FAFB</color>
+    <color name="on_background">#111827</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="on_surface">#111827</color>
+    <color name="surface_variant">#F3F4F6</color>
+    <color name="on_surface_variant">#4B5563</color>
 
     <!-- Error state -->
-    <color name="error">#FF3B30</color>
-    <color name="error_container">#2C0E11</color>
+    <color name="error">#EF4444</color>
+    <color name="error_container">#FEE2E2</color>
     <color name="on_error">#FFFFFF</color>
-    <color name="on_error_container">#FFD6D6</color>
+    <color name="on_error_container">#991B1B</color>
 
-    <color name="outline">#30397A</color>
+    <color name="outline">#D1D5DB</color>
 
     <!-- PK AI Premium Theme Colors -->
-    <color name="premium_black">#010208</color>
-    <color name="electric_blue_glow">#00F0FF</color>
-    <color name="purple_accent">#A800FF</color>
-    <color name="glass_background">#1A0D1026</color>
-    <color name="glass_stroke">#263FF0FF</color>
-
-    <!-- UI Design 2026 / Phase 4.3 Colors -->
-    <color name="bg1">#05060a</color>
-    <color name="bg2">#0d1224</color>
-    <color name="cyan">#3ff0ff</color>
-    <color name="cyan_soft">#803ff0ff</color>
-    <color name="purple1">#8b5cf6</color>
-    <color name="purple2">#5b21b6</color>
-    <color name="text_dim">#8792a8</color>
-
-    <color name="glass_active_stroke">#803FF0FF</color>
-    <color name="glass_active_bg_start">#2A3FF0FF</color>
-    <color name="glass_active_bg_end">#158B5CF6</color>
+    <color name="premium_black">#0F0F10</color>
+    <color name="electric_blue_glow">#00E5FF</color>
+    <color name="purple_accent">#7C3AED</color>
+    <color name="glass_background">#13FFFFFF</color>
+    <color name="glass_stroke">#22FFFFFF</color>
 
     <color name="white">#FFFFFF</color>
 </resources>

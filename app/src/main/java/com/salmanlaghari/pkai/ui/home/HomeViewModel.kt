@@ -44,35 +44,11 @@ class HomeViewModel @Inject constructor(
         _selectedModel.value = model
     }
 
-    private fun getWorkingModel(selected: AiModel): AiModel {
-        val hasOpenRouter = com.salmanlaghari.pkai.BuildConfig.OPENROUTER_API_KEY.isNotBlank()
-        val hasGemini = com.salmanlaghari.pkai.BuildConfig.GEMINI_API_KEY.isNotBlank()
-        val hasOpenAi = com.salmanlaghari.pkai.BuildConfig.OPENAI_API_KEY.isNotBlank()
-
-        val isGemini = selected == AiModel.GEMINI
-        val isChatGPT = selected == AiModel.CHATGPT
-        val isOpenRouterModel = !isGemini && !isChatGPT
-
-        if (isGemini && hasGemini) return selected
-        if (isChatGPT && hasOpenAi) return selected
-        if (isOpenRouterModel && hasOpenRouter) return selected
-
-        // Current selection has no active key, find first working key
-        return when {
-            hasOpenRouter -> AiModel.CLAUDE
-            hasGemini -> AiModel.GEMINI
-            hasOpenAi -> AiModel.CHATGPT
-            else -> selected // Fallback to placeholder simulated mode
-        }
-    }
-
     fun sendMessage(content: String) {
         if (content.trim().isEmpty()) return
 
         viewModelScope.launch {
-            val originalModel = _selectedModel.value
-            val model = getWorkingModel(originalModel)
-
+            val model = _selectedModel.value
             // 1. Insert user message
             val userMessage = ChatMessage(
                 content = content.trim(),

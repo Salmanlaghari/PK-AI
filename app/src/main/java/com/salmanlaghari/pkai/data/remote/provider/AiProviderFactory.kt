@@ -21,24 +21,25 @@ class AiProviderFactory @Inject constructor(
         return when (model) {
             AiModel.GEMINI -> GeminiAiProvider(geminiApiService)
             AiModel.CHATGPT -> {
+                // Since user didn't supply an explicit OpenAI key, fallback to Cohere (or OpenRouter)
                 val openaiKey = com.salmanlaghari.pkai.BuildConfig.OPENAI_API_KEY
+                val cohereKey = com.salmanlaghari.pkai.BuildConfig.COHERE_API_KEY
                 if (openaiKey.isNotBlank()) {
                     OpenAiAiProvider(model, openAiApiService)
+                } else if (cohereKey.isNotBlank()) {
+                    CohereAiProvider(cohereApiService)
                 } else {
-                    object : AiProvider {
-                        override suspend fun generateResponse(prompt: String): String {
-                            return "ChatGPT/OpenAI is currently Coming Soon."
-                        }
-                    }
+                    // Default to OpenRouter since it can also serve ChatGPT model IDs
+                    OpenRouterAiProvider(model, openRouterApiService)
                 }
             }
             AiModel.CLAUDE -> OpenRouterAiProvider(model, openRouterApiService)
-            AiModel.GROK -> OpenRouterAiProvider(model, openRouterApiService)
+            AiModel.GROK -> GroqAiProvider(model, groqApiService)
             AiModel.DEEPSEEK -> OpenRouterAiProvider(model, openRouterApiService)
             AiModel.QWEN -> OpenRouterAiProvider(model, openRouterApiService)
-            AiModel.LLAMA -> OpenRouterAiProvider(model, openRouterApiService)
-            AiModel.MISTRAL -> OpenRouterAiProvider(model, openRouterApiService)
-            AiModel.PERPLEXITY -> OpenRouterAiProvider(model, openRouterApiService)
+            AiModel.LLAMA -> CerebrasAiProvider(model, cerebrasApiService)
+            AiModel.MISTRAL -> TogetherAiProvider(model, togetherApiService)
+            AiModel.PERPLEXITY -> SambaNovaAiProvider(model, sambaNovaApiService)
         }
     }
 }

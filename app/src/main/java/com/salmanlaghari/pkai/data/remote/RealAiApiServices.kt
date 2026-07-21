@@ -21,14 +21,6 @@ interface GeminiApiService {
         @Query("key") apiKey: String,
         @Body request: GeminiRequest
     ): GeminiResponse
-
-    @retrofit2.http.Streaming
-    @POST("v1beta/models/gemini-1.5-flash:streamGenerateContent")
-    suspend fun streamGenerateContent(
-        @Query("key") apiKey: String,
-        @Query("alt") alt: String = "sse",
-        @Body request: GeminiRequest
-    ): okhttp3.ResponseBody
 }
 
 // --- OpenAI-Compatible APIs ---
@@ -41,15 +33,6 @@ interface OpenRouterApiService {
         @Header("X-Title") title: String = "PK AI",
         @Body request: ChatCompletionRequest
     ): ChatCompletionResponse
-
-    @retrofit2.http.Streaming
-    @POST("chat/completions")
-    suspend fun streamChatResponse(
-        @Header("Authorization") authorization: String,
-        @Header("HTTP-Referer") referer: String = "https://pkai.salmanlaghari.com",
-        @Header("X-Title") title: String = "PK AI",
-        @Body request: ChatCompletionRequest
-    ): okhttp3.ResponseBody
 }
 
 // --- Cohere API Models ---
@@ -76,13 +59,6 @@ interface GroqApiService {
         @Header("Authorization") authorization: String,
         @Body request: ChatCompletionRequest
     ): ChatCompletionResponse
-
-    @retrofit2.http.Streaming
-    @POST("chat/completions")
-    suspend fun streamChatResponse(
-        @Header("Authorization") authorization: String,
-        @Body request: ChatCompletionRequest
-    ): okhttp3.ResponseBody
 }
 
 interface TogetherApiService {
@@ -91,13 +67,6 @@ interface TogetherApiService {
         @Header("Authorization") authorization: String,
         @Body request: ChatCompletionRequest
     ): ChatCompletionResponse
-
-    @retrofit2.http.Streaming
-    @POST("chat/completions")
-    suspend fun streamChatResponse(
-        @Header("Authorization") authorization: String,
-        @Body request: ChatCompletionRequest
-    ): okhttp3.ResponseBody
 }
 
 interface OpenAiApiService {
@@ -106,13 +75,6 @@ interface OpenAiApiService {
         @Header("Authorization") authorization: String,
         @Body request: ChatCompletionRequest
     ): ChatCompletionResponse
-
-    @retrofit2.http.Streaming
-    @POST("chat/completions")
-    suspend fun streamChatResponse(
-        @Header("Authorization") authorization: String,
-        @Body request: ChatCompletionRequest
-    ): okhttp3.ResponseBody
 }
 
 interface CerebrasApiService {

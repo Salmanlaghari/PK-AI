@@ -44,11 +44,35 @@ class HomeViewModel @Inject constructor(
         _selectedModel.value = model
     }
 
+    private fun getWorkingModel(selected: AiModel): AiModel {
+        val hasOpenRouter = com.salmanlaghari.pkai.BuildConfig.OPENROUTER_API_KEY.isNotBlank()
+        val hasGemini = com.salmanlaghari.pkai.BuildConfig.GEMINI_API_KEY.isNotBlank()
+        val hasOpenAi = com.salmanlaghari.pkai.BuildConfig.OPENAI_API_KEY.isNotBlank()
+
+        val isGemini = selected == AiModel.GEMINI
+        val isChatGPT = selected == AiModel.CHATGPT
+        val isOpenRouterModel = !isGemini && !isChatGPT
+
+        if (isGemini && hasGemini) return selected
+        if (isChatGPT && hasOpenAi) return selected
+        if (isOpenRouterModel && hasOpenRouter) return selected
+
+        // Current selection has no active key, find first working key
+        return when {
+            hasOpenRouter -> AiModel.CLAUDE
+            hasGemini -> AiModel.GEMINI
+            hasOpenAi -> AiModel.CHATGPT
+            else -> selected // Fallback to placeholder simulated mode
+        }
+    }
+
     fun sendMessage(content: String) {
         if (content.trim().isEmpty()) return
 
         viewModelScope.launch {
-            val model = _selectedModel.value
+            val originalModel = _selectedModel.value
+            val model = getWorkingModel(originalModel)
+
             // 1. Insert user message
             val userMessage = ChatMessage(
                 content = content.trim(),
@@ -59,38 +83,22 @@ class HomeViewModel @Inject constructor(
 
             // 2. Trigger AI generating response
             _isGenerating.value = true
-
-            // Insert empty/placeholder AI message to start streaming into it
-            val aiMessageId = java.util.UUID.randomUUID().toString()
-            val aiMessage = ChatMessage(
-                id = aiMessageId,
-                content = "Thinking...",
-                isUser = false,
-                modelUsed = model.displayName
-            )
-            chatMessageDao.insertMessage(aiMessage)
-
             try {
                 val provider = aiProviderFactory.getProvider(model)
-                provider.generateResponseStream(content).collect { accumulatedText ->
-                    if (accumulatedText.isNotBlank()) {
-                        chatMessageDao.insertMessage(
-                            aiMessage.copy(content = accumulatedText)
-                        )
-                    }
-                }
-            } catch (e: Exception) {
-                val currentMsg = chatMessageDao.getMessageById(aiMessageId)
-                val currentText = currentMsg?.content?.takeIf { it != "Thinking..." && it.isNotBlank() }
-                val errorSuffix = "\n\n[Error: ${e.localizedMessage ?: "Unknown network error"}]"
-                val finalText = if (currentText != null) {
-                    currentText + errorSuffix
-                } else {
-                    "Unable to fetch response. Please try again. (${e.localizedMessage ?: "Unknown Error"})"
-                }
-                chatMessageDao.insertMessage(
-                    aiMessage.copy(content = finalText)
+                val responseText = provider.generateResponse(content)
+                val aiMessage = ChatMessage(
+                    content = responseText,
+                    isUser = false,
+                    modelUsed = model.displayName
                 )
+                chatMessageDao.insertMessage(aiMessage)
+            } catch (e: Exception) {
+                val errorMessage = ChatMessage(
+                    content = "Unable to fetch response. Please try again. (${e.localizedMessage ?: "Unknown Error"})",
+                    isUser = false,
+                    modelUsed = model.displayName
+                )
+                chatMessageDao.insertMessage(errorMessage)
             } finally {
                 _isGenerating.value = false
             }

@@ -37,8 +37,21 @@
     <color name="premium_black">#010208</color>
     <color name="electric_blue_glow">#00F0FF</color>
     <color name="purple_accent">#A800FF</color>
-    <color name="glass_background">#260D1026</color>
-    <color name="glass_stroke">#4030397A</color>
+    <color name="glass_background">#1A0D1026</color>
+    <color name="glass_stroke">#263FF0FF</color>
+
+    <!-- UI Design 2026 / Phase 4.3 Colors -->
+    <color name="bg1">#05060a</color>
+    <color name="bg2">#0d1224</color>
+    <color name="cyan">#3ff0ff</color>
+    <color name="cyan_soft">#803ff0ff</color>
+    <color name="purple1">#8b5cf6</color>
+    <color name="purple2">#5b21b6</color>
+    <color name="text_dim">#8792a8</color>
+
+    <color name="glass_active_stroke">#803FF0FF</color>
+    <color name="glass_active_bg_start">#2A3FF0FF</color>
+    <color name="glass_active_bg_end">#158B5CF6</color>
 
     <color name="white">#FFFFFF</color>
 </resources>

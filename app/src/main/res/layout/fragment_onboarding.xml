@@ -3,29 +3,16 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/premium_black"
     android:padding="24dp">
-
-    <!-- Glowing top orb backdrop -->
-    <View
-        android:layout_width="300dp"
-        android:layout_height="300dp"
-        android:layout_marginTop="-150dp"
-        android:background="@drawable/bg_gradient_button"
-        android:alpha="0.2"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
 
     <TextView
         android:id="@+id/tv_onboarding_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/title_onboarding"
-        android:textColor="@color/white"
+        android:textColor="@color/on_background"
         android:textSize="28sp"
         android:textStyle="bold"
-        android:fontFamily="@font/poppins"
         android:gravity="center"
         app:layout_constraintBottom_toTopOf="@id/tv_onboarding_desc"
         app:layout_constraintEnd_toEndOf="parent"
@@ -40,9 +27,8 @@
         android:layout_marginTop="16dp"
         android:gravity="center"
         android:text="@string/desc_onboarding"
-        android:textColor="@color/electric_blue_glow"
-        android:textSize="15sp"
-        android:fontFamily="@font/poppins"
+        android:textColor="@color/on_surface_variant"
+        android:textSize="16sp"
         app:layout_constraintBottom_toTopOf="@id/btn_get_started"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -51,16 +37,9 @@
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_get_started"
         android:layout_width="0dp"
-        android:layout_height="54dp"
+        android:layout_height="wrap_content"
         android:layout_marginBottom="32dp"
         android:text="@string/btn_get_started"
-        android:textColor="@color/white"
-        android:textSize="16sp"
-        android:textStyle="bold"
-        android:fontFamily="@font/poppins"
-        android:background="@drawable/bg_gradient_button"
-        app:backgroundTint="@null"
-        app:cornerRadius="27dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />

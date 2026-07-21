@@ -11,8 +11,7 @@ data class ChatMessageDto(
 
 data class ChatCompletionRequest(
     val model: String,
-    val messages: List<ChatMessageDto>,
-    val stream: Boolean? = null
+    val messages: List<ChatMessageDto>
 )
 
 data class ChatChoiceDto(

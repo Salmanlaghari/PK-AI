@@ -73,18 +73,6 @@ class LoginFragment : Fragment() {
             triggerGoogleSignIn()
         }
 
-        // Developer Shortcut: Long-click Google Sign-In button to simulate Google Auth instantly!
-        binding.btnGoogleSignin.setOnLongClickListener {
-            android.util.Log.d("PKAI_AUTH", "Developer shortcut triggered: instant Google Sign-In simulation")
-            viewModel.loginWithGoogle(
-                idToken = "simulated_google_token_prince",
-                displayName = "Prince Laghari",
-                email = "admin.prince@salmanlaghari.com",
-                photoUrl = "https://lh3.googleusercontent.com/a/default-user=s96-c"
-            )
-            true
-        }
-
         // Sign in as guest
         binding.btnGuestSignin.setOnClickListener {
             viewModel.loginAsGuest()
@@ -164,16 +152,6 @@ class LoginFragment : Fragment() {
 
         dialogView.findViewById<View>(R.id.btn_diagnostic_dismiss)?.setOnClickListener {
             dialog.dismiss()
-        }
-
-        dialogView.findViewById<View>(R.id.btn_simulated_login)?.setOnClickListener {
-            dialog.dismiss()
-            viewModel.loginWithGoogle(
-                idToken = "simulated_google_token_prince",
-                displayName = "Prince Laghari",
-                email = "admin.prince@salmanlaghari.com",
-                photoUrl = "https://lh3.googleusercontent.com/a/default-user=s96-c"
-            )
         }
 
         dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))

@@ -51,8 +51,6 @@ class HomeViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
-        messagesList.clear()
-        messagesFlow.value = emptyList()
 
         fakeAuthRepository = mock(AuthRepository::class.java)
         fakeAppRepository = mock(AppRepository::class.java)
@@ -62,12 +60,7 @@ class HomeViewModelTest {
         // Fake DAO implementation
         fakeChatMessageDao = object : ChatMessageDao {
             override suspend fun insertMessage(message: ChatMessage) {
-                val index = messagesList.indexOfFirst { it.id == message.id }
-                if (index != -1) {
-                    messagesList[index] = message
-                } else {
-                    messagesList.add(message)
-                }
+                messagesList.add(message)
                 messagesFlow.value = messagesList.toList()
             }
 
@@ -75,10 +68,6 @@ class HomeViewModelTest {
 
             override suspend fun getAllMessages(): List<ChatMessage> {
                 return messagesList.toList()
-            }
-
-            override suspend fun getMessageById(id: String): ChatMessage? {
-                return messagesList.find { it.id == id }
             }
 
             override suspend fun clearAllMessages() {
@@ -89,11 +78,9 @@ class HomeViewModelTest {
 
         // Mock AiProviderFactory to return a custom AiProvider based on input
         val mockAiProvider = object : AiProvider {
-            override fun generateResponseStream(prompt: String): Flow<String> {
-                return kotlinx.coroutines.flow.flow {
-                    val currentModel = viewModel.selectedModel.value
-                    emit("Response from ${currentModel.displayName} for prompt: $prompt")
-                }
+            override suspend fun generateResponse(prompt: String): String {
+                val currentModel = viewModel.selectedModel.value
+                return "Response from ${currentModel.displayName} for prompt: $prompt"
             }
         }
 

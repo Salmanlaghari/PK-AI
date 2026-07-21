@@ -15,9 +15,17 @@ import com.salmanlaghari.pkai.R
 import com.salmanlaghari.pkai.data.model.AiModel
 import com.salmanlaghari.pkai.databinding.FragmentHomeBinding
 import com.salmanlaghari.pkai.databinding.ItemModelSheetBinding
+import com.salmanlaghari.pkai.databinding.ItemToolCardBinding
 import com.salmanlaghari.pkai.databinding.LayoutModelBottomSheetBinding
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+
+private data class AiTool(
+    val name: String,
+    val icon: String,
+    val model: AiModel?,
+    val isWorking: Boolean
+)
 
 @AndroidEntryPoint
 class HomeFragment : Fragment() {
@@ -38,16 +46,17 @@ class HomeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // 0. Parse potential model argument passed from other destinations (e.g. ChatsFragment)
-        arguments?.getString("selectedModelName")?.let { modelName ->
-            try {
-                val model = AiModel.valueOf(modelName)
-                viewModel.selectModel(model)
-                // Clear the argument so it doesn't persist on configuration changes / subsequent navigations
-                arguments?.remove("selectedModelName")
-            } catch (e: Exception) {
-                // Ignore invalid model name
-            }
+        // 0. Automatically auto-select first working model at launch to prevent 404 errors
+        val hasOpenRouter = com.salmanlaghari.pkai.BuildConfig.OPENROUTER_API_KEY.isNotBlank()
+        val hasGemini = com.salmanlaghari.pkai.BuildConfig.GEMINI_API_KEY.isNotBlank()
+        val hasOpenAi = com.salmanlaghari.pkai.BuildConfig.OPENAI_API_KEY.isNotBlank()
+
+        if (hasOpenRouter && viewModel.selectedModel.value != AiModel.CLAUDE && viewModel.selectedModel.value != AiModel.DEEPSEEK) {
+            viewModel.selectModel(AiModel.CLAUDE)
+        } else if (hasGemini && viewModel.selectedModel.value != AiModel.GEMINI) {
+            viewModel.selectModel(AiModel.GEMINI)
+        } else if (hasOpenAi && viewModel.selectedModel.value != AiModel.CHATGPT) {
+            viewModel.selectModel(AiModel.CHATGPT)
         }
 
         // 1. Setup Chat Adapter
@@ -59,7 +68,7 @@ class HomeFragment : Fragment() {
             showModelSelectionBottomSheet()
         }
 
-        // 3. Observe Selected Model StateFlow
+        // 3. Observe Selected Model StateFlow to update UI & Grid highlighted state
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.selectedModel.collect { model ->
                 val emoji = when (model) {
@@ -73,7 +82,10 @@ class HomeFragment : Fragment() {
                     AiModel.MISTRAL -> "🌪️"
                     AiModel.PERPLEXITY -> "🔍"
                 }
-                binding.btnModelSelector.text = "$emoji ${model.displayName} ▼"
+                binding.btnModelSelector.text = "◆ $emoji ${model.displayName} ▾"
+
+                // Redraw grids to highlight current active model selection
+                populateToolGrids(model)
             }
         }
 
@@ -117,32 +129,74 @@ class HomeFragment : Fragment() {
         binding.btnSettings.setOnClickListener {
             findNavController().navigate(R.id.settingsFragment)
         }
-
-        // 8. Quick Actions Click Listeners (Placeholders only)
-        setupQuickActions()
     }
 
-    private fun setupQuickActions() {
-        binding.cardQaChat.setOnClickListener {
-            Toast.makeText(requireContext(), "💬 Premium Chat Generator is active", Toast.LENGTH_SHORT).show()
-        }
-        binding.cardQaImage.setOnClickListener {
-            Toast.makeText(requireContext(), "🖼 Premium Image Generator Placeholder", Toast.LENGTH_SHORT).show()
-        }
-        binding.cardQaVideo.setOnClickListener {
-            Toast.makeText(requireContext(), "🎥 Premium Video Generator Placeholder", Toast.LENGTH_SHORT).show()
-        }
-        binding.cardQaMusic.setOnClickListener {
-            Toast.makeText(requireContext(), "🎵 Premium Music Generator Placeholder", Toast.LENGTH_SHORT).show()
-        }
-        binding.cardQaPdf.setOnClickListener {
-            Toast.makeText(requireContext(), "📄 Premium PDF AI Analyst Placeholder", Toast.LENGTH_SHORT).show()
-        }
-        binding.cardQaCode.setOnClickListener {
-            Toast.makeText(requireContext(), "💻 Premium Code Assistant Placeholder", Toast.LENGTH_SHORT).show()
-        }
-        binding.cardQaSearch.setOnClickListener {
-            Toast.makeText(requireContext(), "🌐 Premium Web Search Assistant Placeholder", Toast.LENGTH_SHORT).show()
+    private fun populateToolGrids(activeModel: AiModel) {
+        binding.gridActiveTools.removeAllViews()
+        binding.gridBakiTools.removeAllViews()
+
+        val hasOpenRouter = com.salmanlaghari.pkai.BuildConfig.OPENROUTER_API_KEY.isNotBlank()
+        val hasGemini = com.salmanlaghari.pkai.BuildConfig.GEMINI_API_KEY.isNotBlank()
+        val hasOpenAi = com.salmanlaghari.pkai.BuildConfig.OPENAI_API_KEY.isNotBlank()
+
+        val isAllEmpty = !hasOpenRouter && !hasGemini && !hasOpenAi
+
+        val tools = listOf(
+            AiTool("Claude", "🧠", AiModel.CLAUDE, hasOpenRouter || isAllEmpty),
+            AiTool("Gemini", "✨", AiModel.GEMINI, hasGemini || (isAllEmpty && !hasOpenRouter)),
+            AiTool("GPT", "💬", AiModel.CHATGPT, hasOpenAi),
+            AiTool("Image Gen", "🖼️", null, false),
+            AiTool("Video Gen", "🎬", null, false),
+            AiTool("Music Gen", "🎵", null, false)
+        )
+
+        tools.forEach { tool ->
+            val cardBinding = ItemToolCardBinding.inflate(layoutInflater, null, false)
+            cardBinding.tvToolIcon.text = tool.icon
+            cardBinding.tvToolName.text = tool.name
+
+            if (tool.isWorking) {
+                // Active Card State
+                cardBinding.cardRoot.setBackgroundResource(R.drawable.bg_glass_card_active)
+                cardBinding.viewShine.visibility = View.VISIBLE
+                cardBinding.tvToolStatus.text = "ACTIVE"
+                cardBinding.tvToolStatus.setBackgroundResource(R.drawable.bg_status_active_badge)
+                cardBinding.tvToolStatus.setTextColor(resources.getColor(R.color.premium_black, null))
+                cardBinding.cardRoot.alpha = 1.0f
+
+                // Under 3D Tilt floating look
+                cardBinding.cardRoot.translationZ = 12f
+                cardBinding.cardRoot.scaleX = 1.02f
+                cardBinding.cardRoot.scaleY = 1.02f
+
+                // Click selector highlight if selected
+                if (tool.model != null && tool.model == activeModel) {
+                    cardBinding.tvToolName.setTextColor(resources.getColor(R.color.cyan, null))
+                } else {
+                    cardBinding.tvToolName.setTextColor(resources.getColor(R.color.white, null))
+                }
+
+                // Click selection callback
+                if (tool.model != null) {
+                    cardBinding.cardRoot.setOnClickListener {
+                        viewModel.selectModel(tool.model)
+                    }
+                }
+
+                binding.gridActiveTools.addView(cardBinding.root)
+            } else {
+                // Non-working / Locked State (Coming Soon)
+                cardBinding.cardRoot.setBackgroundResource(R.drawable.bg_glass_card)
+                cardBinding.viewShine.visibility = View.GONE
+                cardBinding.tvToolStatus.text = "Coming Soon"
+                cardBinding.tvToolStatus.setBackgroundResource(R.drawable.bg_frosted_glass_pill)
+                cardBinding.tvToolStatus.setTextColor(resources.getColor(R.color.text_dim, null))
+                cardBinding.cardRoot.alpha = 0.62f
+                cardBinding.cardRoot.isClickable = false
+                cardBinding.cardRoot.isFocusable = false
+
+                binding.gridBakiTools.addView(cardBinding.root)
+            }
         }
     }
 
@@ -171,8 +225,8 @@ class HomeFragment : Fragment() {
                 AiModel.PERPLEXITY -> "🔍"
             }
 
-            // ChatGPT/OpenAI is always Coming Soon and disabled
-            val isOpenAiDisabled = model == AiModel.CHATGPT
+            // ChatGPT/OpenAI is disabled if its key is empty
+            val isOpenAiDisabled = model == AiModel.CHATGPT && com.salmanlaghari.pkai.BuildConfig.OPENAI_API_KEY.isBlank()
             if (isOpenAiDisabled) {
                 itemBinding.tvModelProvider.text = "Coming Soon"
                 itemBinding.tvModelProvider.setTextColor(resources.getColor(R.color.error, null))

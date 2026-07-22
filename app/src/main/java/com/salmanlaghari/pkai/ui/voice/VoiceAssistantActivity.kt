@@ -283,7 +283,6 @@ class VoiceAssistantActivity : AppCompatActivity() {
             if (isUser) {
                 val tv = child.findViewById<TextView>(R.id.tv_user_message)
                     ?: child.findViewById<TextView>(R.id.tv_ai_message)
-                    ?: child.findViewById<TextView>(R.id.tv_chat_message)
                 if (tv != null) {
                     userTexts.add(tv.text.toString())
                 }
@@ -415,7 +414,6 @@ class VoiceAssistantActivity : AppCompatActivity() {
 
         val tv = bubbleView.findViewById<TextView>(R.id.tv_user_message)
             ?: bubbleView.findViewById<TextView>(R.id.tv_ai_message)
-            ?: bubbleView.findViewById<TextView>(R.id.tv_chat_message)
         if (tv != null) {
             tv.text = text
         }

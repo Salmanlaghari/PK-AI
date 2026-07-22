@@ -62,7 +62,18 @@ class HomeFragment : Fragment() {
         // 3. Observe Selected Model StateFlow
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.selectedModel.collect { model ->
-                binding.btnModelSelector.text = "💎 ${model.displayName} ▼"
+                val emoji = when (model) {
+                    AiModel.GEMINI -> "💎"
+                    AiModel.CHATGPT -> "🤖"
+                    AiModel.CLAUDE -> "🧠"
+                    AiModel.GROK -> "⚡"
+                    AiModel.DEEPSEEK -> "🌊"
+                    AiModel.QWEN -> "🐪"
+                    AiModel.LLAMA -> "🦙"
+                    AiModel.MISTRAL -> "🌪️"
+                    AiModel.PERPLEXITY -> "🔍"
+                }
+                binding.btnModelSelector.text = "$emoji ${model.displayName} ▼"
             }
         }
 
@@ -111,7 +122,58 @@ class HomeFragment : Fragment() {
         setupQuickActions()
     }
 
+    @android.annotation.SuppressLint("ClickableViewAccessibility")
+    private fun setupPremiumTouchAnimation(card: com.google.android.material.card.MaterialCardView) {
+        val originalElevation = card.cardElevation
+        card.setOnTouchListener { view, event ->
+            when (event.action) {
+                android.view.MotionEvent.ACTION_DOWN -> {
+                    view.animate()
+                        .scaleX(0.95f)
+                        .scaleY(0.95f)
+                        .setDuration(120)
+                        .setInterpolator(android.view.animation.DecelerateInterpolator())
+                        .start()
+                    card.cardElevation = originalElevation * 0.3f
+                }
+                android.view.MotionEvent.ACTION_UP -> {
+                    view.animate()
+                        .scaleX(1.0f)
+                        .scaleY(1.0f)
+                        .setDuration(220)
+                        .setInterpolator(android.view.animation.OvershootInterpolator(2.0f))
+                        .start()
+                    card.cardElevation = originalElevation
+
+                    val rect = android.graphics.Rect()
+                    view.getGlobalVisibleRect(rect)
+                    if (rect.contains(event.rawX.toInt(), event.rawY.toInt())) {
+                        view.performClick()
+                    }
+                }
+                android.view.MotionEvent.ACTION_CANCEL -> {
+                    view.animate()
+                        .scaleX(1.0f)
+                        .scaleY(1.0f)
+                        .setDuration(150)
+                        .setInterpolator(android.view.animation.DecelerateInterpolator())
+                        .start()
+                    card.cardElevation = originalElevation
+                }
+            }
+            true
+        }
+    }
+
     private fun setupQuickActions() {
+        setupPremiumTouchAnimation(binding.cardQaChat)
+        setupPremiumTouchAnimation(binding.cardQaImage)
+        setupPremiumTouchAnimation(binding.cardQaVideo)
+        setupPremiumTouchAnimation(binding.cardQaMusic)
+        setupPremiumTouchAnimation(binding.cardQaPdf)
+        setupPremiumTouchAnimation(binding.cardQaCode)
+        setupPremiumTouchAnimation(binding.cardQaSearch)
+
         binding.cardQaChat.setOnClickListener {
             Toast.makeText(requireContext(), "💬 Premium Chat Generator is active", Toast.LENGTH_SHORT).show()
         }
@@ -146,7 +208,37 @@ class HomeFragment : Fragment() {
         models.forEach { model ->
             val itemBinding = ItemModelSheetBinding.inflate(layoutInflater, sheetBinding.layoutModelsList, false)
             itemBinding.tvModelName.text = model.displayName
-            itemBinding.tvModelProvider.text = model.providerName
+
+            // Emoji mapping
+            itemBinding.tvModelEmoji.text = when (model) {
+                AiModel.GEMINI -> "💎"
+                AiModel.CHATGPT -> "🤖"
+                AiModel.CLAUDE -> "🧠"
+                AiModel.GROK -> "⚡"
+                AiModel.DEEPSEEK -> "🌊"
+                AiModel.QWEN -> "🐪"
+                AiModel.LLAMA -> "🦙"
+                AiModel.MISTRAL -> "🌪️"
+                AiModel.PERPLEXITY -> "🔍"
+            }
+
+            // ChatGPT/OpenAI is always Coming Soon and disabled
+            val isOpenAiDisabled = model == AiModel.CHATGPT
+            if (isOpenAiDisabled) {
+                itemBinding.tvModelProvider.text = "Coming Soon"
+                itemBinding.tvModelProvider.setTextColor(resources.getColor(R.color.error, null))
+                itemBinding.tvModelName.alpha = 0.5f
+                itemBinding.tvModelEmoji.alpha = 0.5f
+                itemBinding.btnModelItem.isEnabled = false
+                itemBinding.btnModelItem.alpha = 0.6f
+            } else {
+                itemBinding.tvModelProvider.text = model.providerName
+                itemBinding.tvModelProvider.setTextColor(resources.getColor(R.color.outline, null))
+                itemBinding.tvModelName.alpha = 1.0f
+                itemBinding.tvModelEmoji.alpha = 1.0f
+                itemBinding.btnModelItem.isEnabled = true
+                itemBinding.btnModelItem.alpha = 1.0f
+            }
 
             // Highlight current selected model
             if (model == currentSelected) {
@@ -157,9 +249,11 @@ class HomeFragment : Fragment() {
                 itemBinding.tvModelName.setTextColor(resources.getColor(R.color.white, null))
             }
 
-            itemBinding.btnModelItem.setOnClickListener {
-                viewModel.selectModel(model)
-                dialog.dismiss()
+            if (!isOpenAiDisabled) {
+                itemBinding.btnModelItem.setOnClickListener {
+                    viewModel.selectModel(model)
+                    dialog.dismiss()
+                }
             }
 
             sheetBinding.layoutModelsList.addView(itemBinding.root)

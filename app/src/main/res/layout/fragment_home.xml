@@ -146,23 +146,25 @@
                 android:layout_marginEnd="8dp"
                 android:clickable="true"
                 android:focusable="true"
-                app:cardBackgroundColor="@color/glass_background"
-                app:cardCornerRadius="12dp"
-                app:strokeColor="@color/glass_stroke"
-                app:strokeWidth="1dp">
+                app:cardBackgroundColor="@color/glass_bubble_background"
+                app:cardCornerRadius="24dp"
+                app:strokeColor="@color/glass_bubble_stroke"
+                app:strokeWidth="1dp"
+                app:cardElevation="6dp">
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:gravity="center"
                     android:orientation="horizontal"
-                    android:paddingHorizontal="12dp"
-                    android:paddingVertical="8dp">
+                    android:paddingHorizontal="16dp"
+                    android:paddingVertical="10dp">
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="💬 Chat"
                         android:textColor="@color/white"
                         android:textSize="13sp"
+                        android:fontFamily="@font/poppins"
                         android:textStyle="bold" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -176,23 +178,25 @@
                 android:layout_marginEnd="8dp"
                 android:clickable="true"
                 android:focusable="true"
-                app:cardBackgroundColor="@color/glass_background"
-                app:cardCornerRadius="12dp"
-                app:strokeColor="@color/glass_stroke"
-                app:strokeWidth="1dp">
+                app:cardBackgroundColor="@color/glass_bubble_background"
+                app:cardCornerRadius="24dp"
+                app:strokeColor="@color/glass_bubble_stroke"
+                app:strokeWidth="1dp"
+                app:cardElevation="6dp">
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:gravity="center"
                     android:orientation="horizontal"
-                    android:paddingHorizontal="12dp"
-                    android:paddingVertical="8dp">
+                    android:paddingHorizontal="16dp"
+                    android:paddingVertical="10dp">
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="🖼 Image"
                         android:textColor="@color/white"
                         android:textSize="13sp"
+                        android:fontFamily="@font/poppins"
                         android:textStyle="bold" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -206,23 +210,25 @@
                 android:layout_marginEnd="8dp"
                 android:clickable="true"
                 android:focusable="true"
-                app:cardBackgroundColor="@color/glass_background"
-                app:cardCornerRadius="12dp"
-                app:strokeColor="@color/glass_stroke"
-                app:strokeWidth="1dp">
+                app:cardBackgroundColor="@color/glass_bubble_background"
+                app:cardCornerRadius="24dp"
+                app:strokeColor="@color/glass_bubble_stroke"
+                app:strokeWidth="1dp"
+                app:cardElevation="6dp">
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:gravity="center"
                     android:orientation="horizontal"
-                    android:paddingHorizontal="12dp"
-                    android:paddingVertical="8dp">
+                    android:paddingHorizontal="16dp"
+                    android:paddingVertical="10dp">
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="🎥 Video"
                         android:textColor="@color/white"
                         android:textSize="13sp"
+                        android:fontFamily="@font/poppins"
                         android:textStyle="bold" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -236,23 +242,25 @@
                 android:layout_marginEnd="8dp"
                 android:clickable="true"
                 android:focusable="true"
-                app:cardBackgroundColor="@color/glass_background"
-                app:cardCornerRadius="12dp"
-                app:strokeColor="@color/glass_stroke"
-                app:strokeWidth="1dp">
+                app:cardBackgroundColor="@color/glass_bubble_background"
+                app:cardCornerRadius="24dp"
+                app:strokeColor="@color/glass_bubble_stroke"
+                app:strokeWidth="1dp"
+                app:cardElevation="6dp">
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:gravity="center"
                     android:orientation="horizontal"
-                    android:paddingHorizontal="12dp"
-                    android:paddingVertical="8dp">
+                    android:paddingHorizontal="16dp"
+                    android:paddingVertical="10dp">
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="🎵 Music"
                         android:textColor="@color/white"
                         android:textSize="13sp"
+                        android:fontFamily="@font/poppins"
                         android:textStyle="bold" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -266,23 +274,25 @@
                 android:layout_marginEnd="8dp"
                 android:clickable="true"
                 android:focusable="true"
-                app:cardBackgroundColor="@color/glass_background"
-                app:cardCornerRadius="12dp"
-                app:strokeColor="@color/glass_stroke"
-                app:strokeWidth="1dp">
+                app:cardBackgroundColor="@color/glass_bubble_background"
+                app:cardCornerRadius="24dp"
+                app:strokeColor="@color/glass_bubble_stroke"
+                app:strokeWidth="1dp"
+                app:cardElevation="6dp">
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:gravity="center"
                     android:orientation="horizontal"
-                    android:paddingHorizontal="12dp"
-                    android:paddingVertical="8dp">
+                    android:paddingHorizontal="16dp"
+                    android:paddingVertical="10dp">
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="📄 PDF"
                         android:textColor="@color/white"
                         android:textSize="13sp"
+                        android:fontFamily="@font/poppins"
                         android:textStyle="bold" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -296,23 +306,25 @@
                 android:layout_marginEnd="8dp"
                 android:clickable="true"
                 android:focusable="true"
-                app:cardBackgroundColor="@color/glass_background"
-                app:cardCornerRadius="12dp"
-                app:strokeColor="@color/glass_stroke"
-                app:strokeWidth="1dp">
+                app:cardBackgroundColor="@color/glass_bubble_background"
+                app:cardCornerRadius="24dp"
+                app:strokeColor="@color/glass_bubble_stroke"
+                app:strokeWidth="1dp"
+                app:cardElevation="6dp">
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:gravity="center"
                     android:orientation="horizontal"
-                    android:paddingHorizontal="12dp"
-                    android:paddingVertical="8dp">
+                    android:paddingHorizontal="16dp"
+                    android:paddingVertical="10dp">
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="💻 Code"
                         android:textColor="@color/white"
                         android:textSize="13sp"
+                        android:fontFamily="@font/poppins"
                         android:textStyle="bold" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -325,23 +337,25 @@
                 android:layout_height="wrap_content"
                 android:clickable="true"
                 android:focusable="true"
-                app:cardBackgroundColor="@color/glass_background"
-                app:cardCornerRadius="12dp"
-                app:strokeColor="@color/glass_stroke"
-                app:strokeWidth="1dp">
+                app:cardBackgroundColor="@color/glass_bubble_background"
+                app:cardCornerRadius="24dp"
+                app:strokeColor="@color/glass_bubble_stroke"
+                app:strokeWidth="1dp"
+                app:cardElevation="6dp">
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:gravity="center"
                     android:orientation="horizontal"
-                    android:paddingHorizontal="12dp"
-                    android:paddingVertical="8dp">
+                    android:paddingHorizontal="16dp"
+                    android:paddingVertical="10dp">
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="🌐 Search"
                         android:textColor="@color/white"
                         android:textSize="13sp"
+                        android:fontFamily="@font/poppins"
                         android:textStyle="bold" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>

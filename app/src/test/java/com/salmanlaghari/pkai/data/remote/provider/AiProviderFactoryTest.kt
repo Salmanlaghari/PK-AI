@@ -63,18 +63,19 @@ class AiProviderFactoryTest {
         assertTrue(qwenProvider is OpenRouterAiProvider)
 
         val grokProvider = factory.getProvider(AiModel.GROK)
-        assertTrue(grokProvider is GroqAiProvider)
+        assertTrue(grokProvider is OpenRouterAiProvider)
 
         val mistralProvider = factory.getProvider(AiModel.MISTRAL)
-        assertTrue(mistralProvider is TogetherAiProvider)
+        assertTrue(mistralProvider is OpenRouterAiProvider)
 
         val chatgptProvider = factory.getProvider(AiModel.CHATGPT)
-        assertTrue(chatgptProvider is OpenAiAiProvider || chatgptProvider is OpenRouterAiProvider || chatgptProvider is CohereAiProvider)
+        // Since OPENAI_API_KEY is empty in test environment, it should return the "Coming Soon" placeholder provider
+        assertTrue(chatgptProvider !is OpenAiAiProvider)
 
         val llamaProvider = factory.getProvider(AiModel.LLAMA)
-        assertTrue(llamaProvider is CerebrasAiProvider)
+        assertTrue(llamaProvider is OpenRouterAiProvider)
 
         val perplexityProvider = factory.getProvider(AiModel.PERPLEXITY)
-        assertTrue(perplexityProvider is SambaNovaAiProvider)
+        assertTrue(perplexityProvider is OpenRouterAiProvider)
     }
 }

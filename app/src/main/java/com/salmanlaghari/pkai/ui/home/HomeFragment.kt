@@ -27,17 +27,6 @@ class HomeFragment : Fragment() {
 
     private val viewModel: HomeViewModel by viewModels()
 
-    private val voiceAssistantLauncher = registerForActivityResult(
-        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == android.app.Activity.RESULT_OK) {
-            val confirmedText = result.data?.getStringExtra("confirmed_transcript")
-            if (!confirmedText.isNullOrBlank()) {
-                viewModel.sendMessage(confirmedText)
-            }
-        }
-    }
-
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
@@ -114,14 +103,6 @@ class HomeFragment : Fragment() {
                 viewModel.sendMessage(content)
                 binding.etMessageInput.text?.clear()
             }
-        }
-
-        // 6b. Floating Premium Mic Button Action
-        binding.btnMicVoice.setOnClickListener {
-            val intent = android.content.Intent(requireContext(), com.salmanlaghari.pkai.ui.voice.VoiceAssistantActivity::class.java)
-            // Optional: Pass the currently selected model enum string
-            intent.putExtra("selected_model", viewModel.selectedModel.value.name)
-            voiceAssistantLauncher.launch(intent)
         }
 
         // 7. Premium Header Toolbar Actions

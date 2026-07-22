@@ -13,6 +13,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.salmanlaghari.pkai.R
 import com.salmanlaghari.pkai.databinding.FragmentLoginBinding
 import dagger.hilt.android.AndroidEntryPoint
@@ -26,6 +27,7 @@ class LoginFragment : Fragment() {
     private val binding get() = _binding!!
 
     private val viewModel: LoginViewModel by viewModels()
+    private var diagnosticDialog: androidx.appcompat.app.AlertDialog? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -54,6 +56,7 @@ class LoginFragment : Fragment() {
                     }
                     is LoginUiState.Success -> {
                         binding.layoutLoading.visibility = View.GONE
+                        diagnosticDialog?.dismiss()
                         // Navigate to Home Dashboard upon successful login
                         findNavController().navigate(R.id.action_loginFragment_to_homeFragment)
                     }
@@ -95,6 +98,7 @@ class LoginFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             try {
                 viewModel.resetState()
+                android.util.Log.d("PKAI_AUTH", "Requesting credentials with client ID: $clientId")
                 val result = credentialManager.getCredential(
                     request = request,
                     context = requireContext()
@@ -107,6 +111,7 @@ class LoginFragment : Fragment() {
                     val email = googleIdTokenCredential.id
                     val photoUrl = googleIdTokenCredential.profilePictureUri?.toString()
 
+                    android.util.Log.i("PKAI_AUTH", "Google Sign-In Success! Email: $email")
                     viewModel.loginWithGoogle(
                         idToken = idToken,
                         displayName = displayName,
@@ -117,15 +122,50 @@ class LoginFragment : Fragment() {
                     binding.tvErrorBanner.visibility = View.VISIBLE
                     binding.tvErrorBanner.text = getString(R.string.error_auth_failed)
                 }
-            } catch (e: Exception) {
+            } catch (e: androidx.credentials.exceptions.GetCredentialException) {
+                android.util.Log.e("PKAI_AUTH", "GetCredentialException occurred: ", e)
                 binding.tvErrorBanner.visibility = View.VISIBLE
-                binding.tvErrorBanner.text = e.localizedMessage ?: getString(R.string.error_auth_failed)
+                val userFriendlyMessage = when (e) {
+                    is androidx.credentials.exceptions.GetCredentialCancellationException -> {
+                        "Sign-In cancelled by user."
+                    }
+                    is androidx.credentials.exceptions.NoCredentialException -> {
+                        showDiagnosticDialog()
+                        "Google Sign-In configuration error on this device."
+                    }
+                    else -> {
+                        "Google Sign-In error: ${e.message}\n\nPlease check your Firebase client configuration, package name, and SHA-1 fingerprints."
+                    }
+                }
+                binding.tvErrorBanner.text = userFriendlyMessage
+            } catch (e: Exception) {
+                android.util.Log.e("PKAI_AUTH", "Unknown Google Sign-In exception occurred: ", e)
+                binding.tvErrorBanner.visibility = View.VISIBLE
+                binding.tvErrorBanner.text = "Google Sign-In failed: ${e.localizedMessage ?: "Unknown Error"}.\n\nPlease ensure you have replaced 'default_web_client_id' in strings.xml and configured Firebase."
             }
         }
     }
 
+    private fun showDiagnosticDialog() {
+        diagnosticDialog?.dismiss()
+        val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_google_signin_diagnostic, null)
+        val dialog = MaterialAlertDialogBuilder(requireContext(), R.style.Theme_PkAi)
+            .setView(dialogView)
+            .create()
+
+        dialogView.findViewById<View>(R.id.btn_diagnostic_dismiss)?.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+        dialog.show()
+        diagnosticDialog = dialog
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
+        diagnosticDialog?.dismiss()
+        diagnosticDialog = null
         _binding = null
     }
 }

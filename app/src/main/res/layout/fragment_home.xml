@@ -423,7 +423,7 @@
             app:boxStrokeWidthFocused="1.5dp"
             app:hintTextColor="@color/electric_blue_glow"
             app:layout_constraintBottom_toTopOf="@id/btn_model_selector"
-            app:layout_constraintEnd_toStartOf="@id/btn_send"
+            app:layout_constraintEnd_toStartOf="@id/btn_mic_voice"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent">
 
@@ -438,6 +438,21 @@
                 android:inputType="textMultiLine|textCapSentences"
                 android:maxLines="4" />
         </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Premium Floating Mic Button (Row 1) -->
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/btn_mic_voice"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:contentDescription="Voice Assistant"
+            app:backgroundTint="@color/secondary"
+            app:fabSize="normal"
+            app:layout_constraintBottom_toBottomOf="@id/input_message_layout"
+            app:layout_constraintEnd_toStartOf="@id/btn_send"
+            app:layout_constraintTop_toTopOf="@id/input_message_layout"
+            app:srcCompat="@drawable/ic_mic"
+            app:tint="@color/premium_black" />
 
         <!-- Send FAB (Row 1) -->
         <com.google.android.material.floatingactionbutton.FloatingActionButton

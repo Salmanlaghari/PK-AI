@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#050510">
+
+    <!-- Step 1: Cosmic Background Layer with moving neon orbs and stars -->
+    <com.salmanlaghari.pkai.ui.voice.VoiceAssistantBackgroundView
+        android:id="@+id/cosmic_background"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- Top Header Area -->
+    <LinearLayout
+        android:id="@+id/layout_voice_header"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:gravity="center"
+        android:orientation="vertical"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_marginEnd="8dp"
+                android:src="@drawable/ic_pkai_logo" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins"
+                android:text="PK AI"
+                android:textColor="@color/white"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tv_assistant_status_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:fontFamily="@font/poppins"
+            android:letterSpacing="0.1"
+            android:text="VOICE ASSISTANT · LISTENING"
+            android:textColor="@color/electric_blue_glow"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- Central Core Orb & Concentric Pulse Rings Area -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_central_orb"
+        android:layout_width="220dp"
+        android:layout_height="220dp"
+        app:layout_constraintBottom_toTopOf="@id/wave_visualizer"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/layout_voice_header"
+        app:layout_constraintVertical_bias="0.3">
+
+        <!-- Concentric Ring 3 (Outer) -->
+        <View
+            android:id="@+id/pulse_ring_3"
+            android:layout_width="220dp"
+            android:layout_height="220dp"
+            android:background="@drawable/bg_pulse_ring"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- Concentric Ring 2 (Middle) -->
+        <View
+            android:id="@+id/pulse_ring_2"
+            android:layout_width="180dp"
+            android:layout_height="180dp"
+            android:background="@drawable/bg_pulse_ring"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- Concentric Ring 1 (Inner) -->
+        <View
+            android:id="@+id/pulse_ring_1"
+            android:layout_width="140dp"
+            android:layout_height="140dp"
+            android:background="@drawable/bg_pulse_ring"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- Central core sphere -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/central_core_sphere"
+            android:layout_width="120dp"
+            android:layout_height="120dp"
+            app:cardCornerRadius="60dp"
+            app:cardElevation="24dp"
+            app:cardBackgroundColor="@android:color/transparent"
+            app:strokeWidth="1.5dp"
+            app:strokeColor="@color/electric_blue_glow"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <View
+                android:id="@+id/core_gradient_bg"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/bg_core_listening" />
+
+            <ImageView
+                android:id="@+id/iv_mic_icon"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_mic"
+                app:tint="@color/white" />
+        </com.google.android.material.card.MaterialCardView>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Animated Status Text with Typing Dots -->
+    <TextView
+        android:id="@+id/tv_animated_status"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="24dp"
+        android:layout_marginBottom="12dp"
+        android:fontFamily="@font/poppins"
+        android:gravity="center"
+        android:text="Tap start button to activate mic..."
+        android:textColor="@color/white"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toTopOf="@id/wave_visualizer"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <!-- Real-Time Voice Wave Visualizer -->
+    <com.salmanlaghari.pkai.ui.voice.VoiceVisualizerView
+        android:id="@+id/wave_visualizer"
+        android:layout_width="0dp"
+        android:layout_height="80dp"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginBottom="16dp"
+        app:layout_constraintBottom_toTopOf="@id/transcript_panel_card"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <!-- Glassmorphic Transcript Scroll Panel -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/transcript_panel_card"
+        style="@style/Widget.Material3.CardView.Filled"
+        android:layout_width="0dp"
+        android:layout_height="220dp"
+        android:layout_marginHorizontal="20dp"
+        android:layout_marginBottom="24dp"
+        app:cardBackgroundColor="@color/glass_bubble_background"
+        app:cardCornerRadius="20dp"
+        app:strokeColor="@color/glass_bubble_stroke"
+        app:strokeWidth="1dp"
+        app:layout_constraintBottom_toTopOf="@id/layout_voice_controls"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <ScrollView
+            android:id="@+id/scroll_transcript"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fillViewport="true"
+            android:padding="14dp"
+            android:scrollbars="none">
+
+            <!-- Container for programmatically added speech bubbles -->
+            <LinearLayout
+                android:id="@+id/container_transcript_bubbles"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="bottom"
+                android:paddingBottom="12dp" />
+        </ScrollView>
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Control Buttons Layer -->
+    <LinearLayout
+        android:id="@+id/layout_voice_controls"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:gravity="center"
+        android:orientation="horizontal"
+        app:layout_constraintBottom_toTopOf="@id/tv_active_model_status"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <!-- Left Gold Clear button -->
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/btn_clear_transcript"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="24dp"
+            android:contentDescription="Clear Transcript"
+            app:backgroundTint="#20FBBC05"
+            app:fabSize="mini"
+            app:strokeColor="#80FBBC05"
+            app:strokeWidth="1dp"
+            app:srcCompat="@drawable/ic_delete"
+            app:tint="#FBBC05" />
+
+        <!-- Center glowing red Stop button -->
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/btn_stop_toggle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:contentDescription="Stop Recording"
+            app:backgroundTint="#FF3B30"
+            app:fabSize="normal"
+            app:elevation="12dp"
+            app:srcCompat="@drawable/ic_mic"
+            app:tint="@color/white" />
+
+        <!-- Right Green Confirm/Send button -->
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/btn_confirm_send"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="24dp"
+            android:contentDescription="Confirm Transcript"
+            app:backgroundTint="#2034A853"
+            app:fabSize="mini"
+            app:strokeColor="#8034A853"
+            app:strokeWidth="1dp"
+            app:srcCompat="@drawable/ic_check"
+            app:tint="#34A853" />
+    </LinearLayout>
+
+    <!-- Bottom connection status with active model -->
+    <TextView
+        android:id="@+id/tv_active_model_status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="24dp"
+        android:fontFamily="@font/poppins"
+        android:gravity="center"
+        android:text="● Connected to Gemini 1.5 Pro"
+        android:textColor="@color/electric_blue_glow"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

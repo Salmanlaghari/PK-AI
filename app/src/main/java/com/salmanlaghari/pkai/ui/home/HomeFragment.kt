@@ -1,10 +1,14 @@
 package com.salmanlaghari.pkai.ui.home
 
+import android.animation.ValueAnimator
+import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
@@ -34,6 +38,23 @@ class HomeFragment : Fragment() {
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
         return binding.root
     }
+
+    // Launcher for VoiceAssistantActivity to receive transcripts
+    private val voiceLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val transcript = result.data?.getStringExtra("confirmed_transcript")
+            if (!transcript.isNullOrBlank()) {
+                binding.etMessageInput.setText(transcript)
+                // Auto-send the message for a seamless hands-free experience
+                viewModel.sendMessage(transcript)
+                binding.etMessageInput.text?.clear()
+            }
+        }
+    }
+
+    private var rippleAnimator: ValueAnimator? = null
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -117,6 +138,50 @@ class HomeFragment : Fragment() {
         binding.btnSettings.setOnClickListener {
             findNavController().navigate(R.id.settingsFragment)
         }
+
+        // 8. Voice Trigger click opens premium VoiceAssistantActivity
+        binding.btnVoice.setOnClickListener {
+            val intent = Intent(requireContext(), com.salmanlaghari.pkai.ui.voice.VoiceAssistantActivity::class.java).apply {
+                putExtra("selected_model", viewModel.selectedModel.value.name)
+            }
+            voiceLauncher.launch(intent)
+        }
+
+        // 9. Start continuous 60fps ripple ring animations for Voice Trigger
+        startVoiceRippleAnimations()
+    }
+
+    private fun startVoiceRippleAnimations() {
+        rippleAnimator?.cancel()
+        rippleAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 2000
+            repeatCount = ValueAnimator.INFINITE
+            interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+            addUpdateListener { anim ->
+                val progress = anim.animatedValue as Float
+
+                // Ripple 1
+                if (_binding != null) {
+                    binding.viewRipple1.scaleX = 0.8f + progress * 0.6f
+                    binding.viewRipple1.scaleY = 0.8f + progress * 0.6f
+                    binding.viewRipple1.alpha = (1f - progress) * 0.8f
+
+                    // Ripple 2 (staggered delay, starts at half progress)
+                    val progress2 = (progress + 0.5f) % 1f
+                    binding.viewRipple2.scaleX = 0.8f + progress2 * 1.0f
+                    binding.viewRipple2.scaleY = 0.8f + progress2 * 1.0f
+                    binding.viewRipple2.alpha = (1f - progress2) * 0.5f
+                }
+            }
+        }
+        rippleAnimator?.start()
+    }
+
+    override fun onDestroyView() {
+        rippleAnimator?.cancel()
+        rippleAnimator = null
+        super.onDestroyView()
+        _binding = null
     }
 
     private fun showModelSelectionBottomSheet() {
@@ -162,13 +227,15 @@ class HomeFragment : Fragment() {
                 itemBinding.btnModelItem.alpha = 1.0f
             }
 
-            // Highlight current selected model
+            // Highlight current selected model and apply custom selected backgrounds
             if (model == currentSelected) {
                 itemBinding.ivModelCheck.visibility = View.VISIBLE
-                itemBinding.tvModelName.setTextColor(resources.getColor(R.color.electric_blue_glow, null))
+                itemBinding.tvModelName.setTextColor(resources.getColor(R.color.html_cyan, null))
+                itemBinding.btnModelItem.setBackgroundResource(R.drawable.bg_model_item_selected)
             } else {
                 itemBinding.ivModelCheck.visibility = View.GONE
                 itemBinding.tvModelName.setTextColor(resources.getColor(R.color.white, null))
+                itemBinding.btnModelItem.setBackgroundResource(R.drawable.bg_model_item_default)
             }
 
             if (!isModelDisabled) {
@@ -183,10 +250,5 @@ class HomeFragment : Fragment() {
 
         dialog.setContentView(sheetBinding.root)
         dialog.show()
-    }
-
-    override fun onDestroyView() {
-        super.onDestroyView()
-        _binding = null
     }
 }

@@ -4,13 +4,14 @@
     android:id="@+id/btn_model_item"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="?attr/selectableItemBackground"
+    android:layout_marginBottom="12dp"
+    android:background="@drawable/bg_model_item_default"
     android:clickable="true"
     android:focusable="true"
     android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:paddingHorizontal="16dp"
-    android:paddingVertical="12dp">
+    android:paddingHorizontal="20dp"
+    android:paddingVertical="14dp">
 
     <TextView
         android:id="@+id/tv_model_emoji"

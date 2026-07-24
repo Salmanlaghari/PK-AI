@@ -61,14 +61,15 @@ class AuroraBackgroundView @JvmOverloads constructor(
         // 1. Generate Stars
         stars.clear()
         val numStars = 45
+        val density = dpToPx()
         for (i in 0 until numStars) {
             stars.add(
                 Star(
                     x = (Math.random() * w).toFloat(),
                     y = (Math.random() * h).toFloat(),
-                    size = (1dpToPx() + Math.random() * 2dpToPx()).toFloat(),
+                    size = (density + Math.random().toFloat() * 2f * density),
                     phase = (Math.random() * Math.PI * 2).toFloat(),
-                    speed = (0.01 + Math.random() * 0.03).toFloat()
+                    speed = (0.01f + Math.random().toFloat() * 0.03f)
                 )
             )
         }

@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="16dp"
+    android:layout_marginVertical="8dp"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="0dp"
+    app:cardBackgroundColor="@color/premium_black">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_glass_card"
+        android:padding="16dp">
+
+        <!-- Avatar Emoji Logo -->
+        <TextView
+            android:id="@+id/tv_avatar"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/bg_glass_card"
+            android:gravity="center"
+            android:text="💎"
+            android:textSize="24sp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- Name & Provider -->
+        <TextView
+            android:id="@+id/tv_name"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:text="Gemini"
+            android:textColor="@color/white"
+            android:fontFamily="@font/poppins"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toStartOf="@+id/tv_status_badge"
+            app:layout_constraintStart_toEndOf="@id/tv_avatar"
+            app:layout_constraintTop_toTopOf="@id/tv_avatar" />
+
+        <TextView
+            android:id="@+id/tv_provider"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginTop="2dp"
+            android:text="Google"
+            android:textColor="@color/outline"
+            android:fontFamily="@font/poppins"
+            android:textSize="12sp"
+            app:layout_constraintBottom_toBottomOf="@id/tv_avatar"
+            app:layout_constraintEnd_toStartOf="@+id/btn_open_chat"
+            app:layout_constraintStart_toEndOf="@id/tv_avatar"
+            app:layout_constraintTop_toBottomOf="@id/tv_name" />
+
+        <!-- Live Status Badge -->
+        <TextView
+            android:id="@+id/tv_status_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_glass_card"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="4dp"
+            android:text="● Online"
+            android:textColor="@color/electric_blue_glow"
+            android:textSize="11sp"
+            android:fontFamily="@font/poppins"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- Open Chat Button -->
+        <Button
+            android:id="@+id/btn_open_chat"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Open Room ➔"
+            android:textColor="@color/electric_blue_glow"
+            android:fontFamily="@font/poppins"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.cardview.widget.CardView>

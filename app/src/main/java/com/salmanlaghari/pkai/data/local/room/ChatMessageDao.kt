@@ -15,9 +15,15 @@ interface ChatMessageDao {
     @Query("SELECT * FROM chat_messages ORDER BY timestamp ASC")
     fun getAllMessagesFlow(): Flow<List<ChatMessage>>
 
+    @Query("SELECT * FROM chat_messages WHERE modelUsed = :modelName ORDER BY timestamp ASC")
+    fun getMessagesForModelFlow(modelName: String): Flow<List<ChatMessage>>
+
     @Query("SELECT * FROM chat_messages ORDER BY timestamp ASC")
     suspend fun getAllMessages(): List<ChatMessage>
 
     @Query("DELETE FROM chat_messages")
     suspend fun clearAllMessages()
+
+    @Query("DELETE FROM chat_messages WHERE modelUsed = :modelName")
+    suspend fun clearMessagesForModel(modelName: String)
 }

@@ -103,12 +103,13 @@ class OpenRouterAiProvider(
             return "API key not configured."
         }
         val modelId = when (model) {
+            AiModel.GEMINI -> "google/gemini-2.5-pro"
             AiModel.QWEN -> "qwen/qwen-2.5-72b-instruct"
             AiModel.DEEPSEEK -> "deepseek/deepseek-chat"
             AiModel.LLAMA -> "meta-llama/llama-3.3-70b-instruct"
             AiModel.MISTRAL -> "mistralai/mistral-nemo"
             AiModel.CHATGPT -> "openai/gpt-4o-mini"
-            AiModel.CLAUDE -> "anthropic/claude-3.5-sonnet"
+            AiModel.CLAUDE -> "anthropic/claude-3-opus"
             AiModel.PERPLEXITY -> "perplexity/sonar"
             AiModel.GROK -> "x-ai/grok-2"
             else -> "google/gemma-2-9b-it"

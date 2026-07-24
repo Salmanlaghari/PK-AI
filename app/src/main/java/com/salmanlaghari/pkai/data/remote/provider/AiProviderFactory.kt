@@ -19,7 +19,7 @@ class AiProviderFactory @Inject constructor(
 ) {
     fun getProvider(model: AiModel): AiProvider {
         return when (model) {
-            AiModel.GEMINI -> GeminiAiProvider(geminiApiService)
+            AiModel.GEMINI -> OpenRouterAiProvider(model, openRouterApiService)
             AiModel.CHATGPT -> {
                 val openaiKey = com.salmanlaghari.pkai.BuildConfig.OPENAI_API_KEY
                 if (openaiKey.isNotBlank()) {

@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -27,16 +28,19 @@ class HomeViewModel @Inject constructor(
     private val preferencesManager: PreferencesManager
 ) : ViewModel() {
 
-    val chatMessages: StateFlow<List<ChatMessage>> = chatMessageDao.getAllMessagesFlow()
+    private val _selectedModel = MutableStateFlow(AiModel.GEMINI)
+    val selectedModel: StateFlow<AiModel> = _selectedModel.asStateFlow()
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val chatMessages: StateFlow<List<ChatMessage>> = _selectedModel
+        .flatMapLatest { model ->
+            chatMessageDao.getMessagesForModelFlow(model.name)
+        }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
-
-    private val _selectedModel = MutableStateFlow(AiModel.GEMINI)
-    val selectedModel: StateFlow<AiModel> = _selectedModel.asStateFlow()
-
     private val _isGenerating = MutableStateFlow(false)
     val isGenerating: StateFlow<Boolean> = _isGenerating.asStateFlow()
 
@@ -49,11 +53,11 @@ class HomeViewModel @Inject constructor(
 
         viewModelScope.launch {
             val model = _selectedModel.value
-            // 1. Insert user message
+            // 1. Insert user message tagged with selected model name
             val userMessage = ChatMessage(
                 content = content.trim(),
                 isUser = true,
-                modelUsed = null
+                modelUsed = model.name
             )
             chatMessageDao.insertMessage(userMessage)
 
@@ -65,14 +69,14 @@ class HomeViewModel @Inject constructor(
                 val aiMessage = ChatMessage(
                     content = responseText,
                     isUser = false,
-                    modelUsed = model.displayName
+                    modelUsed = model.name
                 )
                 chatMessageDao.insertMessage(aiMessage)
             } catch (e: Exception) {
                 val errorMessage = ChatMessage(
                     content = "Unable to fetch response. Please try again. (${e.localizedMessage ?: "Unknown Error"})",
                     isUser = false,
-                    modelUsed = model.displayName
+                    modelUsed = model.name
                 )
                 chatMessageDao.insertMessage(errorMessage)
             } finally {
@@ -83,7 +87,7 @@ class HomeViewModel @Inject constructor(
 
     fun clearConversation() {
         viewModelScope.launch {
-            chatMessageDao.clearAllMessages()
+            chatMessageDao.clearMessagesForModel(_selectedModel.value.name)
         }
     }
 

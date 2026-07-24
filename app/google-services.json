@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "193399978595",
+    "project_id": "ailatestfinder",
+    "storage_bucket": "ailatestfinder.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:193399978595:android:1b105b318c0fcf1e0dd656",
+        "android_client_info": {
+          "package_name": "com.salmanlaghari.pkai"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDuN7QWodkCsr6eyQDtu10dQkkttD0QNNk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

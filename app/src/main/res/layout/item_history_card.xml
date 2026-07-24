@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    style="@style/Widget.Material3.CardView.Filled"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="16dp"
+    android:layout_marginBottom="8dp"
+    android:clickable="true"
+    android:focusable="true"
+    app:cardBackgroundColor="@color/glass_background"
+    app:cardCornerRadius="12dp"
+    app:strokeColor="@color/glass_stroke"
+    app:strokeWidth="1dp">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="12dp">
+
+        <!-- Bubble Indicator -->
+        <TextView
+            android:id="@+id/tv_item_icon"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@drawable/bg_glass_card"
+            android:gravity="center"
+            android:text="💬"
+            android:textSize="18sp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- Chat Session Title -->
+        <TextView
+            android:id="@+id/tv_history_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="8dp"
+            android:textColor="@color/white"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toStartOf="@id/layout_right_indicators"
+            app:layout_constraintStart_toEndOf="@id/tv_item_icon"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- Last Message Subtitle -->
+        <TextView
+            android:id="@+id/tv_history_subtitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:textColor="@color/outline"
+            android:textSize="12sp"
+            android:maxLines="1"
+            android:ellipsize="end"
+            app:layout_constraintEnd_toEndOf="@id/tv_history_title"
+            app:layout_constraintStart_toStartOf="@id/tv_history_title"
+            app:layout_constraintTop_toBottomOf="@id/tv_history_title" />
+
+        <!-- Right indicators -->
+        <LinearLayout
+            android:id="@+id/layout_right_indicators"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical|end"
+            android:orientation="horizontal"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <!-- Pinned Star Icon Indicator -->
+            <ImageView
+                android:id="@+id/iv_pin_indicator"
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:layout_marginEnd="8dp"
+                android:contentDescription="Pinned Chat"
+                android:src="@drawable/ic_star"
+                android:visibility="gone"
+                app:tint="@color/electric_blue_glow" />
+
+            <!-- Action Menu ImageButton -->
+            <ImageButton
+                android:id="@+id/btn_more_actions"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Chat Actions"
+                android:src="@drawable/ic_settings"
+                app:tint="@color/electric_blue_glow" />
+
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</com.google.android.material.card.MaterialCardView>

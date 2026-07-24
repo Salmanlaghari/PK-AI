@@ -1,0 +1,74 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="512dp"
+    android:height="512dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+
+    <!-- Premium Background Gradient -->
+    <path
+        android:pathData="M0,0 h512 v512 H0 Z"
+        android:fillColor="#0F0F10"/>
+
+    <!-- Glowing Electric Blue Circuit Circles/Nodes (Background Glow) -->
+    <path
+        android:pathData="M156,156 m-12,0 a12,12 0,1 1,24 0 a12,12 0,1 1,-24 0"
+        android:fillColor="#00E5FF"/>
+    <path
+        android:pathData="M356,156 m-12,0 a12,12 0,1 1,24 0 a12,12 0,1 1,-24 0"
+        android:fillColor="#7C3AED"/>
+    <path
+        android:pathData="M156,356 m-12,0 a12,12 0,1 1,24 0 a12,12 0,1 1,-24 0"
+        android:fillColor="#7C3AED"/>
+    <path
+        android:pathData="M356,356 m-12,0 a12,12 0,1 1,24 0 a12,12 0,1 1,-24 0"
+        android:fillColor="#00E5FF"/>
+
+    <!-- Circuit Connection Lines -->
+    <path
+        android:pathData="M156,156 L256,100 L356,156 M356,156 L412,256 L356,356 M356,356 L256,412 L156,356 M156,356 L100,256 L156,156"
+        android:strokeWidth="4"
+        android:strokeColor="#13FFFFFF"/>
+
+    <path
+        android:pathData="M156,156 L256,256 L356,156 M156,356 L256,256 L356,356"
+        android:strokeWidth="3"
+        android:strokeColor="#2200E5FF"/>
+
+    <!-- Premium Diamond Crystal Outer Border -->
+    <path
+        android:pathData="M256,80 L432,256 L256,432 L80,256 Z"
+        android:strokeWidth="8"
+        android:strokeColor="#00E5FF"
+        android:fillColor="#157C3AED"/>
+
+    <!-- Diamond Inner Chords -->
+    <path
+        android:pathData="M256,80 L256,432 M80,256 L432,256"
+        android:strokeWidth="3"
+        android:strokeColor="#7C3AED"/>
+
+    <!-- Stylized Monogram PK (Center) -->
+    <!-- Letter 'P' -->
+    <path
+        android:pathData="M200,180 L200,332 M200,180 H240 C265,180 265,240 240,240 H200"
+        android:strokeWidth="14"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"/>
+
+    <!-- Letter 'K' -->
+    <path
+        android:pathData="M280,180 L280,332 M280,256 L332,180 M280,256 L332,332"
+        android:strokeWidth="14"
+        android:strokeColor="#00E5FF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"/>
+
+    <!-- Glowing Corner Embellishments -->
+    <path
+        android:pathData="M256,50 L256,30 M50,256 L30,256 M256,462 L256,482 M462,256 L482,256"
+        android:strokeWidth="6"
+        android:strokeColor="#00E5FF"
+        android:strokeLineCap="round"/>
+
+</vector>

@@ -34,13 +34,26 @@
     <color name="outline">#30397A</color>
 
     <!-- PK AI Premium Theme Colors -->
-    <color name="premium_black">#010208</color>
+    <color name="premium_black">#03050A</color>
     <color name="electric_blue_glow">#00F0FF</color>
     <color name="purple_accent">#A800FF</color>
     <color name="glass_background">#260D1026</color>
     <color name="glass_stroke">#4030397A</color>
     <color name="glass_bubble_background">#330D1026</color>
     <color name="glass_bubble_stroke">#4000F0FF</color>
+
+    <!-- Exact HTML Design Spec Colors -->
+    <color name="html_cyan">#00F5FF</color>
+    <color name="html_purple">#8B2EFF</color>
+    <color name="html_pink">#FF2FD0</color>
+    <color name="html_blue">#3D7BFF</color>
+    <color name="html_gold">#FFD54F</color>
+    <color name="html_secondary">#07111F</color>
+    <color name="html_gray">#888899</color>
+    <color name="html_glass">#10FFFFFF</color>
+    <color name="html_glass_strong">#1AFFFFFF</color>
+    <color name="html_glass_border">#1A00F5FF</color>
+    <color name="html_glass_border_strong">#2600F5FF</color>
 
     <color name="white">#FFFFFF</color>
 </resources>

@@ -3,16 +3,16 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@color/premium_black"
-    android:paddingBottom="24dp">
+    android:background="@drawable/bg_bottom_sheet"
+    android:paddingBottom="36dp">
 
     <!-- Bottom Sheet Drag Handle -->
     <View
         android:id="@+id/drag_handle"
         android:layout_width="40dp"
         android:layout_height="4dp"
-        android:layout_marginTop="8dp"
-        android:background="@color/glass_stroke"
+        android:layout_marginTop="12dp"
+        android:background="@color/html_glass_strong"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
@@ -21,7 +21,7 @@
         android:id="@+id/tv_sheet_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="20dp"
         android:text="Choose Intelligence Model"
         android:textColor="@color/white"
         android:textSize="18sp"

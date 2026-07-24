@@ -34,6 +34,11 @@ class PreferencesManager @Inject constructor(
     private val emailKey = stringPreferencesKey("user_email")
     private val profileImageUrlKey = stringPreferencesKey("user_profile_image_url")
 
+    // Settings Keys
+    private val isDarkModeKey = booleanPreferencesKey("is_dark_mode")
+    private val appLanguageKey = stringPreferencesKey("app_language")
+    private val notificationsEnabledKey = booleanPreferencesKey("notifications_enabled")
+
     val isOnboardingCompleted: Flow<Boolean> = context.dataStore.data.map { preferences ->
         preferences[onboardingCompletedKey] ?: false
     }
@@ -85,6 +90,37 @@ class PreferencesManager @Inject constructor(
             preferences[displayNameKey] = ""
             preferences[emailKey] = ""
             preferences[profileImageUrlKey] = ""
+        }
+    }
+
+    // Settings Streams & Setters
+    val isDarkMode: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[isDarkModeKey] ?: true // Defaults to true for PK AI Premium Dark style
+    }
+
+    suspend fun setDarkMode(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[isDarkModeKey] = enabled
+        }
+    }
+
+    val appLanguage: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[appLanguageKey] ?: "en" // Defaults to English
+    }
+
+    suspend fun setAppLanguage(languageCode: String) {
+        context.dataStore.edit { preferences ->
+            preferences[appLanguageKey] = languageCode
+        }
+    }
+
+    val isNotificationsEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[notificationsEnabledKey] ?: true // Defaults to true
+    }
+
+    suspend fun setNotificationsEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[notificationsEnabledKey] = enabled
         }
     }
 }

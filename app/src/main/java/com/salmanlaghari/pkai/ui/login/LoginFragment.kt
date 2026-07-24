@@ -155,6 +155,8 @@ class LoginFragment : Fragment() {
 
         dialogView.findViewById<View>(R.id.btn_diagnostic_dismiss)?.setOnClickListener {
             dialog.dismiss()
+            // Seamless proceed: Log in as guest automatically when dismissing diagnostic
+            viewModel.loginAsGuest()
         }
 
         dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))

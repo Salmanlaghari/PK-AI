@@ -46,9 +46,19 @@ android {
         buildConfigField("String", "SAMBANOVA_API_KEY", "\"$sambanovaApiKey\"")
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = rootProject.file("release.keystore")
+            storePassword = "salmanlaghari"
+            keyAlias = "pk_ai_key"
+            keyPassword = "salmanlaghari"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

@@ -28,7 +28,9 @@ class HomeViewModel @Inject constructor(
     private val preferencesManager: PreferencesManager
 ) : ViewModel() {
 
-    private val _selectedModel = MutableStateFlow(AiModel.GEMINI)
+    val userSession = preferencesManager.userSession
+
+    private val _selectedModel = MutableStateFlow(AiModel.DEEPSEEK)
     val selectedModel: StateFlow<AiModel> = _selectedModel.asStateFlow()
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)

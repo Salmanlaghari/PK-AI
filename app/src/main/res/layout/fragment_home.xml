@@ -129,47 +129,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/layout_header" />
 
-    <!-- 4. Pulsating Voice FAB with ripple ring animations -->
-    <FrameLayout
-        android:id="@+id/layout_voice_container"
-        android:layout_width="100dp"
-        android:layout_height="100dp"
-        android:layout_marginEnd="16dp"
-        android:layout_marginBottom="120dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
-
-        <!-- Outer Ripple Ring 2 -->
-        <View
-            android:id="@+id/view_ripple_2"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="@drawable/bg_voice_ripple"
-            android:alpha="0" />
-
-        <!-- Inner Ripple Ring 1 -->
-        <View
-            android:id="@+id/view_ripple_1"
-            android:layout_width="80dp"
-            android:layout_height="80dp"
-            android:layout_gravity="center"
-            android:background="@drawable/bg_voice_ripple"
-            android:alpha="0" />
-
-        <!-- Voice Trigger FAB -->
-        <ImageButton
-            android:id="@+id/btn_voice"
-            android:layout_width="64dp"
-            android:layout_height="64dp"
-            android:layout_gravity="center"
-            android:background="@drawable/bg_voice_btn"
-            android:contentDescription="Voice Assistant"
-            android:src="@drawable/ic_mic"
-            android:padding="16dp"
-            app:tint="@color/white"
-            android:elevation="8dp" />
-    </FrameLayout>
-
     <!-- 5. Typing Indicator with custom bouncy dots animation -->
     <LinearLayout
         android:id="@+id/layout_typing"
@@ -293,6 +252,46 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/input_bar" />
+
+        <!-- Pulsating Voice FAB (Repositioned to the opposite side of model selector, below send button) -->
+        <FrameLayout
+            android:id="@+id/layout_voice_container"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/input_bar">
+
+            <!-- Outer Ripple Ring 2 -->
+            <View
+                android:id="@+id/view_ripple_2"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/bg_voice_ripple"
+                android:alpha="0" />
+
+            <!-- Inner Ripple Ring 1 -->
+            <View
+                android:id="@+id/view_ripple_1"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:layout_gravity="center"
+                android:background="@drawable/bg_voice_ripple"
+                android:alpha="0" />
+
+            <!-- Voice Trigger FAB -->
+            <ImageButton
+                android:id="@+id/btn_voice"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_gravity="center"
+                android:background="@drawable/bg_voice_btn"
+                android:contentDescription="Voice Assistant"
+                android:src="@drawable/ic_mic"
+                android:padding="6dp"
+                app:tint="@color/white"
+                android:elevation="4dp" />
+        </FrameLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

@@ -1,6 +1,9 @@
 # 🔐 Google Sign-In Setup & Configuration Guide — ailatestfinder
 
 This guide provides the complete, step-by-step instructions required to activate and configure native **Google Sign-In** for PK AI (project **ailatestfinder**) using the Android Credential Manager API.
+# 🔐 Google Sign-In Setup & Configuration Guide
+
+This guide provides the complete, step-by-step instructions required to activate and configure native **Google Sign-In** for PK AI using the Android Credential Manager API.
 
 Because Firebase and Google Cloud consoles require manual configuration tied to your developer signature, please follow these steps to register your local developer machine and active devices.
 

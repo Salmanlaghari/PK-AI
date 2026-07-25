@@ -1,3 +1,6 @@
+# 🔐 Google Sign-In Setup & Configuration Guide — ailatestfinder
+
+This guide provides the complete, step-by-step instructions required to activate and configure native **Google Sign-In** for PK AI (project **ailatestfinder**) using the Android Credential Manager API.
 # 🔐 Google Sign-In Setup & Configuration Guide
 
 This guide provides the complete, step-by-step instructions required to activate and configure native **Google Sign-In** for PK AI using the Android Credential Manager API.
@@ -9,13 +12,13 @@ Because Firebase and Google Cloud consoles require manual configuration tied to 
 ## 🚀 Step 1: Register the Application on Firebase Console
 
 1. Open the [Firebase Console](https://console.firebase.google.com/).
-2. Select or create your Firebase project: **PK AI**.
+2. Select or create your Firebase project: **ailatestfinder**.
 3. Under project settings, click **Add App** and select **Android**.
 4. Enter the exact application package name:
    ```
    com.salmanlaghari.pkai
    ```
-5. Enter an App nickname (e.g., `PK AI Debug`).
+5. Enter an App nickname (e.g., `ailatestfinder-release`).
 6. Complete the setup and download the `google-services.json` configuration file.
 
 ---
@@ -46,29 +49,32 @@ Because Firebase and Google Cloud consoles require manual configuration tied to 
 
 For security, Google Sign-In requires your computer's signature fingerprint to be registered on the Firebase and Google Cloud Console.
 
-### 💻 Locate Your Debug Keystore Fingerprint:
-Run the following Gradle command inside your project root to auto-generate a signing report:
+### 💻 Locate Your Debug or Release Fingerprint:
+
+#### A. Command using keytool (for `ailatestfinder-release.jks`):
+```bash
+keytool -list -v -keystore ailatestfinder-release.jks -alias ailatestfinder -storepass "AilaLatestFindzP ass2026!"
+```
+
+#### B. Command using Gradle:
 ```bash
 ./gradlew signingReport
 ```
-This will output fingerprints similar to:
+
+### 📋 Exact Production/Release Fingerprints to Copy:
 ```text
-Variant: debug
-Config: debug
-Store: /Users/<your-username>/.android/debug.keystore
-Alias: AndroidDebugKey
-MD5:  XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
-SHA1: 1A:2B:3C:4D:5E:6F:7A:8B:9C:0D:1E:2F:3A:4B:5C:6D:7E:8F:90:01
-SHA-256: AA:BB:CC:DD:EE:FF:11:22:33:44:55:66:77:88:99:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE
+Alias name: ailatestfinder
+SHA1: 4C:2F:6A:95:F4:80:B8:5A:90:20:DA:F9:BD:61:FD:9B:21:D3:DD:F9
+SHA256: 4E:28:95:B7:FA:8F:21:C6:2A:2A:73:31:98:B4:26:3F:34:4B:E8:80:09:0B:71:64:5C:00:1D:F3:78:B0:73:91
 ```
 
 ### ➕ Add Fingerprints to Firebase Console:
 1. In the [Firebase Console](https://console.firebase.google.com/), go to **Project Settings** (gear icon) > **General**.
 2. Scroll down to **Your apps** > **PK AI (Android)**.
 3. Click **Add fingerprint**.
-4. Paste your **SHA-1** fingerprint and save.
+4. Paste your **SHA-1** fingerprint (`4C:2F:6A:95:F4:80:B8:5A:90:20:DA:F9:BD:61:FD:9B:21:D3:DD:F9`) and save.
 5. Click **Add fingerprint** again.
-6. Paste your **SHA-256** fingerprint and save.
+6. Paste your **SHA-256** fingerprint (`4E:28:95:B7:FA:8F:21:C6:2A:2A:73:31:98:B4:26:3F:34:4B:E8:80:09:0B:71:64:5C:00:1D:F3:78:B0:73:91`) and save.
 
 ---
 

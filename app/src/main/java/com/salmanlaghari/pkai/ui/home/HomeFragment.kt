@@ -21,6 +21,7 @@ import com.salmanlaghari.pkai.databinding.FragmentHomeBinding
 import com.salmanlaghari.pkai.databinding.ItemModelSheetBinding
 import com.salmanlaghari.pkai.databinding.LayoutModelBottomSheetBinding
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
@@ -117,12 +118,19 @@ class HomeFragment : Fragment() {
             }
         }
 
-        // 6. Send Button Click Action
+        // 6. Send Button Click Action with Guest intercept pop up
         binding.btnSend.setOnClickListener {
             val content = binding.etMessageInput.text?.toString().orEmpty()
             if (content.isNotBlank()) {
-                viewModel.sendMessage(content)
-                binding.etMessageInput.text?.clear()
+                viewLifecycleOwner.lifecycleScope.launch {
+                    val session = viewModel.userSession.first()
+                    if (session.isGuest) {
+                        showGuestSignUpDialog()
+                    } else {
+                        viewModel.sendMessage(content)
+                        binding.etMessageInput.text?.clear()
+                    }
+                }
             }
         }
 
@@ -177,6 +185,21 @@ class HomeFragment : Fragment() {
         rippleAnimator?.start()
     }
 
+    private fun showGuestSignUpDialog() {
+        val dialog = com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext(), R.style.Theme_PkAi)
+            .setTitle("💎 Upgrade to Premium Account")
+            .setMessage("Guest mode is temporary. Save your chat history, get higher limits, and unlock all 9 AI models by signing up with Google!")
+            .setPositiveButton("Sign Up with Google") { d, _ ->
+                d.dismiss()
+                findNavController().navigate(R.id.loginFragment)
+            }
+            .setNegativeButton("Maybe Later") { d, _ ->
+                d.dismiss()
+            }
+            .create()
+        dialog.show()
+    }
+
     override fun onDestroyView() {
         rippleAnimator?.cancel()
         rippleAnimator = null
@@ -209,8 +232,8 @@ class HomeFragment : Fragment() {
                 AiModel.PERPLEXITY -> "🔍"
             }
 
-            // Grok 2, Perplexity Sonar, and ChatGPT are always Coming Soon and disabled
-            val isModelDisabled = model == AiModel.GROK || model == AiModel.PERPLEXITY || model == AiModel.CHATGPT
+            // Grok 2, Perplexity Sonar, ChatGPT, Gemini, and Claude are always Coming Soon and disabled
+            val isModelDisabled = model == AiModel.GROK || model == AiModel.PERPLEXITY || model == AiModel.CHATGPT || model == AiModel.GEMINI || model == AiModel.CLAUDE
             if (isModelDisabled) {
                 itemBinding.tvModelProvider.text = "Coming Soon"
                 itemBinding.tvModelProvider.setTextColor(resources.getColor(R.color.error, null))

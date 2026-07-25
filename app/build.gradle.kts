@@ -48,10 +48,10 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = rootProject.file("release.keystore")
-            storePassword = "salmanlaghari"
-            keyAlias = "pk_ai_key"
-            keyPassword = "salmanlaghari"
+            storeFile = rootProject.file("ailatestfinder-release.jks")
+            storePassword = "AilaLatestFindzP ass2026!"
+            keyAlias = "ailatestfinder"
+            keyPassword = "AilaLatestFindzP ass2026!"
         }
     }
 

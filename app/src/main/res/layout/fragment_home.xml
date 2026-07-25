@@ -135,11 +135,11 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="20dp"
-        android:layout_marginBottom="12dp"
+        android:layout_marginBottom="8dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:visibility="gone"
-        app:layout_constraintBottom_toTopOf="@id/layout_input"
+        app:layout_constraintBottom_toTopOf="@id/layout_ad_banner"
         app:layout_constraintStart_toStartOf="parent"
         tools:visibility="visible">
 
@@ -160,6 +160,56 @@
             android:fontFamily="@font/poppins"
             android:textStyle="bold" />
     </LinearLayout>
+
+    <!-- 5.5. Premium Glassmorphic Sponsored Ad Banner -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/layout_ad_banner"
+        style="@style/Widget.Material3.CardView.Filled"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginBottom="8dp"
+        app:cardBackgroundColor="@color/html_glass"
+        app:cardCornerRadius="14dp"
+        app:strokeColor="@color/html_glass_border"
+        app:strokeWidth="1dp"
+        app:layout_constraintBottom_toTopOf="@id/layout_input"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="8dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Sponsored Ad"
+                android:textColor="@color/html_pink"
+                android:textSize="9sp"
+                android:fontFamily="@font/poppins"
+                android:textStyle="bold"
+                android:background="@drawable/bg_glass_card"
+                android:paddingHorizontal="6dp"
+                android:paddingVertical="2dp"
+                android:layout_marginEnd="10dp" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="💎 Upgrade to Premium to remove ads and unlock Llama 3.1 405B!"
+                android:textColor="@color/white"
+                android:textSize="10sp"
+                android:fontFamily="@font/poppins"
+                android:ellipsize="end"
+                android:singleLine="true" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
 
     <!-- 6. Bottom Input & Model Selector Card Area -->
     <androidx.constraintlayout.widget.ConstraintLayout

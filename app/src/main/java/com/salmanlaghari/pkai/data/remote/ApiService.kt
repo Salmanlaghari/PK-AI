@@ -19,7 +19,7 @@ data class ChatChoiceDto(
 )
 
 data class ChatCompletionResponse(
-    val choices: List<ChatChoiceDto>
+    val choices: List<ChatChoiceDto>?
 )
 
 interface ApiService {

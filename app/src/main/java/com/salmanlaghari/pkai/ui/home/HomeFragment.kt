@@ -1,10 +1,14 @@
 package com.salmanlaghari.pkai.ui.home
 
+import android.animation.ValueAnimator
+import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
@@ -17,6 +21,7 @@ import com.salmanlaghari.pkai.databinding.FragmentHomeBinding
 import com.salmanlaghari.pkai.databinding.ItemModelSheetBinding
 import com.salmanlaghari.pkai.databinding.LayoutModelBottomSheetBinding
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
@@ -34,6 +39,23 @@ class HomeFragment : Fragment() {
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
         return binding.root
     }
+
+    // Launcher for VoiceAssistantActivity to receive transcripts
+    private val voiceLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val transcript = result.data?.getStringExtra("confirmed_transcript")
+            if (!transcript.isNullOrBlank()) {
+                binding.etMessageInput.setText(transcript)
+                // Auto-send the message for a seamless hands-free experience
+                viewModel.sendMessage(transcript)
+                binding.etMessageInput.text?.clear()
+            }
+        }
+    }
+
+    private var rippleAnimator: ValueAnimator? = null
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -62,7 +84,18 @@ class HomeFragment : Fragment() {
         // 3. Observe Selected Model StateFlow
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.selectedModel.collect { model ->
-                binding.btnModelSelector.text = "💎 ${model.displayName} ▼"
+                val emoji = when (model) {
+                    AiModel.GEMINI -> "💎"
+                    AiModel.CHATGPT -> "🤖"
+                    AiModel.CLAUDE -> "🧠"
+                    AiModel.GROK -> "⚡"
+                    AiModel.DEEPSEEK -> "🌊"
+                    AiModel.QWEN -> "🐪"
+                    AiModel.LLAMA -> "🦙"
+                    AiModel.MISTRAL -> "🌪️"
+                    AiModel.PERPLEXITY -> "🔍"
+                }
+                binding.btnModelSelector.text = "$emoji ${model.displayName} ▼"
             }
         }
 
@@ -85,12 +118,19 @@ class HomeFragment : Fragment() {
             }
         }
 
-        // 6. Send Button Click Action
+        // 6. Send Button Click Action with Guest intercept pop up
         binding.btnSend.setOnClickListener {
             val content = binding.etMessageInput.text?.toString().orEmpty()
             if (content.isNotBlank()) {
-                viewModel.sendMessage(content)
-                binding.etMessageInput.text?.clear()
+                viewLifecycleOwner.lifecycleScope.launch {
+                    val session = viewModel.userSession.first()
+                    if (session.isGuest) {
+                        showGuestSignUpDialog()
+                    } else {
+                        viewModel.sendMessage(content)
+                        binding.etMessageInput.text?.clear()
+                    }
+                }
             }
         }
 
@@ -107,32 +147,64 @@ class HomeFragment : Fragment() {
             findNavController().navigate(R.id.settingsFragment)
         }
 
-        // 8. Quick Actions Click Listeners (Placeholders only)
-        setupQuickActions()
+        // 8. Voice Trigger click opens premium VoiceAssistantActivity
+        binding.btnVoice.setOnClickListener {
+            val intent = Intent(requireContext(), com.salmanlaghari.pkai.ui.voice.VoiceAssistantActivity::class.java).apply {
+                putExtra("selected_model", viewModel.selectedModel.value.name)
+            }
+            voiceLauncher.launch(intent)
+        }
+
+        // 9. Start continuous 60fps ripple ring animations for Voice Trigger
+        startVoiceRippleAnimations()
     }
 
-    private fun setupQuickActions() {
-        binding.cardQaChat.setOnClickListener {
-            Toast.makeText(requireContext(), "💬 Premium Chat Generator is active", Toast.LENGTH_SHORT).show()
+    private fun startVoiceRippleAnimations() {
+        rippleAnimator?.cancel()
+        rippleAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 2000
+            repeatCount = ValueAnimator.INFINITE
+            interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+            addUpdateListener { anim ->
+                val progress = anim.animatedValue as Float
+
+                // Ripple 1
+                if (_binding != null) {
+                    binding.viewRipple1.scaleX = 0.8f + progress * 0.6f
+                    binding.viewRipple1.scaleY = 0.8f + progress * 0.6f
+                    binding.viewRipple1.alpha = (1f - progress) * 0.8f
+
+                    // Ripple 2 (staggered delay, starts at half progress)
+                    val progress2 = (progress + 0.5f) % 1f
+                    binding.viewRipple2.scaleX = 0.8f + progress2 * 1.0f
+                    binding.viewRipple2.scaleY = 0.8f + progress2 * 1.0f
+                    binding.viewRipple2.alpha = (1f - progress2) * 0.5f
+                }
+            }
         }
-        binding.cardQaImage.setOnClickListener {
-            Toast.makeText(requireContext(), "🖼 Premium Image Generator Placeholder", Toast.LENGTH_SHORT).show()
-        }
-        binding.cardQaVideo.setOnClickListener {
-            Toast.makeText(requireContext(), "🎥 Premium Video Generator Placeholder", Toast.LENGTH_SHORT).show()
-        }
-        binding.cardQaMusic.setOnClickListener {
-            Toast.makeText(requireContext(), "🎵 Premium Music Generator Placeholder", Toast.LENGTH_SHORT).show()
-        }
-        binding.cardQaPdf.setOnClickListener {
-            Toast.makeText(requireContext(), "📄 Premium PDF AI Analyst Placeholder", Toast.LENGTH_SHORT).show()
-        }
-        binding.cardQaCode.setOnClickListener {
-            Toast.makeText(requireContext(), "💻 Premium Code Assistant Placeholder", Toast.LENGTH_SHORT).show()
-        }
-        binding.cardQaSearch.setOnClickListener {
-            Toast.makeText(requireContext(), "🌐 Premium Web Search Assistant Placeholder", Toast.LENGTH_SHORT).show()
-        }
+        rippleAnimator?.start()
+    }
+
+    private fun showGuestSignUpDialog() {
+        val dialog = com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext(), R.style.Theme_PkAi)
+            .setTitle("💎 Upgrade to Premium Account")
+            .setMessage("Guest mode is temporary. Save your chat history, get higher limits, and unlock all 9 AI models by signing up with Google!")
+            .setPositiveButton("Sign Up with Google") { d, _ ->
+                d.dismiss()
+                findNavController().navigate(R.id.loginFragment)
+            }
+            .setNegativeButton("Maybe Later") { d, _ ->
+                d.dismiss()
+            }
+            .create()
+        dialog.show()
+    }
+
+    override fun onDestroyView() {
+        rippleAnimator?.cancel()
+        rippleAnimator = null
+        super.onDestroyView()
+        _binding = null
     }
 
     private fun showModelSelectionBottomSheet() {
@@ -146,20 +218,54 @@ class HomeFragment : Fragment() {
         models.forEach { model ->
             val itemBinding = ItemModelSheetBinding.inflate(layoutInflater, sheetBinding.layoutModelsList, false)
             itemBinding.tvModelName.text = model.displayName
-            itemBinding.tvModelProvider.text = model.providerName
 
-            // Highlight current selected model
+            // Emoji mapping
+            itemBinding.tvModelEmoji.text = when (model) {
+                AiModel.GEMINI -> "💎"
+                AiModel.CHATGPT -> "🤖"
+                AiModel.CLAUDE -> "🧠"
+                AiModel.GROK -> "⚡"
+                AiModel.DEEPSEEK -> "🌊"
+                AiModel.QWEN -> "🐪"
+                AiModel.LLAMA -> "🦙"
+                AiModel.MISTRAL -> "🌪️"
+                AiModel.PERPLEXITY -> "🔍"
+            }
+
+            // Grok 2, Perplexity Sonar, ChatGPT, Gemini, and Claude are always Coming Soon and disabled
+            val isModelDisabled = model == AiModel.GROK || model == AiModel.PERPLEXITY || model == AiModel.CHATGPT || model == AiModel.GEMINI || model == AiModel.CLAUDE
+            if (isModelDisabled) {
+                itemBinding.tvModelProvider.text = "Coming Soon"
+                itemBinding.tvModelProvider.setTextColor(resources.getColor(R.color.error, null))
+                itemBinding.tvModelName.alpha = 0.5f
+                itemBinding.tvModelEmoji.alpha = 0.5f
+                itemBinding.btnModelItem.isEnabled = false
+                itemBinding.btnModelItem.alpha = 0.6f
+            } else {
+                itemBinding.tvModelProvider.text = model.providerName
+                itemBinding.tvModelProvider.setTextColor(resources.getColor(R.color.outline, null))
+                itemBinding.tvModelName.alpha = 1.0f
+                itemBinding.tvModelEmoji.alpha = 1.0f
+                itemBinding.btnModelItem.isEnabled = true
+                itemBinding.btnModelItem.alpha = 1.0f
+            }
+
+            // Highlight current selected model and apply custom selected backgrounds
             if (model == currentSelected) {
                 itemBinding.ivModelCheck.visibility = View.VISIBLE
-                itemBinding.tvModelName.setTextColor(resources.getColor(R.color.electric_blue_glow, null))
+                itemBinding.tvModelName.setTextColor(resources.getColor(R.color.html_cyan, null))
+                itemBinding.btnModelItem.setBackgroundResource(R.drawable.bg_model_item_selected)
             } else {
                 itemBinding.ivModelCheck.visibility = View.GONE
                 itemBinding.tvModelName.setTextColor(resources.getColor(R.color.white, null))
+                itemBinding.btnModelItem.setBackgroundResource(R.drawable.bg_model_item_default)
             }
 
-            itemBinding.btnModelItem.setOnClickListener {
-                viewModel.selectModel(model)
-                dialog.dismiss()
+            if (!isModelDisabled) {
+                itemBinding.btnModelItem.setOnClickListener {
+                    viewModel.selectModel(model)
+                    dialog.dismiss()
+                }
             }
 
             sheetBinding.layoutModelsList.addView(itemBinding.root)
@@ -167,10 +273,5 @@ class HomeFragment : Fragment() {
 
         dialog.setContentView(sheetBinding.root)
         dialog.show()
-    }
-
-    override fun onDestroyView() {
-        super.onDestroyView()
-        _binding = null
     }
 }

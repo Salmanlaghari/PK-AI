@@ -95,6 +95,7 @@ class LoginFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             try {
                 viewModel.resetState()
+                android.util.Log.d("PKAI_AUTH", "Requesting credentials with client ID: $clientId")
                 val result = credentialManager.getCredential(
                     request = request,
                     context = requireContext()
@@ -107,6 +108,7 @@ class LoginFragment : Fragment() {
                     val email = googleIdTokenCredential.id
                     val photoUrl = googleIdTokenCredential.profilePictureUri?.toString()
 
+                    android.util.Log.i("PKAI_AUTH", "Google Sign-In Success! Email: $email")
                     viewModel.loginWithGoogle(
                         idToken = idToken,
                         displayName = displayName,
@@ -117,9 +119,28 @@ class LoginFragment : Fragment() {
                     binding.tvErrorBanner.visibility = View.VISIBLE
                     binding.tvErrorBanner.text = getString(R.string.error_auth_failed)
                 }
-            } catch (e: Exception) {
+            } catch (e: androidx.credentials.exceptions.GetCredentialException) {
+                android.util.Log.e("PKAI_AUTH", "GetCredentialException occurred: ", e)
                 binding.tvErrorBanner.visibility = View.VISIBLE
-                binding.tvErrorBanner.text = e.localizedMessage ?: getString(R.string.error_auth_failed)
+                val userFriendlyMessage = when (e) {
+                    is androidx.credentials.exceptions.GetCredentialCancellationException -> {
+                        "Sign-In cancelled by user."
+                    }
+                    is androidx.credentials.exceptions.NoCredentialException -> {
+                        "Google Sign-In is not configured correctly on this device.\n\n" +
+                        "🔧 Action required:\n" +
+                        "1. Replace 'default_web_client_id' in strings.xml with your real Firebase Web Client ID.\n" +
+                        "2. Register your Android app package 'com.salmanlaghari.pkai' with your debug SHA-1/SHA-256 fingerprint in Firebase / Google Developer Console."
+                    }
+                    else -> {
+                        "Google Sign-In error: ${e.message}\n\nPlease check your Firebase client configuration, package name, and SHA-1 fingerprints."
+                    }
+                }
+                binding.tvErrorBanner.text = userFriendlyMessage
+            } catch (e: Exception) {
+                android.util.Log.e("PKAI_AUTH", "Unknown Google Sign-In exception occurred: ", e)
+                binding.tvErrorBanner.visibility = View.VISIBLE
+                binding.tvErrorBanner.text = "Google Sign-In failed: ${e.localizedMessage ?: "Unknown Error"}.\n\nPlease ensure you have replaced 'default_web_client_id' in strings.xml and configured Firebase."
             }
         }
     }

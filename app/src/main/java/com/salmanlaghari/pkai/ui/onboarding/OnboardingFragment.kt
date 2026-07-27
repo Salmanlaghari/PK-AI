@@ -32,7 +32,8 @@ class OnboardingFragment : Fragment() {
 
         binding.btnGetStarted.setOnClickListener {
             viewModel.completeOnboarding()
-            findNavController().navigate(R.id.action_onboardingFragment_to_loginFragment)
+            // Bypass login entirely: Direct access to AI Chat
+            findNavController().navigate(R.id.homeFragment)
         }
     }
 

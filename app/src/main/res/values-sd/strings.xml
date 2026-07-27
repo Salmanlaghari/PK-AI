@@ -1,0 +1,40 @@
+<resources>
+    <string name="app_name">پي ڪي اي آئي</string>
+    <string name="title_splash">پي ڪي اي آئي</string>
+    <string name="subtitle_splash">پريميئم اي آئي سپر ايپ</string>
+    <string name="title_onboarding">پي ڪي اي آئي ۾ ڀليڪار</string>
+    <string name="desc_onboarding">آرٽ اي آئي ماڊلز جي جديد ترين حالت تائين توهان جي پريميئم رسائي. اچو ته شروع ڪريون.</string>
+    <string name="btn_get_started">شروع ڪريو</string>
+    <string name="title_home">هوم ڊيش بورڊ</string>
+    <string name="desc_home_placeholder">پريميئم اي آئي سپر ايپ جون خاصيتون هتي دستياب هونديون.</string>
+
+    <!-- Login & Authentication -->
+    <string name="title_login">پي ڪي اي آئي پورٽل</string>
+    <string name="subtitle_login">ايندڙ نسل جي ذهانت تائين پريميئم رسائي</string>
+    <string name="btn_sign_in_google">گوگل سان سائن ان ڪريو</string>
+    <string name="btn_guest_mode">مهمان طور جاري رکو</string>
+    <string name="error_auth_failed">تصديق ناڪام ٿي وئي. مهرباني ڪري ٻيهر ڪوشش ڪريو.</string>
+    <string name="lbl_loading">سندون محفوظ ڪيون پيون وڃن…</string>
+
+    <!-- Profile Screen -->
+    <string name="lbl_profile">منهنجو کاتو</string>
+    <string name="lbl_login_type">رسائيءَ جو طريقو</string>
+    <string name="lbl_login_google">گوگل اڪائونٽ</string>
+    <string name="lbl_login_guest">مهمان سيشن</string>
+    <string name="btn_sign_out">سائن آئوٽ</string>
+
+    <!-- Settings Screen -->
+    <string name="title_settings">سيٽنگون</string>
+    <string name="lbl_dark_mode">ڊارڪ موڊ</string>
+    <string name="lbl_language">ٻولي</string>
+    <string name="lbl_notifications">پش اطلاع</string>
+    <string name="lbl_privacy">رازداري پاليسي</string>
+    <string name="lbl_terms">سروس جون شرطون</string>
+    <string name="lbl_about">پي ڪي اي آئي بابت</string>
+    <string name="lbl_app_version">ايپ ورشن</string>
+
+    <!-- About Screen -->
+    <string name="title_about">پي ڪي اي آئي بابت</string>
+    <string name="desc_about_app">پي ڪي اي آئي هڪ پريميئم آرٽ نيٽو اي آئي سپر ايپ آهي جيڪا توهان جي آڱرين تي ايندڙ نسل جا ڊيپ لرننگ ماڊلز آڻڻ لاءِ ٺاهي وئي آهي.</string>
+    <string name="lbl_developer_branding">ڊولپر ❤️ ايڊمن پرنس لغاري ❤️</string>
+</resources>

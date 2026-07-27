@@ -41,12 +41,8 @@ class SplashFragment : Fragment() {
             if (!onboardingCompleted) {
                 findNavController().navigate(R.id.action_splashFragment_to_onboardingFragment)
             } else {
-                val session = viewModel.userSessionFlow.first()
-                if (session.isLoggedIn) {
-                    findNavController().navigate(R.id.action_splashFragment_to_homeFragment)
-                } else {
-                    findNavController().navigate(R.id.action_splashFragment_to_loginFragment)
-                }
+                // Skip login requirements entirely: Direct access to AI Chat
+                findNavController().navigate(R.id.action_splashFragment_to_homeFragment)
             }
         }
     }

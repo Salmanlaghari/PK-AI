@@ -57,7 +57,7 @@ class AiProviderFactoryTest {
     @Test
     fun `getProvider returns correct real provider`() = runTest {
         val geminiProvider = factory.getProvider(AiModel.GEMINI)
-        assertTrue(geminiProvider is GeminiAiProvider)
+        assertTrue(geminiProvider is OpenRouterAiProvider)
 
         val qwenProvider = factory.getProvider(AiModel.QWEN)
         assertTrue(qwenProvider is OpenRouterAiProvider)

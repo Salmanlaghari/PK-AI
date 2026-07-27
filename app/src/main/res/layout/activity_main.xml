@@ -9,20 +9,21 @@
     android:fitsSystemWindows="true"
     tools:context=".MainActivity">
 
-    <!-- The Main Content View Container supporting 3D scale/floating premium effects -->
+    <!-- The Main Content View wrapped in a glassmorphic/3D scalable MaterialCardView -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/main_content"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         app:cardCornerRadius="0dp"
         app:cardElevation="0dp"
+        app:cardBackgroundColor="@android:color/transparent"
         app:strokeWidth="0dp"
-        app:cardPreventCornerOverlap="false"
-        app:cardBackgroundColor="@color/premium_black">
+        app:strokeColor="@android:color/transparent">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent">
+            android:layout_height="match_parent"
+            android:background="@color/premium_black">
 
             <androidx.fragment.app.FragmentContainerView
                 android:id="@+id/nav_host_fragment"

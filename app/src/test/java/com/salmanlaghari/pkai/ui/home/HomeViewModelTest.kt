@@ -66,6 +66,10 @@ class HomeViewModelTest {
 
             override fun getAllMessagesFlow(): Flow<List<ChatMessage>> = messagesFlow
 
+            override fun getMessagesForModelFlow(modelName: String): Flow<List<ChatMessage>> {
+                return messagesFlow
+            }
+
             override suspend fun getAllMessages(): List<ChatMessage> {
                 return messagesList.toList()
             }
@@ -73,6 +77,11 @@ class HomeViewModelTest {
             override suspend fun clearAllMessages() {
                 messagesList.clear()
                 messagesFlow.value = emptyList()
+            }
+
+            override suspend fun clearMessagesForModel(modelName: String) {
+                messagesList.removeAll { it.modelUsed == modelName }
+                messagesFlow.value = messagesList.toList()
             }
         }
 
@@ -112,7 +121,7 @@ class HomeViewModelTest {
     @Test
     fun `initial states are correctly setup`() {
         testDispatcher.scheduler.advanceUntilIdle()
-        assertEquals(AiModel.GEMINI, viewModel.selectedModel.value)
+        assertEquals(AiModel.DEEPSEEK, viewModel.selectedModel.value)
         assertEquals(false, viewModel.isGenerating.value)
         assertTrue(viewModel.chatMessages.value.isEmpty())
     }
@@ -146,9 +155,9 @@ class HomeViewModelTest {
 
         // Second is AI response
         val secondMsg = currentMessages[1]
-        assertEquals("Response from Gemini for prompt: Hello PK AI", secondMsg.content)
+        assertEquals("Response from Gemini Ultra for prompt: Hello PK AI", secondMsg.content)
         assertEquals(false, secondMsg.isUser)
-        assertEquals("Gemini", secondMsg.modelUsed)
+        assertEquals("GEMINI", secondMsg.modelUsed)
     }
 
     @Test

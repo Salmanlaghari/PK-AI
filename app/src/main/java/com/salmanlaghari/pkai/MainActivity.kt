@@ -79,32 +79,29 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setup3DDrawerEffect() {
+        // Transparent scrim allows the premium 3D layered sliding card to shine
         binding.drawerLayout.setScrimColor(android.graphics.Color.TRANSPARENT)
-        binding.drawerLayout.drawerElevation = 0f
-
-        binding.drawerLayout.addDrawerListener(object : androidx.drawerlayout.widget.DrawerLayout.DrawerListener {
+        binding.drawerLayout.addDrawerListener(object : androidx.drawerlayout.widget.DrawerLayout.SimpleDrawerListener() {
             override fun onDrawerSlide(drawerView: View, slideOffset: Float) {
-                // Scale content down (minimum 0.85f at fully open)
+                // Scale the main content view card down (from 1.0f to 0.85f) as slideOffset goes from 0.0 to 1.0
                 val scaleFactor = 1f - (slideOffset * 0.15f)
                 binding.mainContent.scaleX = scaleFactor
                 binding.mainContent.scaleY = scaleFactor
 
-                // Translate content horizontally to offset scale effect
-                val xOffset = drawerView.width * slideOffset * 0.75f
-                binding.mainContent.translationX = xOffset
+                // Translate the card horizontally
+                val xOffset = drawerView.width * slideOffset
+                val xTranslation = xOffset * 0.75f // overlap factor for beautiful 3D layering
+                binding.mainContent.translationX = xTranslation
 
-                // Dynamically apply premium 3D rounded corners and elevation depth shadows
+                // Dynamically apply rounded corner radius (target: 28dp)
                 val density = resources.displayMetrics.density
-                binding.mainContent.radius = slideOffset * 28f * density
-                binding.mainContent.cardElevation = slideOffset * 16f * density
-            }
+                val targetRadius = 28f * density
+                binding.mainContent.radius = slideOffset * targetRadius
 
-            override fun onDrawerOpened(drawerView: View) {}
-            override fun onDrawerClosed(drawerView: View) {
-                binding.mainContent.radius = 0f
-                binding.mainContent.cardElevation = 0f
+                // Dynamically apply card elevation shadow depth (target: 16dp)
+                val targetElevation = 16f * density
+                binding.mainContent.cardElevation = slideOffset * targetElevation
             }
-            override fun onDrawerStateChanged(newState: Int) {}
         })
     }
 
@@ -169,7 +166,8 @@ class MainActivity : AppCompatActivity() {
                 R.id.nav_sys_logout -> {
                     lifecycleScope.launch {
                         authRepository.logout()
-                        navController.navigate(R.id.loginFragment)
+                        // Since login/guest is removed, navigate directly to homeFragment on logout
+                        navController.navigate(R.id.homeFragment)
                     }
                     true
                 }

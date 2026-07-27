@@ -41,8 +41,8 @@ class SplashFragment : Fragment() {
             if (!onboardingCompleted) {
                 findNavController().navigate(R.id.action_splashFragment_to_onboardingFragment)
             } else {
-                // Skip login requirements entirely: Direct access to AI Chat
-                findNavController().navigate(R.id.action_splashFragment_to_homeFragment)
+                // Direct AI Access: Bypass Google/Guest Login entirely and route straight to homeFragment
+                findNavController().navigate(R.id.homeFragment)
             }
         }
     }

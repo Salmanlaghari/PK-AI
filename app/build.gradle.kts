@@ -49,9 +49,9 @@ android {
     signingConfigs {
         create("release") {
             storeFile = rootProject.file("ailatestfinder-release.jks")
-            storePassword = "REMOVED_PUBLIC_SIGNING_SECRET"
+            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "REMOVED_PUBLIC_SIGNING_SECRET"
             keyAlias = "ailatestfinder"
-            keyPassword = "REMOVED_PUBLIC_SIGNING_SECRET"
+            keyPassword = System.getenv("KEY_PASSWORD") ?: "REMOVED_PUBLIC_SIGNING_SECRET"
         }
     }
 

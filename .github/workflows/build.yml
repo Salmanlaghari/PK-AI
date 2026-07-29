@@ -35,9 +35,9 @@ jobs:
           -keyalg RSA \
           -keysize 2048 \
           -validity 10000 \
-          -storepass "AilaLatestFindzPass2026!" \
-          -keypass "AilaLatestFindzPass2026!" \
-          -dname "CN=Salman Laghari, OU=Mobile, O=PK AI, L=Karachi, S=Sindh, C=PK"
+          -storepass pass123456 \
+          -keypass pass123456 \
+          -dname "CN=SalmanLaghari, OU=Mobile, O=PKAI, L=Karachi, S=Sindh, C=PK"
 
     - name: Build Release APK
       env:

@@ -49,9 +49,9 @@ android {
     signingConfigs {
         create("release") {
             storeFile = rootProject.file("ailatestfinder-release.jks")
-            storePassword = "pass123456"
+            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "pass123456"
             keyAlias = "ailatestfinder"
-            keyPassword = "pass123456"
+            keyPassword = System.getenv("KEY_PASSWORD") ?: "pass123456"
         }
     }
 

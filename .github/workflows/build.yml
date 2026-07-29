@@ -28,19 +28,26 @@ jobs:
       run: chmod +x gradlew
 
     - name: Generate Release Keystore
-      env:
-        KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
       run: |
+        KEYSTORE_PASS="${{ secrets.KEYSTORE_PASSWORD }}"
+        KEY_PASS="${{ secrets.KEY_PASSWORD }}"
+        # Fallback to default passwords if secrets not set
+        if [ -z "$KEYSTORE_PASS" ]; then KEYSTORE_PASS="pass123456"; fi
+        if [ -z "$KEY_PASS" ]; then KEY_PASS="pass123456"; fi
         keytool -genkey -v \
           -keystore ailatestfinder-release.jks \
           -alias ailatestfinder \
           -keyalg RSA \
           -keysize 2048 \
           -validity 10000 \
-          -storepass "$KEYSTORE_PASSWORD" \
-          -keypass "$KEY_PASSWORD" \
+          -storepass "$KEYSTORE_PASS" \
+          -keypass "$KEY_PASS" \
           -dname "CN=SalmanLaghari, OU=Mobile, O=PKAI, L=Karachi, S=Sindh, C=PK"
+        # Write keystore properties for Gradle
+        echo "storeFile=ailatestfinder-release.jks" > keystore.properties
+        echo "storePassword=$KEYSTORE_PASS" >> keystore.properties
+        echo "keyAlias=ailatestfinder" >> keystore.properties
+        echo "keyPassword=$KEY_PASS" >> keystore.properties
 
     - name: Build Release APK
       env:
@@ -51,8 +58,6 @@ jobs:
         COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
         CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
         SAMBANOVA_API_KEY: ${{ secrets.SAMBANOVA_API_KEY }}
-        KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
       run: ./gradlew assembleRelease --no-daemon
 
     - name: Get version name

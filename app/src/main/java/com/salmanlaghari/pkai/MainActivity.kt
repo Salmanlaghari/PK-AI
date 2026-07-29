@@ -80,12 +80,14 @@ class MainActivity : AppCompatActivity() {
     private fun setupDrawerHeader() {
         val headerView = binding.navView.getHeaderView(0)
         val tvUserName = headerView.findViewById<android.widget.TextView>(R.id.tv_drawer_user_name)
+        val tvUserEmail = headerView.findViewById<android.widget.TextView>(R.id.tv_drawer_user_email)
         val tvMarquee = headerView.findViewById<android.widget.TextView>(R.id.tv_drawer_marquee)
+        val ivProfile = headerView.findViewById<com.google.android.material.imageview.ShapeableImageView>(R.id.iv_drawer_profile_pic)
 
         // Make marquee scroll loop infinitely
         tvMarquee?.isSelected = true
 
-        // Dynamic loaded user name from login session
+        // Dynamic loaded user name + email from login session
         lifecycleScope.launch {
             preferencesManager.userSession.collect { session ->
                 if (session.isLoggedIn) {
@@ -94,10 +96,18 @@ class MainActivity : AppCompatActivity() {
                     } else if (session.isGuest) {
                         "Guest User"
                     } else {
-                        "Prince Laghari"
+                        "PK AI User"
+                    }
+                    tvUserEmail?.text = if (!session.email.isNullOrBlank()) {
+                        session.email
+                    } else if (session.isGuest) {
+                        "Guest Mode — Limited Access"
+                    } else {
+                        "user@pkai.app"
                     }
                 } else {
-                    tvUserName?.text = "Prince Laghari"
+                    tvUserName?.text = "PK AI User"
+                    tvUserEmail?.text = "Sign in for full access"
                 }
             }
         }

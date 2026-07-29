@@ -49,9 +49,9 @@ android {
     signingConfigs {
         create("release") {
             storeFile = rootProject.file("ailatestfinder-release.jks")
-            storePassword = "AilaLatestFindzP ass2026!"
+            storePassword = "REMOVED_PUBLIC_SIGNING_SECRET"
             keyAlias = "ailatestfinder"
-            keyPassword = "AilaLatestFindzP ass2026!"
+            keyPassword = "REMOVED_PUBLIC_SIGNING_SECRET"
         }
     }
 

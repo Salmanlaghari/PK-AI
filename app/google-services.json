@@ -12,15 +12,33 @@
           "package_name": "com.salmanlaghari.pkai"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "193399978595-7l6q6kq8q8q8q8q8q8q8q8q8q8q8q8q8.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.salmanlaghari.pkai",
+            "certificate_hash": "debug_keystore_hash_placeholder"
+          }
+        },
+        {
+          "client_id": "193399978595.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyPlaceholderKeyForCompilationOnly"
+          "current_key": "AIzaSyBxgkYz3qJZkZkZkZkZkZkZkZkZkZkZkZk"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "193399978595.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

@@ -46,13 +46,17 @@
     <!-- The Left Navigation Drawer with premium design characteristics -->
     <com.google.android.material.navigation.NavigationView
         android:id="@+id/nav_view"
-        android:layout_width="wrap_content"
+        android:layout_width="320dp"
         android:layout_height="match_parent"
         android:layout_gravity="start"
         android:background="@color/premium_black"
         app:headerLayout="@layout/drawer_header"
         app:menu="@menu/menu_drawer"
         app:itemTextColor="@color/white"
-        app:itemIconTint="@color/electric_blue_glow" />
+        app:itemIconTint="@color/electric_blue_glow"
+        app:itemTextAppearance="@style/PremiumDrawerItem"
+        app:subheaderColor="@color/electric_blue_glow"
+        app:itemBackground="@drawable/bg_drawer_item"
+        android:scrollbars="vertical" />
 
 </androidx.drawerlayout.widget.DrawerLayout>

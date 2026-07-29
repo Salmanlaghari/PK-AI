@@ -57,7 +57,6 @@ class LoginFragment : Fragment() {
                     is LoginUiState.Success -> {
                         binding.layoutLoading.visibility = View.GONE
                         diagnosticDialog?.dismiss()
-                        // Navigate to Home Dashboard upon successful login
                         findNavController().navigate(R.id.action_loginFragment_to_homeFragment)
                     }
                     is LoginUiState.Error -> {
@@ -70,25 +69,34 @@ class LoginFragment : Fragment() {
             }
         }
 
-        // Trigger Google Sign-In with official Android Credential Manager
+        // Google Sign-In button
         binding.btnGoogleSignin.setOnClickListener {
             triggerGoogleSignIn()
         }
 
-        // Sign in as guest
+        // Guest sign-in button
         binding.btnGuestSignin.setOnClickListener {
             viewModel.loginAsGuest()
         }
     }
 
     private fun triggerGoogleSignIn() {
-        val credentialManager = CredentialManager.create(requireContext())
         val clientId = getString(R.string.default_web_client_id)
+
+        // Validate client ID before attempting sign-in
+        if (clientId.isBlank() || clientId.contains("placeholder")) {
+            binding.tvErrorBanner.visibility = View.VISIBLE
+            binding.tvErrorBanner.text = "Google Sign-In not configured. Please set up Firebase."
+            showDiagnosticDialog()
+            return
+        }
+
+        val credentialManager = CredentialManager.create(requireContext())
 
         val googleIdOption = GetGoogleIdOption.Builder()
             .setFilterByAuthorizedAccounts(false)
             .setServerClientId(clientId)
-            .setAutoSelectEnabled(true)
+            .setAutoSelectEnabled(false)
             .build()
 
         val request = GetCredentialRequest.Builder()
@@ -98,13 +106,17 @@ class LoginFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             try {
                 viewModel.resetState()
-                android.util.Log.d("PKAI_AUTH", "Requesting credentials with client ID: $clientId")
+                android.util.Log.d("PKAI_AUTH", "Requesting Google credentials, client ID: $clientId")
+
                 val result = credentialManager.getCredential(
                     request = request,
                     context = requireContext()
                 )
                 val credential = result.credential
-                if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+
+                if (credential is CustomCredential &&
+                    credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
+                ) {
                     val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
                     val idToken = googleIdTokenCredential.idToken
                     val displayName = googleIdTokenCredential.displayName
@@ -122,44 +134,44 @@ class LoginFragment : Fragment() {
                     binding.tvErrorBanner.visibility = View.VISIBLE
                     binding.tvErrorBanner.text = getString(R.string.error_auth_failed)
                 }
+            } catch (e: androidx.credentials.exceptions.GetCredentialCancellationException) {
+                android.util.Log.d("PKAI_AUTH", "User cancelled sign-in")
+                // User cancelled — just reset state, no error shown
+                viewModel.resetState()
+            } catch (e: androidx.credentials.exceptions.NoCredentialException) {
+                android.util.Log.e("PKAI_AUTH", "No credentials available", e)
+                binding.tvErrorBanner.visibility = View.VISIBLE
+                binding.tvErrorBanner.text = "No Google account found on this device.\nPlease add a Google account in Settings → Accounts."
+                showDiagnosticDialog()
             } catch (e: androidx.credentials.exceptions.GetCredentialException) {
-                android.util.Log.e("PKAI_AUTH", "GetCredentialException occurred: ", e)
+                android.util.Log.e("PKAI_AUTH", "GetCredentialException: ", e)
                 binding.tvErrorBanner.visibility = View.VISIBLE
-                val userFriendlyMessage = when (e) {
-                    is androidx.credentials.exceptions.GetCredentialCancellationException -> {
-                        "Sign-In cancelled by user."
-                    }
-                    is androidx.credentials.exceptions.NoCredentialException -> {
-                        showDiagnosticDialog()
-                        "Google Sign-In configuration error on this device."
-                    }
-                    else -> {
-                        "Google Sign-In error: ${e.message}\n\nPlease check your Firebase client configuration, package name, and SHA-1 fingerprints."
-                    }
-                }
-                binding.tvErrorBanner.text = userFriendlyMessage
+                binding.tvErrorBanner.text = "Google Sign-In error: ${e.message}\n\nPlease check Firebase configuration."
+                showDiagnosticDialog()
             } catch (e: Exception) {
-                android.util.Log.e("PKAI_AUTH", "Unknown Google Sign-In exception occurred: ", e)
+                android.util.Log.e("PKAI_AUTH", "Unknown exception: ", e)
                 binding.tvErrorBanner.visibility = View.VISIBLE
-                binding.tvErrorBanner.text = "Google Sign-In failed: ${e.localizedMessage ?: "Unknown Error"}.\n\nPlease ensure you have replaced 'default_web_client_id' in strings.xml and configured Firebase."
+                binding.tvErrorBanner.text = "Sign-In failed: ${e.localizedMessage ?: "Unknown error"}"
             }
         }
     }
 
     private fun showDiagnosticDialog() {
         diagnosticDialog?.dismiss()
-        val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_google_signin_diagnostic, null)
+        val dialogView = LayoutInflater.from(requireContext())
+            .inflate(R.layout.dialog_google_signin_diagnostic, null)
         val dialog = MaterialAlertDialogBuilder(requireContext(), R.style.Theme_PkAi)
             .setView(dialogView)
             .create()
 
         dialogView.findViewById<View>(R.id.btn_diagnostic_dismiss)?.setOnClickListener {
             dialog.dismiss()
-            // Seamless proceed: Log in as guest automatically when dismissing diagnostic
             viewModel.loginAsGuest()
         }
 
-        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+        dialog.window?.setBackgroundDrawable(
+            android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT)
+        )
         dialog.show()
         diagnosticDialog = dialog
     }

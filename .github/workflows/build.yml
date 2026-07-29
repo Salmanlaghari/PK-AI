@@ -34,6 +34,8 @@ jobs:
         # Fallback to default passwords if secrets not set
         if [ -z "$KEYSTORE_PASS" ]; then KEYSTORE_PASS="pass123456"; fi
         if [ -z "$KEY_PASS" ]; then KEY_PASS="pass123456"; fi
+        # Remove existing keystore if present
+        rm -f ailatestfinder-release.jks
         keytool -genkey -v \
           -keystore ailatestfinder-release.jks \
           -alias ailatestfinder \

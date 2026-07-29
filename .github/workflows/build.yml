@@ -28,6 +28,9 @@ jobs:
       run: chmod +x gradlew
 
     - name: Generate Release Keystore
+      env:
+        KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
       run: |
         keytool -genkey -v \
           -keystore ailatestfinder-release.jks \
@@ -35,8 +38,8 @@ jobs:
           -keyalg RSA \
           -keysize 2048 \
           -validity 10000 \
-          -storepass pass123456 \
-          -keypass pass123456 \
+          -storepass "$KEYSTORE_PASSWORD" \
+          -keypass "$KEY_PASSWORD" \
           -dname "CN=SalmanLaghari, OU=Mobile, O=PKAI, L=Karachi, S=Sindh, C=PK"
 
     - name: Build Release APK
@@ -48,6 +51,8 @@ jobs:
         COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
         CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
         SAMBANOVA_API_KEY: ${{ secrets.SAMBANOVA_API_KEY }}
+        KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
       run: ./gradlew assembleRelease --no-daemon
 
     - name: Get version name

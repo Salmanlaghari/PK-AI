@@ -12,6 +12,7 @@ import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
 import com.salmanlaghari.pkai.data.local.datastore.PreferencesManager
+import com.salmanlaghari.pkai.ads.AdManager
 import com.salmanlaghari.pkai.data.repository.AuthRepository
 import com.salmanlaghari.pkai.databinding.ActivityMainBinding
 import dagger.hilt.android.AndroidEntryPoint

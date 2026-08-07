@@ -16,6 +16,7 @@ import androidx.navigation.fragment.findNavController
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.salmanlaghari.pkai.MainActivity
 import com.salmanlaghari.pkai.R
+import com.salmanlaghari.pkai.ads.AdManager
 import com.salmanlaghari.pkai.data.model.AiModel
 import com.salmanlaghari.pkai.databinding.FragmentHomeBinding
 import com.salmanlaghari.pkai.databinding.ItemModelSheetBinding
@@ -155,7 +156,10 @@ class HomeFragment : Fragment() {
             voiceLauncher.launch(intent)
         }
 
-        // 9. Start continuous 60fps ripple ring animations for Voice Trigger
+        // 9. Load Real AdMob Banner Ad
+        loadBannerAd()
+
+        // 10. Start continuous 60fps ripple ring animations for Voice Trigger
         startVoiceRippleAnimations()
     }
 
@@ -198,6 +202,11 @@ class HomeFragment : Fragment() {
             }
             .create()
         dialog.show()
+    }
+
+    private fun loadBannerAd() {
+        val adView = AdManager.createBannerAdView(requireContext(), AdManager.BANNER_HOME_ID)
+        binding.adBannerContainer.addView(adView)
     }
 
     override fun onDestroyView() {

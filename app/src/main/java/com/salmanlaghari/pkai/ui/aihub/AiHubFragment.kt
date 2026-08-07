@@ -9,6 +9,7 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.salmanlaghari.pkai.R
+import com.salmanlaghari.pkai.ads.AdManager
 import com.salmanlaghari.pkai.databinding.FragmentAiHubBinding
 import com.salmanlaghari.pkai.databinding.ItemAiHubCardBinding
 import dagger.hilt.android.AndroidEntryPoint
@@ -32,6 +33,10 @@ class AiHubFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        // Load Banner Ad
+        val adView = AdManager.createBannerAdView(requireContext(), AdManager.BANNER_TOOLS_ID)
+        binding.adBannerContainer.addView(adView)
 
         // Observe models list flow and populate card items dynamically
         viewLifecycleOwner.lifecycleScope.launch {

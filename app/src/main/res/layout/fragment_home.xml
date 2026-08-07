@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     android:background="@color/premium_black">
 
-    <!-- 1. Aurora Animated Background Layer (Twinkling stars & flowing radial gradients) -->
+    <!-- Aurora Animated Background -->
     <com.salmanlaghari.pkai.ui.custom.AuroraBackgroundView
         android:id="@+id/aurora_bg"
         android:layout_width="0dp"
@@ -16,7 +16,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- 2. Glassmorphic Header / Top App Bar -->
+    <!-- Glassmorphic Header -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/layout_header"
         android:layout_width="0dp"
@@ -27,13 +27,12 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
-        <!-- Left Menu Icon -->
         <ImageButton
             android:id="@+id/btn_menu"
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:background="@drawable/bg_glass_card"
-            android:contentDescription="Open Navigation Drawer"
+            android:contentDescription="Menu"
             android:src="@drawable/ic_menu"
             android:padding="8dp"
             app:layout_constraintBottom_toBottomOf="parent"
@@ -41,7 +40,6 @@
             app:layout_constraintTop_toTopOf="parent"
             app:tint="@color/html_cyan" />
 
-        <!-- Center Title & Subtitle Info -->
         <LinearLayout
             android:id="@+id/layout_center_title"
             android:layout_width="0dp"
@@ -79,13 +77,12 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="The Future of Artificial Intelligence"
+                android:text="Home Dashboard"
                 android:textColor="@color/html_gray"
                 android:textSize="9sp"
                 android:fontFamily="@font/poppins" />
         </LinearLayout>
 
-        <!-- Right Notifications Icon -->
         <ImageButton
             android:id="@+id/btn_notifications"
             android:layout_width="40dp"
@@ -100,7 +97,6 @@
             app:layout_constraintTop_toTopOf="parent"
             app:tint="@color/html_cyan" />
 
-        <!-- Right Settings Icon -->
         <ImageButton
             android:id="@+id/btn_settings"
             android:layout_width="40dp"
@@ -115,209 +111,597 @@
             app:tint="@color/html_cyan" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- 3. Chat Messages Scrollable List -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rv_chat_messages"
+    <!-- Main Scrollable Content -->
+    <ScrollView
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:clipToPadding="false"
         android:paddingBottom="16dp"
-        android:layout_marginTop="8dp"
-        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-        app:layout_constraintBottom_toTopOf="@id/layout_typing"
+        android:scrollbars="none"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/layout_header" />
+        app:layout_constraintTop_toBottomOf="@id/layout_header">
 
-    <!-- 5. Typing Indicator with custom bouncy dots animation -->
-    <LinearLayout
-        android:id="@+id/layout_typing"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="20dp"
-        android:layout_marginBottom="8dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:visibility="gone"
-        app:layout_constraintBottom_toTopOf="@id/tv_upgrade_nudge"
-        app:layout_constraintStart_toStartOf="parent"
-        tools:visibility="visible">
-
-        <!-- Custom 60fps Bouncing Dot View -->
-        <com.salmanlaghari.pkai.ui.custom.TypingIndicatorView
-            android:id="@+id/v_typing_dots"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="8dp" />
+            android:orientation="vertical"
+            android:padding="16dp">
 
-        <TextView
-            android:id="@+id/tv_typing"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="AI is processing..."
-            android:textColor="@color/html_cyan"
-            android:textSize="13sp"
-            android:fontFamily="@font/poppins"
-            android:textStyle="bold" />
-    </LinearLayout>
+            <!-- Greeting Section -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Welcome Back,"
+                android:textColor="@color/html_gray"
+                android:textSize="14sp"
+                android:fontFamily="@font/poppins" />
 
-    <!-- 5.5. Real Google AdMob Banner -->
+            <TextView
+                android:id="@+id/tv_user_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="Salman"
+                android:textColor="@color/white"
+                android:textSize="28sp"
+                android:fontFamily="@font/poppins"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Ultra-clean professional 8K mobile app"
+                android:textColor="@color/html_gray"
+                android:textSize="12sp"
+                android:fontFamily="@font/poppins" />
+
+            <!-- Stats Grid - Row 1 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:orientation="horizontal"
+                android:weightSum="2">
+
+                <!-- AI Projects Card -->
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:id="@+id/card_projects"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_stat_card"
+                    android:padding="16dp"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="AI PROJECTS"
+                        android:textColor="@color/html_gray"
+                        android:textSize="10sp"
+                        android:fontFamily="@font/poppins"
+                        android:letterSpacing="0.08"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="473"
+                        android:textColor="@color/html_cyan"
+                        android:textSize="32sp"
+                        android:fontFamily="@font/poppins"
+                        android:textStyle="bold"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toBottomOf="@id/lbl_projects" />
+
+                    <TextView
+                        android:id="@+id/lbl_projects"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="↑ 12.5% this week"
+                        android:textColor="@color/html_green"
+                        android:textSize="11sp"
+                        android:fontFamily="@font/poppins"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toBottomOf="@id/val_projects" />
+
+                    <View
+                        android:id="@+id/val_projects"
+                        android:layout_width="0dp"
+                        android:layout_height="0dp"
+                        app:layout_constraintTop_toBottomOf="@id/lbl_projects_label"
+                        app:layout_constraintStart_toStartOf="parent" />
+
+                    <View
+                        android:id="@+id/lbl_projects_label"
+                        android:layout_width="0dp"
+                        android:layout_height="0dp"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintStart_toStartOf="parent" />
+
+                </androidx.constraintlayout.widget.ConstraintLayout>
+
+                <!-- Data Processing Card -->
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:id="@+id/card_processing"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_stat_card"
+                    android:padding="16dp"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="DATA PROCESSING"
+                        android:textColor="@color/html_gray"
+                        android:textSize="10sp"
+                        android:fontFamily="@font/poppins"
+                        android:letterSpacing="0.08"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="70%"
+                        android:textColor="@color/html_purple"
+                        android:textSize="32sp"
+                        android:fontFamily="@font/poppins"
+                        android:textStyle="bold"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toBottomOf="@id/lbl_projects" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="↑ 8.3% from yesterday"
+                        android:textColor="@color/html_green"
+                        android:textSize="11sp"
+                        android:fontFamily="@font/poppins"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toBottomOf="@id/val_projects" />
+
+                </androidx.constraintlayout.widget.ConstraintLayout>
+            </LinearLayout>
+
+            <!-- Stats Grid - Row 2 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:orientation="horizontal"
+                android:weightSum="2">
+
+                <!-- Active Users Card -->
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:id="@+id/card_users"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_stat_card"
+                    android:padding="16dp"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="ACTIVE USERS"
+                        android:textColor="@color/html_gray"
+                        android:textSize="10sp"
+                        android:fontFamily="@font/poppins"
+                        android:letterSpacing="0.08"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="12.8K"
+                        android:textColor="@color/html_green"
+                        android:textSize="32sp"
+                        android:fontFamily="@font/poppins"
+                        android:textStyle="bold"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toBottomOf="@id/lbl_projects" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="↑ 24.1% growth"
+                        android:textColor="@color/html_green"
+                        android:textSize="11sp"
+                        android:fontFamily="@font/poppins"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toBottomOf="@id/val_projects" />
+
+                </androidx.constraintlayout.widget.ConstraintLayout>
+
+                <!-- Revenue Card -->
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:id="@+id/card_revenue"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_stat_card"
+                    android:padding="16dp"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="REVENUE"
+                        android:textColor="@color/html_gray"
+                        android:textSize="10sp"
+                        android:fontFamily="@font/poppins"
+                        android:letterSpacing="0.08"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="$48.2K"
+                        android:textColor="@color/html_gold"
+                        android:textSize="32sp"
+                        android:fontFamily="@font/poppins"
+                        android:textStyle="bold"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toBottomOf="@id/lbl_projects" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="↓ 3.2% from last month"
+                        android:textColor="@color/error"
+                        android:textSize="11sp"
+                        android:fontFamily="@font/poppins"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toBottomOf="@id/val_projects" />
+
+                </androidx.constraintlayout.widget.ConstraintLayout>
+            </LinearLayout>
+
+            <!-- Performance Overview Card -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:background="@drawable/bg_stat_card"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Performance Overview"
+                        android:textColor="@color/white"
+                        android:textSize="14sp"
+                        android:fontFamily="@font/poppins"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Live"
+                        android:textColor="@color/html_cyan"
+                        android:textSize="10sp"
+                        android:fontFamily="@font/poppins"
+                        android:textStyle="bold"
+                        android:background="@drawable/bg_live_badge"
+                        android:paddingHorizontal="8dp"
+                        android:paddingVertical="3dp" />
+                </LinearLayout>
+
+                <!-- Performance Bars -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:orientation="vertical">
+
+                    <!-- Accuracy -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Accuracy"
+                        android:textColor="@color/html_gray"
+                        android:textSize="12sp"
+                        android:fontFamily="@font/poppins" />
+
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="8dp"
+                        android:layout_marginTop="4dp"
+                        android:layout_marginBottom="12dp"
+                        android:background="@drawable/bg_progress_track">
+
+                        <View
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:background="@drawable/bg_progress_cyan"
+                            tools:layout_width="94%" />
+                    </FrameLayout>
+
+                    <!-- Precision -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Precision"
+                        android:textColor="@color/html_gray"
+                        android:textSize="12sp"
+                        android:fontFamily="@font/poppins" />
+
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="8dp"
+                        android:layout_marginTop="4dp"
+                        android:layout_marginBottom="12dp"
+                        android:background="@drawable/bg_progress_track">
+
+                        <View
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:background="@drawable/bg_progress_purple"
+                            tools:layout_width="87%" />
+                    </FrameLayout>
+
+                    <!-- Recall -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Recall"
+                        android:textColor="@color/html_gray"
+                        android:textSize="12sp"
+                        android:fontFamily="@font/poppins" />
+
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="8dp"
+                        android:layout_marginTop="4dp"
+                        android:layout_marginBottom="12dp"
+                        android:background="@drawable/bg_progress_track">
+
+                        <View
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:background="@drawable/bg_progress_pink"
+                            tools:layout_width="79%" />
+                    </FrameLayout>
+
+                    <!-- F1 Score -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="F1 Score"
+                        android:textColor="@color/html_gray"
+                        android:textSize="12sp"
+                        android:fontFamily="@font/poppins" />
+
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="8dp"
+                        android:layout_marginTop="4dp"
+                        android:background="@drawable/bg_progress_track">
+
+                        <View
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:background="@drawable/bg_progress_green"
+                            tools:layout_width="82%" />
+                    </FrameLayout>
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Recent Activity Card -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:background="@drawable/bg_stat_card"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Recent Activity"
+                    android:textColor="@color/white"
+                    android:textSize="14sp"
+                    android:fontFamily="@font/poppins"
+                    android:textStyle="bold" />
+
+                <!-- Activity Item 1 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <View
+                        android:layout_width="8dp"
+                        android:layout_height="8dp"
+                        android:background="@drawable/bg_dot_cyan" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="12dp"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="AI model training updated"
+                            android:textColor="@color/white"
+                            android:textSize="13sp"
+                            android:fontFamily="@font/poppins" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="26 minutes ago"
+                            android:textColor="@color/html_gray"
+                            android:textSize="11sp"
+                            android:fontFamily="@font/poppins" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- Activity Item 2 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <View
+                        android:layout_width="8dp"
+                        android:layout_height="8dp"
+                        android:background="@drawable/bg_dot_purple" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="12dp"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="New prediction generated"
+                            android:textColor="@color/white"
+                            android:textSize="13sp"
+                            android:fontFamily="@font/poppins" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="2 hours ago"
+                            android:textColor="@color/html_gray"
+                            android:textSize="11sp"
+                            android:fontFamily="@font/poppins" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- Activity Item 3 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <View
+                        android:layout_width="8dp"
+                        android:layout_height="8dp"
+                        android:background="@drawable/bg_dot_green" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="12dp"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Dataset preprocessing complete"
+                            android:textColor="@color/white"
+                            android:textSize="13sp"
+                            android:fontFamily="@font/poppins" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="5 hours ago"
+                            android:textColor="@color/html_gray"
+                            android:textSize="11sp"
+                            android:fontFamily="@font/poppins" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- Activity Item 4 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <View
+                        android:layout_width="8dp"
+                        android:layout_height="8dp"
+                        android:background="@drawable/bg_dot_gold" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="12dp"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Model accuracy threshold reached"
+                            android:textColor="@color/white"
+                            android:textSize="13sp"
+                            android:fontFamily="@font/poppins" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Yesterday"
+                            android:textColor="@color/html_gray"
+                            android:textSize="11sp"
+                            android:fontFamily="@font/poppins" />
+                    </LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
+
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- AdMob Banner at Bottom -->
     <FrameLayout
         android:id="@+id/ad_banner_container"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="4dp"
-        app:layout_constraintBottom_toTopOf="@id/layout_input"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
-
-    <!-- Premium Upgrade Nudge (shown below ad) -->
-    <TextView
-        android:id="@+id/tv_upgrade_nudge"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="2dp"
-        android:text="💎 Upgrade to Premium to remove ads!"
-        android:textColor="@color/html_gray"
-        android:textSize="9sp"
-        android:fontFamily="@font/poppins"
-        android:layout_gravity="center_horizontal"
-        app:layout_constraintBottom_toTopOf="@id/ad_banner_container"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
-
-    <!-- 6. Bottom Input & Model Selector Card Area -->
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/layout_input"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:paddingHorizontal="16dp"
-        android:paddingBottom="20dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
-
-        <!-- Rounded Glassmorphic Input Bar -->
-        <LinearLayout
-            android:id="@+id/input_bar"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginEnd="8dp"
-            android:background="@drawable/bg_input_bar"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingHorizontal="12dp"
-            android:paddingVertical="6dp"
-            app:layout_constraintBottom_toTopOf="@id/btn_model_selector"
-            app:layout_constraintEnd_toStartOf="@id/btn_send"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent">
-
-            <!-- Attachment Icon -->
-            <ImageButton
-                android:id="@+id/btn_attach"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="Attach file"
-                android:src="@drawable/ic_info"
-                android:padding="8dp"
-                app:tint="@color/html_gray" />
-
-            <!-- Input Box -->
-            <EditText
-                android:id="@+id/et_message_input"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginHorizontal="8dp"
-                android:background="@android:color/transparent"
-                android:hint="Ask anything..."
-                android:textColorHint="@color/html_gray"
-                android:textColor="@color/white"
-                android:fontFamily="@font/poppins"
-                android:inputType="textMultiLine|textCapSentences"
-                android:maxLines="4"
-                android:textSize="15sp"
-                android:paddingVertical="8dp" />
-        </LinearLayout>
-
-        <!-- Send Gradient Circular Button -->
-        <ImageButton
-            android:id="@+id/btn_send"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="@drawable/bg_send_btn"
-            android:contentDescription="Send Message"
-            android:src="@drawable/ic_send"
-            android:padding="12dp"
-            app:tint="@color/white"
-            android:elevation="4dp"
-            app:layout_constraintBottom_toBottomOf="@id/input_bar"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="@id/input_bar" />
-
-        <!-- AI Selector Label (Below the message box) -->
-        <TextView
-            android:id="@+id/btn_model_selector"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:background="?attr/selectableItemBackground"
-            android:clickable="true"
-            android:focusable="true"
-            android:gravity="center"
-            android:paddingHorizontal="14dp"
-            android:paddingVertical="6dp"
-            android:text="💎 Gemini ▼"
-            android:textColor="@color/html_cyan"
-            android:textSize="14sp"
-            android:fontFamily="@font/poppins"
-            android:textStyle="bold"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/input_bar" />
-
-        <!-- Pulsating Voice FAB (Repositioned to the opposite side of model selector, below send button) -->
-        <FrameLayout
-            android:id="@+id/layout_voice_container"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/input_bar">
-
-            <!-- Outer Ripple Ring 2 -->
-            <View
-                android:id="@+id/view_ripple_2"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:background="@drawable/bg_voice_ripple"
-                android:alpha="0" />
-
-            <!-- Inner Ripple Ring 1 -->
-            <View
-                android:id="@+id/view_ripple_1"
-                android:layout_width="38dp"
-                android:layout_height="38dp"
-                android:layout_gravity="center"
-                android:background="@drawable/bg_voice_ripple"
-                android:alpha="0" />
-
-            <!-- Voice Trigger FAB -->
-            <ImageButton
-                android:id="@+id/btn_voice"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:layout_gravity="center"
-                android:background="@drawable/bg_voice_btn"
-                android:contentDescription="Voice Assistant"
-                android:src="@drawable/ic_mic"
-                android:padding="6dp"
-                app:tint="@color/white"
-                android:elevation="4dp" />
-        </FrameLayout>
-
-    </androidx.constraintlayout.widget.ConstraintLayout>
+        app:layout_constraintStart_toStartOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.kapt)
     alias(libs.plugins.dagger.hilt)
     alias(libs.plugins.navigation.safeargs)
+    id("com.google.gms.google-services")
 }
 
 import java.util.Properties

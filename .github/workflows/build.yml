@@ -24,7 +24,7 @@ jobs:
     - name: Grant Execute Permission to Gradlew
       run: chmod +x gradlew
 
-    - name: Build Debug APK
+    - name: Build Debug APK and Release AAB
       env:
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
@@ -33,10 +33,18 @@ jobs:
         COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
         CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
         SAMBANOVA_API_KEY: ${{ secrets.SAMBANOVA_API_KEY }}
-      run: ./gradlew assembleDebug --no-daemon
+      run: |
+        ./gradlew assembleDebug --no-daemon
+        ./gradlew bundleRelease --no-daemon
 
     - name: Upload Debug APK
       uses: actions/upload-artifact@v4
       with:
         name: pk-ai-debug-apk
         path: app/build/outputs/apk/debug/app-debug.apk
+
+    - name: Upload Release AAB
+      uses: actions/upload-artifact@v4
+      with:
+        name: pk-ai-release-aab
+        path: app/build/outputs/bundle/release/app-release-raw.aab || app/build/outputs/bundle/release/app-release.aab

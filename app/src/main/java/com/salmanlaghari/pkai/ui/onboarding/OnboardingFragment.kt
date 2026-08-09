@@ -32,8 +32,7 @@ class OnboardingFragment : Fragment() {
 
         binding.btnGetStarted.setOnClickListener {
             viewModel.completeOnboarding()
-            // Direct AI Access: Bypass Google/Guest Login entirely and route straight to homeFragment
-            findNavController().navigate(R.id.homeFragment)
+            findNavController().navigate(R.id.action_onboardingFragment_to_loginFragment)
         }
     }
 

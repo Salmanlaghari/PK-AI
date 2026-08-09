@@ -66,10 +66,6 @@ class HomeViewModelTest {
 
             override fun getAllMessagesFlow(): Flow<List<ChatMessage>> = messagesFlow
 
-            override fun getMessagesForModelFlow(modelName: String): Flow<List<ChatMessage>> {
-                return messagesFlow
-            }
-
             override suspend fun getAllMessages(): List<ChatMessage> {
                 return messagesList.toList()
             }
@@ -77,11 +73,6 @@ class HomeViewModelTest {
             override suspend fun clearAllMessages() {
                 messagesList.clear()
                 messagesFlow.value = emptyList()
-            }
-
-            override suspend fun clearMessagesForModel(modelName: String) {
-                messagesList.removeAll { it.modelUsed == modelName }
-                messagesFlow.value = messagesList.toList()
             }
         }
 
@@ -97,6 +88,13 @@ class HomeViewModelTest {
         for (model in AiModel.values()) {
             whenever(mockAiProviderFactory.getProvider(model)).thenReturn(mockAiProvider)
         }
+
+        val mockFreeAiProvider = object : AiProvider {
+            override suspend fun generateResponse(prompt: String): String {
+                return "Free response for prompt: $prompt"
+            }
+        }
+        whenever(mockAiProviderFactory.getPublicFreeProvider()).thenReturn(mockFreeAiProvider)
 
         viewModel = HomeViewModel(
             appRepository = fakeAppRepository,
@@ -121,7 +119,7 @@ class HomeViewModelTest {
     @Test
     fun `initial states are correctly setup`() {
         testDispatcher.scheduler.advanceUntilIdle()
-        assertEquals(AiModel.DEEPSEEK, viewModel.selectedModel.value)
+        assertEquals(AiModel.GEMINI, viewModel.selectedModel.value)
         assertEquals(false, viewModel.isGenerating.value)
         assertTrue(viewModel.chatMessages.value.isEmpty())
     }
@@ -155,9 +153,9 @@ class HomeViewModelTest {
 
         // Second is AI response
         val secondMsg = currentMessages[1]
-        assertEquals("Response from Gemini Ultra for prompt: Hello PK AI", secondMsg.content)
+        assertEquals("Response from Gemini for prompt: Hello PK AI", secondMsg.content)
         assertEquals(false, secondMsg.isUser)
-        assertEquals("GEMINI", secondMsg.modelUsed)
+        assertEquals("Gemini", secondMsg.modelUsed)
     }
 
     @Test
@@ -173,5 +171,38 @@ class HomeViewModelTest {
 
         // Then
         assertTrue(viewModel.chatMessages.value.isEmpty())
+    }
+
+    @Test
+    fun `switching to freeMode partitions chat history and uses publicFreeProvider`() {
+        // Given
+        viewModel.sendMessage("Premium Query")
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(2, viewModel.chatMessages.value.size)
+
+        // When
+        viewModel.setFreeMode(true)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Then: History is empty for free mode initially
+        assertTrue(viewModel.chatMessages.value.isEmpty())
+
+        // Send a free message
+        viewModel.sendMessage("Free Query")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val freeMessages = viewModel.chatMessages.value
+        assertEquals(2, freeMessages.size)
+        assertEquals("Free Query", freeMessages[0].content)
+        assertEquals("Free response for prompt: Free Query", freeMessages[1].content)
+        assertEquals("Free Public AI", freeMessages[1].modelUsed)
+
+        // Switch back to premium
+        viewModel.setFreeMode(false)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val premiumMessages = viewModel.chatMessages.value
+        assertEquals(2, premiumMessages.size)
+        assertEquals("Premium Query", premiumMessages[0].content)
     }
 }

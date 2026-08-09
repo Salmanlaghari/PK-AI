@@ -16,12 +16,12 @@ if (localPropertiesFile.exists()) {
 
 android {
     namespace = "com.salmanlaghari.pkai"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.salmanlaghari.pkai"
         minSdk = 24
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
@@ -46,19 +46,9 @@ android {
         buildConfigField("String", "SAMBANOVA_API_KEY", "\"$sambanovaApiKey\"")
     }
 
-    signingConfigs {
-        create("release") {
-            storeFile = rootProject.file("ailatestfinder-release.jks")
-            storePassword = "AilaLatestFindzP ass2026!"
-            keyAlias = "ailatestfinder"
-            keyPassword = "AilaLatestFindzP ass2026!"
-        }
-    }
-
     buildTypes {
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

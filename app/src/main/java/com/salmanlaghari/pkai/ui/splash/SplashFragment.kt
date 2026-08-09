@@ -41,8 +41,12 @@ class SplashFragment : Fragment() {
             if (!onboardingCompleted) {
                 findNavController().navigate(R.id.action_splashFragment_to_onboardingFragment)
             } else {
-                // Direct AI Access: Bypass Google/Guest Login entirely and route straight to homeFragment
-                findNavController().navigate(R.id.homeFragment)
+                val session = viewModel.userSessionFlow.first()
+                if (session.isLoggedIn) {
+                    findNavController().navigate(R.id.action_splashFragment_to_homeFragment)
+                } else {
+                    findNavController().navigate(R.id.action_splashFragment_to_loginFragment)
+                }
             }
         }
     }

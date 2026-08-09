@@ -9,7 +9,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -17,30 +18,23 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+        run: chmod +x ./gradlew
 
-      - name: Build and sign AAB
-        uses: vga-software/sign-android-app@v1.1
+      - name: Build and Sign Release
+        uses: r0adkll/sign-android-release@v1
+        id: sign_app
         with:
-          app-name: "pk-ai"
-          app-version: "1.0.0"
-          signing-key: ${{ secrets.SIGNING_KEY }}
-          key-alias: ${{ secrets.KEY_ALIAS }}
-          key-password: ${{ secrets.KEY_PASSWORD }}
-          key-store-password: ${{ secrets.KEY_STORE_PASSWORD }}
-          build-type: "aab"
+          releaseDir: app/build/outputs/
+          signingKey: ${{ secrets.SIGNING_KEY }}
+          alias: ${{ secrets.KEY_ALIAS }}
+          keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
+          keyPassword: ${{ secrets.KEY_PASSWORD }}
+        env:
+          BUILD_TYPE: 'Release'
 
-      - name: Build and sign APK
-        uses: vga-software/sign-android-app@v1.1
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
         with:
-          app-name: "pk-ai"
-          app-version: "1.0.0"
-          signing-key: ${{ secrets.SIGNING_KEY }}
-          key-alias: ${{ secrets.KEY_ALIAS }}
-          key-password: ${{ secrets.KEY_PASSWORD }}
-          key-store-password: ${{ secrets.KEY_STORE_PASSWORD }}
-          build-type: "apk"
+          name: signed-release
+          path: ${{ steps.sign_app.outputs.signedReleaseFile }}

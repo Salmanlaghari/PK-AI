@@ -19,7 +19,7 @@ data class ChatChoiceDto(
 )
 
 data class ChatCompletionResponse(
-    val choices: List<ChatChoiceDto>?
+    val choices: List<ChatChoiceDto>
 )
 
 interface ApiService {
@@ -28,4 +28,12 @@ interface ApiService {
 
     @POST("v1/chat/completions")
     suspend fun generateChatResponse(@Body request: ChatCompletionRequest): ChatCompletionResponse
+}
+
+interface PublicFreeApiService {
+    @GET("https://catfact.ninja/fact")
+    suspend fun getFreeFact(): Map<String, String>
+
+    @GET("https://api.adviceslip.com/advice")
+    suspend fun getFreeAdvice(): Map<String, Any>
 }

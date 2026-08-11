@@ -53,4 +53,18 @@
         android:visibility="gone"
         app:tint="@color/electric_blue_glow" />
 
+    <TextView
+        android:id="@+id/tv_coming_soon"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_coming_soon_badge"
+        android:paddingHorizontal="8dp"
+        android:paddingVertical="3dp"
+        android:text="Coming Soon"
+        android:textColor="@color/purple_accent"
+        android:textSize="10sp"
+        android:textStyle="bold"
+        android:fontFamily="@font/poppins"
+        android:visibility="gone" />
+
 </LinearLayout>

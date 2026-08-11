@@ -190,18 +190,33 @@ class HomeFragment : Fragment() {
             itemBinding.tvModelName.text = model.displayName
             itemBinding.tvModelProvider.text = model.providerName
 
+            // Show Coming Soon badge for unavailable providers
+            if (model.comingSoon) {
+                itemBinding.tvComingSoon.visibility = View.VISIBLE
+                itemBinding.tvModelName.setTextColor(resources.getColor(R.color.outline, null))
+                itemBinding.tvModelProvider.text = "${model.providerName} · Coming Soon"
+            } else {
+                itemBinding.tvComingSoon.visibility = View.GONE
+            }
+
             // Highlight current selected model
-            if (model == currentSelected) {
+            if (model == currentSelected && !model.comingSoon) {
                 itemBinding.ivModelCheck.visibility = View.VISIBLE
                 itemBinding.tvModelName.setTextColor(resources.getColor(R.color.electric_blue_glow, null))
             } else {
                 itemBinding.ivModelCheck.visibility = View.GONE
-                itemBinding.tvModelName.setTextColor(resources.getColor(R.color.white, null))
+                if (!model.comingSoon) {
+                    itemBinding.tvModelName.setTextColor(resources.getColor(R.color.white, null))
+                }
             }
 
             itemBinding.btnModelItem.setOnClickListener {
-                viewModel.selectModel(model)
-                dialog.dismiss()
+                if (model.comingSoon) {
+                    Toast.makeText(context, "⏳ ${model.displayName} is coming soon! Stay tuned.", Toast.LENGTH_SHORT).show()
+                } else {
+                    viewModel.selectModel(model)
+                    dialog.dismiss()
+                }
             }
 
             sheetBinding.layoutModelsList.addView(itemBinding.root)

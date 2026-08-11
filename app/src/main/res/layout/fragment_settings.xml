@@ -7,24 +7,26 @@
     android:background="@color/premium_black"
     android:padding="24dp">
 
-    <!-- Header Toolbar Row with Back Arrow -->
+    <!-- Header -->
     <LinearLayout
         android:id="@+id/layout_header"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:orientation="horizontal"
+        android:layout_height="64dp"
+        android:background="@color/html_glass"
         android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp"
         app:layout_constraintTop_toTopOf="parent">
 
         <ImageButton
             android:id="@+id/btn_back"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@drawable/bg_glass_card"
+            android:contentDescription="Back"
             android:src="@drawable/ic_arrow_back"
-            app:tint="@color/electric_blue_glow"
-            tools:ignore="ContentDescription" />
+            android:padding="8dp"
+            app:tint="@color/html_cyan" />
 
         <TextView
             android:id="@+id/tv_settings_header"
@@ -33,7 +35,8 @@
             android:layout_marginStart="16dp"
             android:text="@string/title_settings"
             android:textColor="@color/white"
-            android:textSize="22sp"
+            android:textSize="18sp"
+            android:fontFamily="@font/poppins"
             android:textStyle="bold" />
     </LinearLayout>
 
@@ -41,8 +44,10 @@
     <ScrollView
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_marginTop="24dp"
+        android:layout_marginTop="8dp"
         android:scrollbars="none"
+        android:clipToPadding="false"
+        android:paddingBottom="24dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"

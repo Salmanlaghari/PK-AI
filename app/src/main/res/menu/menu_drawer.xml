@@ -1,26 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Core Chat Section -->
-    <item android:title="💬 Chat">
-        <menu>
-            <item
-                android:id="@+id/nav_new_chat"
-                android:icon="@drawable/ic_send"
-                android:title="New Chat" />
-            <item
-                android:id="@+id/nav_chat_history"
-                android:icon="@drawable/ic_history"
-                android:title="Chat History" />
-            <item
-                android:id="@+id/nav_favorites"
-                android:icon="@drawable/ic_star"
-                android:title="Favorites" />
-        </menu>
-    </item>
+    <group android:id="@+id/group_chat_core" android:checkableBehavior="single">
+        <item
+            android:id="@+id/nav_new_chat"
+            android:icon="@drawable/ic_send"
+            android:title="New Chat" />
+        <item
+            android:id="@+id/nav_chat_history"
+            android:icon="@drawable/ic_history"
+            android:title="Chat History" />
+        <item
+            android:id="@+id/nav_favorites"
+            android:icon="@drawable/ic_star"
+            android:title="Favorites" />
+    </group>
 
-    <!-- AI Hub Section -->
-    <item android:title="🤖 AI Hub">
+    <item android:title="AI Hub">
         <menu>
             <item
                 android:id="@+id/nav_model_gemini"
@@ -61,8 +57,7 @@
         </menu>
     </item>
 
-    <!-- Generative Studio Section -->
-    <item android:title="🎨 Studio">
+    <item android:title="Generative Studio">
         <menu>
             <item
                 android:id="@+id/nav_studio_image"
@@ -95,8 +90,7 @@
         </menu>
     </item>
 
-    <!-- Management Section -->
-    <item android:title="📁 Management">
+    <item android:title="Management">
         <menu>
             <item
                 android:id="@+id/nav_mgr_downloads"
@@ -113,8 +107,7 @@
         </menu>
     </item>
 
-    <!-- System Section -->
-    <item android:title="⚙️ System">
+    <item android:title="System">
         <menu>
             <item
                 android:id="@+id/nav_sys_settings"

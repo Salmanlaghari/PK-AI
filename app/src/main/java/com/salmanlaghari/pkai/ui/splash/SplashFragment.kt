@@ -37,17 +37,10 @@ class SplashFragment : Fragment() {
         lifecycleScope.launch {
             delay(2000) // Beautiful 2s delay for standard splash intro
 
-            val onboardingCompleted = viewModel.isOnboardingCompletedFlow.first()
-            if (!onboardingCompleted) {
-                findNavController().navigate(R.id.action_splashFragment_to_onboardingFragment)
-            } else {
-                val session = viewModel.userSessionFlow.first()
-                if (session.isLoggedIn) {
-                    findNavController().navigate(R.id.action_splashFragment_to_homeFragment)
-                } else {
-                    findNavController().navigate(R.id.action_splashFragment_to_loginFragment)
-                }
-            }
+            // Direct access — no login required
+            // Auto-login as guest so user goes straight to home
+            viewModel.autoLoginAsGuest()
+            findNavController().navigate(R.id.action_splashFragment_to_homeFragment)
         }
     }
 

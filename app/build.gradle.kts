@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.kapt)
     alias(libs.plugins.dagger.hilt)
     alias(libs.plugins.navigation.safeargs)
+    id("com.google.gms.google-services")
 }
 
 import java.util.Properties
@@ -16,12 +17,12 @@ if (localPropertiesFile.exists()) {
 
 android {
     namespace = "com.salmanlaghari.pkai"
-    compileSdk = 36
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.salmanlaghari.pkai"
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
@@ -46,9 +47,19 @@ android {
         buildConfigField("String", "SAMBANOVA_API_KEY", "\"$sambanovaApiKey\"")
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = rootProject.file("ailatestfinder-release.jks")
+            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "pass123456"
+            keyAlias = "ailatestfinder"
+            keyPassword = System.getenv("KEY_PASSWORD") ?: "pass123456"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -108,6 +119,9 @@ dependencies {
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play.services.auth)
     implementation(libs.google.identity.googleid)
+
+    // Google AdMob
+    implementation(libs.google.admob)
 
     // Testing
     testImplementation(libs.junit)

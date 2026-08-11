@@ -23,6 +23,14 @@ class AiProviderFactory @Inject constructor(
     }
 
     fun getProvider(model: AiModel): AiProvider {
+        // Return Coming Soon placeholder for unavailable providers
+        if (model.comingSoon) {
+            return object : AiProvider {
+                override suspend fun generateResponse(prompt: String): String {
+                    return "⏳ **${model.displayName}** is coming soon!\n\nWe're working hard to integrate ${model.providerName}'s AI capabilities. Stay tuned for updates!"
+                }
+            }
+        }
         return when (model) {
             AiModel.GEMINI -> GeminiAiProvider(geminiApiService)
             AiModel.CHATGPT -> {

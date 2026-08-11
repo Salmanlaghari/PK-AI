@@ -47,19 +47,12 @@ android {
         buildConfigField("String", "SAMBANOVA_API_KEY", "\"$sambanovaApiKey\"")
     }
 
-    signingConfigs {
-        create("release") {
-            storeFile = rootProject.file("ailatestfinder-release.jks")
-            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "REMOVED_PUBLIC_SIGNING_SECRET"
-            keyAlias = "ailatestfinder"
-            keyPassword = System.getenv("KEY_PASSWORD") ?: "REMOVED_PUBLIC_SIGNING_SECRET"
-        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("release")
+            
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

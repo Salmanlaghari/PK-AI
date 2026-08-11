@@ -6,13 +6,23 @@
     android:layout_height="match_parent"
     android:background="@color/premium_black">
 
-    <!-- Premium Header Toolbar -->
+    <!-- Aurora Animated Background -->
+    <com.salmanlaghari.pkai.ui.custom.AuroraBackgroundView
+        android:id="@+id/aurora_bg"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- Glassmorphic Header -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/layout_header"
         android:layout_width="0dp"
         android:layout_height="64dp"
-        android:background="@color/premium_black"
-        android:paddingHorizontal="12dp"
+        android:background="@color/html_glass"
+        android:paddingHorizontal="16dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
@@ -22,13 +32,14 @@
             android:id="@+id/btn_menu"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
+            android:background="@drawable/bg_glass_card"
             android:contentDescription="Open Navigation Drawer"
             android:src="@drawable/ic_menu"
+            android:padding="8dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:tint="@color/electric_blue_glow" />
+            app:tint="@color/html_cyan" />
 
         <!-- Center Container for Title, Logo and Subtitle -->
         <LinearLayout
@@ -68,11 +79,11 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Next-Gen Premium Assistant"
-                android:textColor="@color/electric_blue_glow"
+                android:text="Ultra HD AI Dashboard"
+                android:textColor="@color/html_cyan"
                 android:textSize="9sp"
                 android:fontFamily="@font/poppins"
-                android:shadowColor="@color/electric_blue_glow"
+                android:shadowColor="@color/html_cyan"
                 android:shadowRadius="4"
                 android:shadowDx="0"
                 android:shadowDy="0" />
@@ -84,26 +95,28 @@
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:layout_marginEnd="4dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
+            android:background="@drawable/bg_glass_card"
             android:contentDescription="Notifications"
             android:src="@drawable/ic_notifications"
+            android:padding="8dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@id/btn_settings"
             app:layout_constraintTop_toTopOf="parent"
-            app:tint="@color/electric_blue_glow" />
+            app:tint="@color/html_cyan" />
 
         <!-- Right Settings Icon -->
         <ImageButton
             android:id="@+id/btn_settings"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
+            android:background="@drawable/bg_glass_card"
             android:contentDescription="Settings"
             android:src="@drawable/ic_settings"
+            android:padding="8dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:tint="@color/electric_blue_glow" />
+            app:tint="@color/html_cyan" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <!-- Chat Mode Selector Tab Layout -->

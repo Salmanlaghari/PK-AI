@@ -22,10 +22,8 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
-      # Decode the keystore from the GitHub Secret into a transient file.
-      # The raw .jks is never committed to git — it exists only during this CI run.
-      - name: Decode Keystore
-        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > ailatestfinder-release.jks
+      # Use the ORIGINAL keystore from the repo (matches Play Store signing certificate)
+      # DO NOT regenerate — this keystore has the correct SHA1 fingerprint
 
       - name: Build Debug APK
         run: ./gradlew assembleDebug --stacktrace
@@ -33,24 +31,19 @@ jobs:
       - name: Build Release APK & AAB
         run: ./gradlew assembleRelease bundleRelease --stacktrace
         env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          # KEY_PASSWORD intentionally omitted — secret not set, Gradle falls back to KEYSTORE_PASSWORD
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
-          COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
-          CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          SAMBANOVA_API_KEY: ${{ secrets.SAMBANOVA_API_KEY }}
+          KEYSTORE_PASSWORD: *** secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: *** secrets.KEY_PASSWORD }}
+          GEMINI_API_KEY: *** secrets.GEMINI_API_KEY }}
+          OPENROUTER_API_KEY: *** secrets.OPENROUTER_API_KEY }}
+          GROQ_API_KEY: *** secrets.GROQ_API_KEY }}
+          TOGETHER_API_KEY: *** secrets.TOGETHER_API_KEY }}
+          COHERE_API_KEY: *** secrets.COHERE_API_KEY }}
+          CEREBRAS_API_KEY: *** secrets.CEREBRAS_API_KEY }}
+          OPENAI_API_KEY: *** secrets.OPENAI_API_KEY }}
+          SAMBANOVA_API_KEY: *** secrets.SAMBANOVA_API_KEY }}
 
       - name: Build Debug AAB
         run: ./gradlew bundleDebug --stacktrace
-
-      # Shred the keystore immediately after signing — belt-and-suspenders cleanup
-      - name: Remove Transient Keystore
-        if: always()
-        run: rm -f ailatestfinder-release.jks
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4

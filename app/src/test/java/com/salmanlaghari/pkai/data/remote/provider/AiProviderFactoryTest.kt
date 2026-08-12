@@ -81,9 +81,19 @@ class AiProviderFactoryTest {
         assertTrue(chatgptProvider is OpenAiAiProvider || chatgptProvider is OpenRouterAiProvider || chatgptProvider is CohereAiProvider)
 
         val llamaProvider = factory.getProvider(AiModel.LLAMA)
-        assertTrue(llamaProvider is CerebrasAiProvider)
+        if (AiModel.LLAMA.comingSoon) {
+            val response = llamaProvider.generateResponse("test")
+            assertTrue(response.contains("coming soon"))
+        } else {
+            assertTrue(llamaProvider is CerebrasAiProvider)
+        }
 
         val perplexityProvider = factory.getProvider(AiModel.PERPLEXITY)
-        assertTrue(perplexityProvider is SambaNovaAiProvider)
+        if (AiModel.PERPLEXITY.comingSoon) {
+            val response = perplexityProvider.generateResponse("test")
+            assertTrue(response.contains("coming soon"))
+        } else {
+            assertTrue(perplexityProvider is SambaNovaAiProvider)
+        }
     }
 }

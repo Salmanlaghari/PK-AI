@@ -3,9 +3,10 @@
     android:id="@+id/tv_header_title"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:paddingHorizontal="16dp"
+    android:background="@color/premium_black"
+    android:fontFamily="@font/poppins"
+    android:paddingHorizontal="20dp"
     android:paddingVertical="12dp"
     android:textColor="@color/electric_blue_glow"
-    android:textSize="14sp"
-    android:textStyle="bold"
-    android:background="@color/premium_black" />
+    android:textSize="13sp"
+    android:textStyle="bold" />

@@ -9,16 +9,16 @@
     android:focusable="true"
     android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:paddingHorizontal="16dp"
-    android:paddingVertical="12dp">
+    android:paddingHorizontal="20dp"
+    android:paddingVertical="14dp">
 
     <TextView
         android:id="@+id/tv_model_emoji"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginEnd="16dp"
         android:text="💎"
-        android:textSize="18sp"
-        android:layout_marginEnd="16dp" />
+        android:textSize="20sp" />
 
     <LinearLayout
         android:layout_width="0dp"
@@ -30,18 +30,18 @@
             android:id="@+id/tv_model_name"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="@color/white"
-            android:textSize="16sp"
             android:fontFamily="@font/poppins"
+            android:textColor="@color/white"
+            android:textSize="15sp"
             android:textStyle="bold" />
 
         <TextView
             android:id="@+id/tv_model_provider"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:fontFamily="@font/poppins"
             android:textColor="@color/outline"
-            android:textSize="12sp"
-            android:fontFamily="@font/poppins" />
+            android:textSize="11sp" />
     </LinearLayout>
 
     <ImageView
@@ -58,13 +58,13 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:background="@drawable/bg_coming_soon_badge"
+        android:fontFamily="@font/poppins"
         android:paddingHorizontal="8dp"
         android:paddingVertical="3dp"
         android:text="Coming Soon"
         android:textColor="@color/purple_accent"
         android:textSize="10sp"
         android:textStyle="bold"
-        android:fontFamily="@font/poppins"
         android:visibility="gone" />
 
 </LinearLayout>

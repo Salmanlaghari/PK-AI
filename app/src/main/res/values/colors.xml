@@ -54,6 +54,7 @@
     <!-- Outline -->
     <color name="outline">#46464F</color>
     <color name="outlineVariant">#2E2E3A</color>
+    <color name="outline_variant">#2E2E3A</color>
 
     <!-- Scrim -->
     <color name="scrim">#000000</color>

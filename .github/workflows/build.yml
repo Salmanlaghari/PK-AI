@@ -23,7 +23,7 @@ jobs:
         run: chmod +x ./gradlew
 
       # Use the ORIGINAL keystore from the repo (matches Play Store signing certificate)
-      # DO NOT regenerate — this keystore has the correct SHA1 fingerprint
+      # DO NOT regenerate - this keystore has the correct SHA1 fingerprint
 
       - name: Build Debug APK
         run: ./gradlew assembleDebug --stacktrace

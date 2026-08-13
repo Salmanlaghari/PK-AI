@@ -49,11 +49,15 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = rootProject.file("ailatestfinder-release.jks")
-            storePassword = System.getenv("KEYSTORE_PASSWORD")?.takeIf { it.isNotBlank() } ?: ""
-            keyAlias = "ailatestfinder"
+            storeFile = rootProject.file("pk-ai-upload-key.jks")
+            storePassword = System.getenv("KEYSTORE_PASSWORD")?.takeIf { it.isNotBlank() }
+                ?: localProperties.getProperty("KEYSTORE_PASSWORD")
+                ?: ""
+            keyAlias = "pk_ai_upload"
             keyPassword = System.getenv("KEY_PASSWORD")?.takeIf { it.isNotBlank() }
                 ?: System.getenv("KEYSTORE_PASSWORD")?.takeIf { it.isNotBlank() }
+                ?: localProperties.getProperty("KEY_PASSWORD")
+                ?: localProperties.getProperty("KEYSTORE_PASSWORD")
                 ?: ""
         }
     }

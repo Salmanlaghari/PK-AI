@@ -9,7 +9,7 @@
     android:fitsSystemWindows="true"
     tools:context=".MainActivity">
 
-    <!-- The Main Content View (consisting of Host Fragment + Bottom Nav) -->
+    <!-- Main Content -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent">
@@ -26,14 +26,18 @@
             app:layout_constraintTop_toTopOf="parent"
             app:navGraph="@navigation/nav_graph" />
 
+        <!-- Material 3 Bottom Navigation -->
         <com.google.android.material.bottomnavigation.BottomNavigationView
             android:id="@+id/bottom_navigation"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:background="@color/premium_black"
-            app:backgroundTint="@color/premium_black"
+            android:background="@color/surfaceContainer"
+            android:elevation="8dp"
+            app:backgroundTint="@color/surfaceContainer"
+            app:itemActiveIndicatorStyle="@style/Widget.Material3.BottomNavigationView.ActiveIndicator"
             app:itemIconTint="@color/electric_blue_glow"
             app:itemTextColor="@color/white"
+            app:itemRippleColor="@color/primary"
             app:labelVisibilityMode="labeled"
             app:menu="@menu/menu_bottom_nav"
             android:visibility="gone"
@@ -43,7 +47,7 @@
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- The Left Navigation Drawer with premium design characteristics -->
+    <!-- Material 3 Navigation Drawer -->
     <com.google.android.material.navigation.NavigationView
         android:id="@+id/nav_view"
         android:layout_width="320dp"
@@ -51,14 +55,17 @@
         android:layout_gravity="start"
         android:elevation="18dp"
         android:background="@drawable/bg_drawer_glass"
+        android:fitsSystemWindows="true"
         app:headerLayout="@layout/drawer_header"
         app:menu="@menu/menu_drawer"
-        app:itemTextColor="@color/white"
+        app:itemTextColor="@color/on_surface"
         app:itemIconTint="@color/electric_blue_glow"
-        app:itemTextAppearance="@style/PremiumDrawerItem"
         app:subheaderColor="@color/electric_blue_glow"
-        app:itemBackground="@drawable/bg_drawer_item"
-        app:itemShapeAppearance="@style/ShapeAppearanceOverlay.App.RoundedItem"
+        app:itemBackground="@drawable/bg_drawer_item_premium"
+        app:itemRippleColor="@color/primary"
+        app:itemShapeAppearance="@style/PkAi.Shape.Medium"
+        app:itemShapeFillColor="@android:color/transparent"
+        app:shapeAppearance="@style/PkAi.Shape.Large"
         android:scrollbars="vertical" />
 
 </androidx.drawerlayout.widget.DrawerLayout>

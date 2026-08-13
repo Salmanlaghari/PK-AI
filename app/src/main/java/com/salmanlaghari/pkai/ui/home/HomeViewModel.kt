@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -28,23 +28,32 @@ class HomeViewModel @Inject constructor(
     private val preferencesManager: PreferencesManager
 ) : ViewModel() {
 
-    val userSession = preferencesManager.userSession
+    private val _isFreeMode = MutableStateFlow(false)
+    val isFreeMode: StateFlow<Boolean> = _isFreeMode.asStateFlow()
 
-    private val _selectedModel = MutableStateFlow(AiModel.DEEPSEEK)
-    val selectedModel: StateFlow<AiModel> = _selectedModel.asStateFlow()
-
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    val chatMessages: StateFlow<List<ChatMessage>> = _selectedModel
-        .flatMapLatest { model ->
-            chatMessageDao.getMessagesForModelFlow(model.name)
+    val chatMessages: StateFlow<List<ChatMessage>> = chatMessageDao.getAllMessagesFlow()
+        .combine(_isFreeMode) { messages, freeMode ->
+            if (freeMode) {
+                messages.filter { it.modelUsed == "Free Public AI" }
+            } else {
+                messages.filter { it.modelUsed != "Free Public AI" }
+            }
         }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
+
+    private val _selectedModel = MutableStateFlow(AiModel.GEMINI)
+    val selectedModel: StateFlow<AiModel> = _selectedModel.asStateFlow()
+
     private val _isGenerating = MutableStateFlow(false)
     val isGenerating: StateFlow<Boolean> = _isGenerating.asStateFlow()
+
+    fun setFreeMode(free: Boolean) {
+        _isFreeMode.value = free
+    }
 
     fun selectModel(model: AiModel) {
         _selectedModel.value = model
@@ -54,31 +63,37 @@ class HomeViewModel @Inject constructor(
         if (content.trim().isEmpty()) return
 
         viewModelScope.launch {
+            val isFree = _isFreeMode.value
             val model = _selectedModel.value
-            // 1. Insert user message tagged with selected model name
+
+            // 1. Insert user message (tag with "Free Public AI" if in free mode)
             val userMessage = ChatMessage(
                 content = content.trim(),
                 isUser = true,
-                modelUsed = model.name
+                modelUsed = if (isFree) "Free Public AI" else null
             )
             chatMessageDao.insertMessage(userMessage)
 
             // 2. Trigger AI generating response
             _isGenerating.value = true
             try {
-                val provider = aiProviderFactory.getProvider(model)
+                val provider = if (isFree) {
+                    aiProviderFactory.getPublicFreeProvider()
+                } else {
+                    aiProviderFactory.getProvider(model)
+                }
                 val responseText = provider.generateResponse(content)
                 val aiMessage = ChatMessage(
                     content = responseText,
                     isUser = false,
-                    modelUsed = model.name
+                    modelUsed = if (isFree) "Free Public AI" else model.displayName
                 )
                 chatMessageDao.insertMessage(aiMessage)
             } catch (e: Exception) {
                 val errorMessage = ChatMessage(
                     content = "Unable to fetch response. Please try again. (${e.localizedMessage ?: "Unknown Error"})",
                     isUser = false,
-                    modelUsed = model.name
+                    modelUsed = if (isFree) "Free Public AI" else model.displayName
                 )
                 chatMessageDao.insertMessage(errorMessage)
             } finally {
@@ -89,7 +104,7 @@ class HomeViewModel @Inject constructor(
 
     fun clearConversation() {
         viewModelScope.launch {
-            chatMessageDao.clearMessagesForModel(_selectedModel.value.name)
+            chatMessageDao.clearAllMessages()
         }
     }
 

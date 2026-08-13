@@ -14,15 +14,40 @@ class PlaceholderAiProvider(private val model: AiModel) : AiProvider {
         // Simulate premium AI thoughts/processing
         kotlinx.coroutines.delay(1500)
         return when (model) {
-            AiModel.GEMINI -> "Greetings from Gemini! I am Google's highly advanced multimodal intelligence model. How can I assist you today?"
-            AiModel.CHATGPT -> "Hello! I am ChatGPT by OpenAI, powered by the state-of-the-art GPT architecture. How can I assist you?"
-            AiModel.CLAUDE -> "Welcome! I am Claude, an advanced model created by Anthropic. I specialize in safe, deeply structured text reasoning."
+            AiModel.GEMINI -> "Greetings from Gemini! I am Google's highly advanced multimodal intelligence model. How can I assist you in building premium concepts today?"
+            AiModel.CHATGPT -> "Hello! I am ChatGPT by OpenAI, powered by the state-of-the-art GPT architecture. Ready to co-write, brainstorm, or explore ideas with you."
+            AiModel.CLAUDE -> "Welcome! I am Claude, an advanced model created by Anthropic. I specialize in safe, deeply structured, and exceptionally detailed text reasoning."
             AiModel.GROK -> "Grok here! Ready to slice through facts with real-time understanding and a touch of wit. What's on your mind?"
-            AiModel.DEEPSEEK -> "Greetings from DeepSeek! I am highly optimized for mathematical reasoning, science, and coding."
-            AiModel.QWEN -> "Hello! I am Qwen, Alibaba's top-tier language model. Let's solve things elegantly!"
-            AiModel.LLAMA -> "Hi there! I am Llama, Meta's open-weights model. How can I assist you?"
-            AiModel.MISTRAL -> "Welcome! I am Mistral, a highly optimized, high-efficiency model crafted in France."
-            AiModel.PERPLEXITY -> "Hello! I am Perplexity. I specialize in contextual search and citation-based logical thinking."
+            AiModel.DEEPSEEK -> "Greetings from DeepSeek! I am highly optimized for mathematical reasoning, science, coding, and complex problem solving."
+            AiModel.QWEN -> "Hello! I am Qwen, Alibaba's top-tier language model. I am excellent at multilingual synthesis and logical calculations."
+            AiModel.LLAMA -> "Hi there! I am Llama, Meta's open-weights model. I provide high-performance text comprehension and logical output."
+            AiModel.MISTRAL -> "Welcome! I am Mistral, a highly optimized, high-efficiency model crafted in France. Let's solve things quickly and elegantly!"
+            AiModel.PERPLEXITY -> "Hello! I am Perplexity. I specialize in contextual search, research summarization, and citation-based logical thinking."
+        }
+    }
+}
+
+class PublicFreeAiProvider(
+    private val apiService: com.salmanlaghari.pkai.data.remote.PublicFreeApiService
+) : AiProvider {
+    override suspend fun generateResponse(prompt: String): String {
+        kotlinx.coroutines.delay(1000) // Beautiful premium conversational delay
+        val lowerPrompt = prompt.lowercase()
+        return try {
+            if (lowerPrompt.contains("fact") || lowerPrompt.contains("know") || lowerPrompt.contains("something")) {
+                val response = apiService.getFreeFact()
+                "Here is an interesting public fact for you:\n\n${response["fact"] ?: "AI is the future!"}"
+            } else if (lowerPrompt.contains("advice") || lowerPrompt.contains("help") || lowerPrompt.contains("suggest")) {
+                val response = apiService.getFreeAdvice()
+                val slip = response["slip"] as? Map<*, *>
+                val advice = slip?.get("advice") as? String
+                advice ?: "Stay positive and keep coding!"
+            } else {
+                val words = prompt.trim().split("\\s+".toRegex()).size
+                "I am PK AI's **Free Public Chatbot** (No API Key required)!\n\nI processed your query (\"$prompt\") containing $words words using unauthenticated public endpoints. To experience ultra-fast reasoning with Gemini, Claude, or Grok, please configure your keys in the **Settings** and use the **Premium Chat** tab!"
+            }
+        } catch (e: Exception) {
+            "I am PK AI's **Free Public Chatbot**!\n\nYour query: \"$prompt\"\n\nI am currently operating in smart offline mode. Switch to the **Premium Chat** tab at any time to utilize Gemini, Claude, or Grok!"
         }
     }
 }
@@ -59,7 +84,7 @@ class NetworkAiProvider(
         )
         return try {
             val response = apiService.generateChatResponse(request)
-            response.choices?.firstOrNull()?.message?.content ?: "Empty response from server"
+            response.choices.firstOrNull()?.message?.content ?: "Empty response from server"
         } catch (e: Exception) {
             "Error: ${e.localizedMessage ?: "Unknown network error"}"
         }
@@ -100,18 +125,16 @@ class OpenRouterAiProvider(
     override suspend fun generateResponse(prompt: String): String {
         val apiKey = com.salmanlaghari.pkai.BuildConfig.OPENROUTER_API_KEY
         if (apiKey.isBlank()) {
-            return "API key not configured."
+            return "OpenRouter API Key not configured. Please supply an API key."
         }
         val modelId = when (model) {
-            AiModel.GEMINI -> "google/gemini-2.5-pro"
             AiModel.QWEN -> "qwen/qwen-2.5-72b-instruct"
             AiModel.DEEPSEEK -> "deepseek/deepseek-chat"
-            AiModel.LLAMA -> "meta-llama/llama-3.3-70b-instruct"
-            AiModel.MISTRAL -> "mistralai/mistral-nemo"
+            AiModel.LLAMA -> "meta-llama/llama-3.1-8b-instruct"
+            AiModel.MISTRAL -> "mistralai/mistral-7b-instruct"
             AiModel.CHATGPT -> "openai/gpt-4o-mini"
-            AiModel.CLAUDE -> "anthropic/claude-3-opus"
-            AiModel.PERPLEXITY -> "perplexity/sonar"
-            AiModel.GROK -> "x-ai/grok-2"
+            AiModel.CLAUDE -> "anthropic/claude-3-haiku"
+            AiModel.PERPLEXITY -> "perplexity/sonar-chat"
             else -> "google/gemma-2-9b-it"
         }
         val request = ChatCompletionRequest(
@@ -119,10 +142,31 @@ class OpenRouterAiProvider(
             messages = listOf(ChatMessageDto(role = "user", content = prompt))
         )
         return try {
-            val response = apiService.generateChatResponse("Bearer $apiKey", request = request)
-            response.choices?.firstOrNull()?.message?.content ?: "Empty response from OpenRouter server."
+            val response = apiService.generateChatResponse(
+                authorization = "Bearer $apiKey",
+                referer = "https://pkai.salmanlaghari.com",
+                title = "PK AI",
+                request = request
+            )
+            val result = response.choices.firstOrNull()?.message?.content
+            if (result.isNullOrBlank()) {
+                "Error: Received empty response from OpenRouter ($modelId). Please retry."
+            } else {
+                result
+            }
+        } catch (e: retrofit2.HttpException) {
+            val code = e.code()
+            if (code == 401 || code == 403) {
+                "Error: OpenRouter Authentication failed (HTTP $code). Verify your API Key."
+            } else if (code == 429) {
+                "Error: OpenRouter rate limit exceeded (HTTP 429). Please wait and try again."
+            } else {
+                "Error: OpenRouter error (HTTP $code). Server responded with: ${e.message()}"
+            }
+        } catch (e: java.io.IOException) {
+            "Error: Timeout/Network connection failed. Check your internet connection."
         } catch (e: Exception) {
-            "Error: ${e.localizedMessage ?: "Unknown network error"}"
+            "Error: ${e.localizedMessage ?: "Unknown OpenRouter connection issue."}"
         }
     }
 }
@@ -147,7 +191,7 @@ class GroqAiProvider(
         )
         return try {
             val response = apiService.generateChatResponse("Bearer $apiKey", request)
-            response.choices?.firstOrNull()?.message?.content ?: "Empty response from Groq server."
+            response.choices.firstOrNull()?.message?.content ?: "Empty response from Groq server."
         } catch (e: Exception) {
             "Error: ${e.localizedMessage ?: "Unknown network error"}"
         }
@@ -174,7 +218,7 @@ class TogetherAiProvider(
         )
         return try {
             val response = apiService.generateChatResponse("Bearer $apiKey", request)
-            response.choices?.firstOrNull()?.message?.content ?: "Empty response from Together AI server."
+            response.choices.firstOrNull()?.message?.content ?: "Empty response from Together AI server."
         } catch (e: Exception) {
             "Error: ${e.localizedMessage ?: "Unknown network error"}"
         }
@@ -200,7 +244,7 @@ class OpenAiAiProvider(
         )
         return try {
             val response = apiService.generateChatResponse("Bearer $apiKey", request)
-            response.choices?.firstOrNull()?.message?.content ?: "Empty response from OpenAI server."
+            response.choices.firstOrNull()?.message?.content ?: "Empty response from OpenAI server."
         } catch (e: Exception) {
             "Error: ${e.localizedMessage ?: "Unknown network error"}"
         }
@@ -223,7 +267,7 @@ class CerebrasAiProvider(
         )
         return try {
             val response = apiService.generateChatResponse("Bearer $apiKey", request)
-            response.choices?.firstOrNull()?.message?.content ?: "Empty response from Cerebras server."
+            response.choices.firstOrNull()?.message?.content ?: "Empty response from Cerebras server."
         } catch (e: Exception) {
             "Error: ${e.localizedMessage ?: "Unknown network error"}"
         }
@@ -246,7 +290,7 @@ class SambaNovaAiProvider(
         )
         return try {
             val response = apiService.generateChatResponse("Bearer $apiKey", request)
-            response.choices?.firstOrNull()?.message?.content ?: "Empty response from SambaNova server."
+            response.choices.firstOrNull()?.message?.content ?: "Empty response from SambaNova server."
         } catch (e: Exception) {
             "Error: ${e.localizedMessage ?: "Unknown network error"}"
         }

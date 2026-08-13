@@ -8,6 +8,7 @@ plugins {
 }
 
 import java.util.Properties
+import java.security.KeyStore
 
 val localProperties = Properties()
 val localPropertiesFile = rootProject.file("local.properties")
@@ -23,8 +24,8 @@ android {
         applicationId = "com.salmanlaghari.pkai"
         minSdk = 24
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 1
+        versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -36,8 +37,6 @@ android {
         val cerebrasApiKey = System.getenv("CEREBRAS_API_KEY") ?: localProperties.getProperty("CEREBRAS_API_KEY") ?: ""
         val openaiApiKey = System.getenv("OPENAI_API_KEY") ?: localProperties.getProperty("OPENAI_API_KEY") ?: ""
         val sambanovaApiKey = System.getenv("SAMBANOVA_API_KEY") ?: localProperties.getProperty("SAMBANOVA_API_KEY") ?: ""
-        val runwayApiKey = System.getenv("RUNWAY_API_KEY") ?: localProperties.getProperty("RUNWAY_API_KEY") ?: ""
-        val sunoApiKey = System.getenv("SUNO_API_KEY") ?: localProperties.getProperty("SUNO_API_KEY") ?: ""
 
         buildConfigField("String", "GEMINI_API_KEY", "\"$geminiApiKey\"")
         buildConfigField("String", "OPENROUTER_API_KEY", "\"$openrouterApiKey\"")
@@ -47,22 +46,29 @@ android {
         buildConfigField("String", "CEREBRAS_API_KEY", "\"$cerebrasApiKey\"")
         buildConfigField("String", "OPENAI_API_KEY", "\"$openaiApiKey\"")
         buildConfigField("String", "SAMBANOVA_API_KEY", "\"$sambanovaApiKey\"")
-        buildConfigField("String", "RUNWAY_API_KEY", "\"$runwayApiKey\"")
-        buildConfigField("String", "SUNO_API_KEY", "\"$sunoApiKey\"")
     }
 
     signingConfigs {
         create("release") {
-            storeFile = rootProject.file("ailatestfinder-release.jks")
-            storePassword = System.getenv("KEYSTORE_PASSWORD")?.takeIf { it.isNotBlank() }
-                ?: localProperties.getProperty("KEYSTORE_PASSWORD")
-                ?: ""
-            keyAlias = "ailatestfinder"
-            keyPassword = System.getenv("KEY_PASSWORD")?.takeIf { it.isNotBlank() }
-                ?: System.getenv("KEYSTORE_PASSWORD")?.takeIf { it.isNotBlank() }
-                ?: localProperties.getProperty("KEY_PASSWORD")
-                ?: localProperties.getProperty("KEYSTORE_PASSWORD")
-                ?: ""
+            storeFile = rootProject.file("pk-ai-upload-key.jks")
+
+            val envPassword = System.getenv("KEYSTORE_PASSWORD")
+            val defaultPassword = "PkAiUploadKey99#@!"
+            val chosenPassword = if (!envPassword.isNullOrBlank()) {
+                try {
+                    val keystore = KeyStore.getInstance("PKCS12")
+                    storeFile?.inputStream()?.use { keystore.load(it, envPassword.toCharArray()) }
+                    envPassword
+                } catch (e: Exception) {
+                    defaultPassword
+                }
+            } else {
+                localProperties.getProperty("KEYSTORE_PASSWORD") ?: defaultPassword
+            }
+
+            storePassword = chosenPassword
+            keyAlias = "pk_ai_upload"
+            keyPassword = chosenPassword
         }
     }
 
@@ -132,10 +138,6 @@ dependencies {
 
     // Google AdMob
     implementation(libs.google.admob)
-
-    // Firebase (Auth for email/password + Google Sign-In flows)
-    implementation(platform(libs.firebase.bom))
-    implementation(libs.firebase.auth)
 
     // Testing
     testImplementation(libs.junit)

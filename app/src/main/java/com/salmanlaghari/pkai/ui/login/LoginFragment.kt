@@ -1,7 +1,6 @@
 package com.salmanlaghari.pkai.ui.login
 
 import android.os.Bundle
-import android.text.Html
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -38,9 +37,6 @@ class LoginFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
-        // Set up the signup prompt with styled text
-        binding.tvSignupPrompt.text = Html.fromHtml(getString(R.string.prompt_signup), Html.FROM_HTML_MODE_LEGACY)
 
         // Observe UI state
         viewLifecycleOwner.lifecycleScope.launch {
@@ -79,24 +75,6 @@ class LoginFragment : Fragment() {
         // Sign in as guest
         binding.btnGuestSignin.setOnClickListener {
             viewModel.loginAsGuest()
-        }
-
-        // Sign-up prompt
-        binding.tvSignupPrompt.setOnClickListener {
-            findNavController().navigate(R.id.action_loginFragment_to_registerFragment)
-        }
-
-        binding.btnLogin.setOnClickListener {
-            val email = binding.etEmail.text.toString().trim()
-            val password = binding.etPassword.text.toString().trim()
-
-            if (email.isEmpty() || password.isEmpty()) {
-                binding.tvErrorBanner.visibility = View.VISIBLE
-                binding.tvErrorBanner.text = "Please enter both email and password."
-                return@setOnClickListener
-            }
-
-            viewModel.loginWithEmailPassword(email, password)
         }
     }
 

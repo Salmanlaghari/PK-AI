@@ -12,7 +12,6 @@ import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
 import com.salmanlaghari.pkai.data.local.datastore.PreferencesManager
-import com.salmanlaghari.pkai.ads.AdManager
 import com.salmanlaghari.pkai.data.repository.AuthRepository
 import com.salmanlaghari.pkai.databinding.ActivityMainBinding
 import dagger.hilt.android.AndroidEntryPoint
@@ -82,14 +81,26 @@ class MainActivity : AppCompatActivity() {
     private fun setupDrawerHeader() {
         val headerView = binding.navView.getHeaderView(0)
         val tvUserName = headerView.findViewById<android.widget.TextView>(R.id.tv_drawer_user_name)
-        val tvUserEmail = headerView.findViewById<android.widget.TextView>(R.id.tv_drawer_user_email)
         val tvMarquee = headerView.findViewById<android.widget.TextView>(R.id.tv_drawer_marquee)
-        val ivProfile = headerView.findViewById<com.google.android.material.imageview.ShapeableImageView>(R.id.iv_drawer_profile_pic)
+        val cardGithub = headerView.findViewById<android.view.View>(R.id.card_drawer_github)
 
         // Make marquee scroll loop infinitely
         tvMarquee?.isSelected = true
 
-        // Dynamic loaded user name + email from login session
+        // Click to open GitHub repository url
+        cardGithub?.setOnClickListener {
+            try {
+                val intent = android.content.Intent(
+                    android.content.Intent.ACTION_VIEW,
+                    android.net.Uri.parse("https://github.com/Salmanlaghari/PK-AI")
+                )
+                startActivity(intent)
+            } catch (e: Exception) {
+                Toast.makeText(this, "Unable to open GitHub link", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        // Dynamic loaded user name from login session
         lifecycleScope.launch {
             preferencesManager.userSession.collect { session ->
                 if (session.isLoggedIn) {
@@ -98,18 +109,10 @@ class MainActivity : AppCompatActivity() {
                     } else if (session.isGuest) {
                         "Guest User"
                     } else {
-                        "PK AI User"
-                    }
-                    tvUserEmail?.text = if (!session.email.isNullOrBlank()) {
-                        session.email
-                    } else if (session.isGuest) {
-                        "Guest Mode — Limited Access"
-                    } else {
-                        "user@pkai.app"
+                        "Prince Laghari"
                     }
                 } else {
-                    tvUserName?.text = "PK AI User"
-                    tvUserEmail?.text = "Sign in for full access"
+                    tvUserName?.text = "Prince Laghari"
                 }
             }
         }

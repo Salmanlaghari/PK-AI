@@ -15,30 +15,44 @@ class AiProviderFactory @Inject constructor(
     private val openAiApiService: com.salmanlaghari.pkai.data.remote.OpenAiApiService,
     private val cerebrasApiService: com.salmanlaghari.pkai.data.remote.CerebrasApiService,
     private val sambaNovaApiService: com.salmanlaghari.pkai.data.remote.SambaNovaApiService,
-    private val cohereApiService: com.salmanlaghari.pkai.data.remote.CohereApiService
+    private val cohereApiService: com.salmanlaghari.pkai.data.remote.CohereApiService,
+    private val publicFreeApiService: com.salmanlaghari.pkai.data.remote.PublicFreeApiService
 ) {
+    fun getPublicFreeProvider(): AiProvider {
+        return PublicFreeAiProvider(publicFreeApiService)
+    }
+
     fun getProvider(model: AiModel): AiProvider {
+        // Return Coming Soon placeholder for unavailable providers
+        if (model.comingSoon) {
+            return object : AiProvider {
+                override suspend fun generateResponse(prompt: String): String {
+                    return "⏳ **${model.displayName}** is coming soon!\n\nWe're working hard to integrate ${model.providerName}'s AI capabilities. Stay tuned for updates!"
+                }
+            }
+        }
         return when (model) {
-            AiModel.GEMINI -> OpenRouterAiProvider(model, openRouterApiService)
+            AiModel.GEMINI -> GeminiAiProvider(geminiApiService)
             AiModel.CHATGPT -> {
+                // Since user didn't supply an explicit OpenAI key, fallback to Cohere (or OpenRouter)
                 val openaiKey = com.salmanlaghari.pkai.BuildConfig.OPENAI_API_KEY
+                val cohereKey = com.salmanlaghari.pkai.BuildConfig.COHERE_API_KEY
                 if (openaiKey.isNotBlank()) {
                     OpenAiAiProvider(model, openAiApiService)
+                } else if (cohereKey.isNotBlank()) {
+                    CohereAiProvider(cohereApiService)
                 } else {
-                    object : AiProvider {
-                        override suspend fun generateResponse(prompt: String): String {
-                            return "ChatGPT/OpenAI is currently Coming Soon."
-                        }
-                    }
+                    // Default to OpenRouter since it can also serve ChatGPT model IDs
+                    OpenRouterAiProvider(model, openRouterApiService)
                 }
             }
             AiModel.CLAUDE -> OpenRouterAiProvider(model, openRouterApiService)
-            AiModel.GROK -> OpenRouterAiProvider(model, openRouterApiService)
+            AiModel.GROK -> GroqAiProvider(model, groqApiService)
             AiModel.DEEPSEEK -> OpenRouterAiProvider(model, openRouterApiService)
             AiModel.QWEN -> OpenRouterAiProvider(model, openRouterApiService)
-            AiModel.LLAMA -> OpenRouterAiProvider(model, openRouterApiService)
-            AiModel.MISTRAL -> OpenRouterAiProvider(model, openRouterApiService)
-            AiModel.PERPLEXITY -> OpenRouterAiProvider(model, openRouterApiService)
+            AiModel.LLAMA -> CerebrasAiProvider(model, cerebrasApiService)
+            AiModel.MISTRAL -> TogetherAiProvider(model, togetherApiService)
+            AiModel.PERPLEXITY -> SambaNovaAiProvider(model, sambaNovaApiService)
         }
     }
 }

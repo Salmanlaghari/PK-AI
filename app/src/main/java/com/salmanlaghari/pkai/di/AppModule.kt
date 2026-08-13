@@ -185,4 +185,15 @@ object AppModule {
     ): AuthRepository {
         return AuthRepositoryImpl(preferencesManager, firebaseAuth)
     }
+
+    @Provides
+    @Singleton
+    fun providePublicFreeApiService(okHttpClient: OkHttpClient): com.salmanlaghari.pkai.data.remote.PublicFreeApiService {
+        return Retrofit.Builder()
+            .baseUrl("https://api.adviceslip.com/")
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(com.salmanlaghari.pkai.data.remote.PublicFreeApiService::class.java)
+    }
 }

@@ -1,5 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme adopting Material Design 3 -->
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         PK AI — Material 3 Expressive Theme
+         Premium dark theme for Android 16 (API 36)
+         ═══════════════════════════════════════════════════════════════ -->
+
     <style name="Theme.PkAi" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Primary brand color -->
         <item name="colorPrimary">@color/primary</item>
@@ -20,40 +26,80 @@
         <item name="colorOnTertiaryContainer">@color/on_tertiary_container</item>
 
         <!-- Background and surface colors -->
+        <item name="android:colorBackground">@color/background</item>
         <item name="android:windowBackground">@color/background</item>
         <item name="colorSurface">@color/surface</item>
         <item name="colorOnSurface">@color/on_surface</item>
         <item name="colorSurfaceVariant">@color/surface_variant</item>
         <item name="colorOnSurfaceVariant">@color/on_surface_variant</item>
 
-        <!-- Error status colors -->
+        <!-- Surface container hierarchy -->
+        <item name="colorSurfaceContainerLowest">@color/surfaceContainerLowest</item>
+        <item name="colorSurfaceContainerLow">@color/surfaceContainerLow</item>
+        <item name="colorSurfaceContainer">@color/surfaceContainer</item>
+        <item name="colorSurfaceContainerHigh">@color/surfaceContainerHigh</item>
+        <item name="colorSurfaceContainerHighest">@color/surfaceContainerHighest</item>
+
+        <!-- Error colors -->
         <item name="colorError">@color/error</item>
         <item name="colorOnError">@color/on_error</item>
         <item name="colorErrorContainer">@color/error_container</item>
         <item name="colorOnErrorContainer">@color/on_error_container</item>
 
-        <!-- Outline color -->
+        <!-- Outline -->
         <item name="colorOutline">@color/outline</item>
+        <item name="colorOutlineVariant">@color/outline_variant</item>
 
-        <!-- Status bar styling -->
-        <item name="android:statusBarColor">@color/background</item>
+        <!-- System bars -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">false</item>
 
-        <!-- Global Typography Configuration -->
+        <!-- Typography: Poppins globally -->
         <item name="android:fontFamily">@font/poppins</item>
         <item name="fontFamily">@font/poppins</item>
+
+        <!-- M3 Shape System: Rounded corners -->
+        <item name="shapeAppearanceSmallComponent">@style/PkAi.Shape.Small</item>
+        <item name="shapeAppearanceMediumComponent">@style/PkAi.Shape.Medium</item>
+        <item name="shapeAppearanceLargeComponent">@style/PkAi.Shape.Large</item>
     </style>
 
+    <!-- ═══════════════════════════════════════════════════════════════
+         M3 Shape System — Consistent rounded corners
+         ═══════════════════════════════════════════════════════════════ -->
+
+    <style name="PkAi.Shape.Small" parent="ShapeAppearance.Material3.SmallComponent">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">12dp</item>
+    </style>
+
+    <style name="PkAi.Shape.Medium" parent="ShapeAppearance.Material3.MediumComponent">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">16dp</item>
+    </style>
+
+    <style name="PkAi.Shape.Large" parent="ShapeAppearance.Material3.LargeComponent">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">28dp</item>
+    </style>
+
+    <!-- Circular shape overlay -->
     <style name="ShapeAppearanceOverlay.App.Circular" parent="">
         <item name="cornerSize">50%</item>
     </style>
 
-    <!-- Premium Drawer Item Text Style -->
-    <style name="PremiumDrawerItem" parent="">
-        <item name="android:textSize">14sp</item>
-        <item name="android:fontFamily">@font/poppins</item>
-        <item name="android:textStyle">normal</item>
-        <item name="android:paddingStart">12dp</item>
-        <item name="android:paddingEnd">12dp</item>
+    <!-- ═══════════════════════════════════════════════════════════════
+         Component Style Overlays
+         ═══════════════════════════════════════════════════════════════ -->
+
+    <!-- Glass Card Style -->
+    <style name="PkAi.GlassCard" parent="Widget.Material3.CardView.Filled">
+        <item name="cardBackgroundColor">@color/glass_background</item>
+        <item name="strokeColor">@color/glass_stroke</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="cardCornerRadius">16dp</item>
+        <item name="cardElevation">0dp</item>
     </style>
 
     <!-- Rounded glass item highlight for the premium drawer -->
@@ -61,4 +107,29 @@
         <item name="cornerFamily">rounded</item>
         <item name="cornerSize">16dp</item>
     </style>
+
+    <!-- Elevated Glass Card -->
+    <style name="PkAi.GlassCard.Elevated" parent="Widget.Material3.CardView.Elevated">
+        <item name="cardBackgroundColor">@color/glass_elevated</item>
+        <item name="strokeColor">@color/glass_stroke</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="cardCornerRadius">16dp</item>
+        <item name="cardElevation">4dp</item>
+    </style>
+
+    <!-- Chat Bubble Styles -->
+    <style name="PkAi.Bubble.User" parent="Widget.Material3.CardView.Filled">
+        <item name="cardCornerRadius">20dp</item>
+        <item name="cardElevation">0dp</item>
+        <item name="strokeWidth">0dp</item>
+    </style>
+
+    <style name="PkAi.Bubble.AI" parent="Widget.Material3.CardView.Filled">
+        <item name="cardBackgroundColor">@color/ai_bubble_bg</item>
+        <item name="cardCornerRadius">20dp</item>
+        <item name="cardElevation">0dp</item>
+        <item name="strokeColor">@color/ai_bubble_border</item>
+        <item name="strokeWidth">1dp</item>
+    </style>
+
 </resources>

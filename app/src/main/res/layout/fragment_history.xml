@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/premium_black">
 
-    <!-- Header Toolbar -->
+    <!-- Header -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/layout_header"
         android:layout_width="0dp"
-        android:layout_height="64dp"
-        android:background="@color/premium_black"
+        android:layout_height="56dp"
+        android:background="@color/glass_surface"
+        android:paddingHorizontal="16dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
@@ -19,9 +19,10 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:fontFamily="@font/poppins"
             android:text="✨ Chat History"
             android:textColor="@color/white"
-            android:textSize="20sp"
+            android:textSize="18sp"
             android:textStyle="bold"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
@@ -29,7 +30,7 @@
             app:layout_constraintTop_toTopOf="parent" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- Search Input Box -->
+    <!-- Search -->
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/search_input_layout"
         style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
@@ -37,7 +38,13 @@
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="16dp"
         android:layout_marginTop="8dp"
-        app:boxStrokeColor="@color/electric_blue_glow"
+        app:boxBackgroundColor="@color/surfaceContainerHigh"
+        app:boxCornerRadiusBottomEnd="28dp"
+        app:boxCornerRadiusBottomStart="28dp"
+        app:boxCornerRadiusTopEnd="28dp"
+        app:boxCornerRadiusTopStart="28dp"
+        app:boxStrokeColor="@color/outlineVariant"
+        app:boxStrokeWidth="1dp"
         app:hintTextColor="@color/electric_blue_glow"
         app:startIconDrawable="@drawable/ic_search"
         app:startIconTint="@color/electric_blue_glow"
@@ -49,14 +56,15 @@
             android:id="@+id/et_search_history"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Search conversations..."
-            android:textColor="@color/white"
-            android:textColorHint="@color/outline"
+            android:fontFamily="@font/poppins"
+            android:hint="Search conversations…"
             android:inputType="text"
-            android:maxLines="1" />
+            android:maxLines="1"
+            android:textColor="@color/white"
+            android:textColorHint="@color/outline" />
     </com.google.android.material.textfield.TextInputLayout>
 
-    <!-- Chat History RecyclerView -->
+    <!-- RecyclerView -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_history"
         android:layout_width="0dp"

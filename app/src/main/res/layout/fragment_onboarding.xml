@@ -3,17 +3,30 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="24dp">
+    android:background="@color/premium_black"
+    android:padding="32dp">
+
+    <!-- Ambient Glow -->
+    <View
+        android:layout_width="250dp"
+        android:layout_height="250dp"
+        android:alpha="0.1"
+        android:background="@drawable/bg_gradient_button"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
     <TextView
         android:id="@+id/tv_onboarding_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:fontFamily="@font/poppins"
+        android:gravity="center"
         android:text="@string/title_onboarding"
-        android:textColor="@color/on_background"
+        android:textColor="@color/white"
         android:textSize="28sp"
         android:textStyle="bold"
-        android:gravity="center"
         app:layout_constraintBottom_toTopOf="@id/tv_onboarding_desc"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -25,10 +38,12 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
+        android:fontFamily="@font/poppins"
         android:gravity="center"
+        android:lineSpacingMultiplier="1.3"
         android:text="@string/desc_onboarding"
         android:textColor="@color/on_surface_variant"
-        android:textSize="16sp"
+        android:textSize="15sp"
         app:layout_constraintBottom_toTopOf="@id/btn_get_started"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -36,10 +51,16 @@
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_get_started"
+        style="@style/Widget.Material3.Button"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="32dp"
+        android:layout_height="56dp"
+        android:layout_marginBottom="40dp"
+        android:backgroundTint="@color/purple_accent"
         android:text="@string/btn_get_started"
+        android:textColor="@color/white"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        app:cornerRadius="28dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />

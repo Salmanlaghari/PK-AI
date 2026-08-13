@@ -1,0 +1,86 @@
+================================================================================
+              🔐 PK AI (com.salmanlaghari.pkai) - UPLOAD KEY RESET DETAILS 🔐
+================================================================================
+Generated on: August 13, 2026
+Author: Salman Laghari (PK AI Admin)
+
+Aap is text file ko download karke 3-4 safe locations/backups par secure kar lein.
+Isme naye Keystore ke passwords, fingerprints, public certificate aur next steps hain.
+
+--------------------------------------------------------------------------------
+🔑 1. NEW KEYSTORE CREDENTIALS & DETAILS (KEEP PRIVATE!)
+--------------------------------------------------------------------------------
+* Keystore Filename:     pk-ai-upload-key.jks
+* Key Alias:            pk_ai_upload
+* Keystore Password:    PkAiUploadKey99#@!
+* Key Private Password: PkAiUploadKey99#@!
+* Certificate Subject:  CN=Salman Laghari, OU=PK AI, O=SalmanLaghari, L=Karachi, ST=Sindh, C=PK
+* Validity:             10000 days (until December 29, 2053)
+* Key Algorithm:        RSA, 2048-bit
+
+--------------------------------------------------------------------------------
+📋 2. CERTIFICATE FINGERPRINTS (FOR FIREBASE, GOOGLE CLOUD & INTEGRATIONS)
+--------------------------------------------------------------------------------
+* SHA1 Fingerprint:     AC:F9:49:5A:C3:0A:AC:A2:CE:3E:10:71:95:73:A6:00:C6:C9:F8:64
+* SHA256 Fingerprint:   C5:12:53:4A:48:26:DB:18:8D:21:96:F8:65:71:37:CA:22:3B:73:8B:ED:B4:BD:6B:22:C1:82:1D:D7:2C:D7:24
+* MD5 Fingerprint:      09:9B:8C:C5:59:88:6F:04:E1:FD:95:29:D2:CB:15:46
+
+--------------------------------------------------------------------------------
+📜 3. PUBLIC UPLOAD CERTIFICATE (FOR GOOGLE PLAY CONSOLE RESET)
+--------------------------------------------------------------------------------
+Niche diye gaye CERTIFICATE block ko copy karke 'upload_certificate.pem' naam ki file
+mein save karein, aur use Google Play Console "Request upload key reset" option me upload karein:
+
+-----BEGIN CERTIFICATE-----
+MIIDhTCCAm2gAwIBAgIIASIg6BaXHykwDQYJKoZIhvcNAQEMBQAwcDELMAkGA1UE
+BhMCUEsxDjAMBgNVBAgTBVNpbmRoMRAwDgYDVQQHEwdLYXJhY2hpMRYwFAYDVQQK
+Ew1TYWxtYW5MYWdoYXJpMQ4wDAYDVQQLEwVQSyBBSTEXMBUGA1UEAxMOU2FsbWFu
+IExhZ2hhcmkwIBcNMjYwODEzMTIwMDA5WhgPMjA1MzEyMjkxMjAwMDlaMHAxCzAJ
+BgNVBAYTAlBLMQ4wDAYDVQQIEwVTaW5kaDEQMA4GA1UEBxMHS2FyYWNoaTEWMBQG
+A1UEChMNU2FsbWFuTGFnaGFyaTEOMAwGA1UECxMFUEsgQUkxFzAVBgNVBAMTDlNh
+bG1hbiBMYWdoYXJpMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAor0C
+TJLRG+qTAC7x/gfvMFI8v11Nu/bQqB39HVCzSfRB2lKOedYk3VzHANWPQkKyyFVr
+erabc3JGNPonwnscqudm4P7a68Sqq5AbSvvBfIiDAeYVkQ6x9JgzQ3UwU2LFXdGa
+Fd3DsScBY08HOBKOwGKCXX43Q3twQLLs79V1efH2zJiVQ9uREFlVgZUs8N8w1aE/
+/HhbVhP+T7yvc725jxmidEkk8JICDvK/Z8Q8y2C4ok81CuthVluqclFVEx1H86QO
+BQLd925BpySvK0HnEheq24d6YoFu533AQQrSuqFBJynqCdlMSMYKnq2/FeTqbzfH
+r5VG5TLDX9B2J5UhcwIDAQABoyEwHzAdBgNVHQ4EFgQUykUjjFM2iJgt8MYZZArI
+Uyv8zeQwDQYJKoZIhvcNAQEMBQADggEBABXyrIg5/QqiaubYFypVxQEc8WmPiq30
+Vi6ttmY6lvL4X7afikDOqUuURhwBc0L08z+R0c4sZnUE4xLQUx9vkzCgQMTX34cn
+tJYlGVbVmCff3OpuYV2/2m1/JHqExp6xHdNJRyGNjRzOXfP0Dvu8MLK0oaX402hG
+2SJ8zm6Py34eH3U/ydh9U0SWA81gVApOYUC3gB15hPRxBuNX5UNWKCsbhuY5HM20
+moFOZNhqmE1Kdo09ExUkrw1FP2442qfPsndIkiIRprt+ssPseFJOXQlEyZkEJYuy
+a8T8OAWN7mzscKKh0x8rHOnCkYnJOMBnXlzlDWoRgGlhDeUuA/fJzmU=
+-----END CERTIFICATE-----
+
+--------------------------------------------------------------------------------
+⚙️ 4. MANUAL ACTION INSTRUCTIONS FOR YOU (IMPORTANT)
+--------------------------------------------------------------------------------
+Aapko bas ye do kaam manual karne honge:
+
+1. UPDATE GITHUB ACTIONS SECRETS:
+   - Apne GitHub repo par jayein > Settings > Secrets and variables > Actions.
+   - Niche diye gaye do secrets ko update karein:
+     * KEYSTORE_PASSWORD  ->  PkAiUploadKey99#@!
+     * KEY_PASSWORD       ->  PkAiUploadKey99#@!
+   - Isse aapki GitHub Actions CI automatic signature validation aur builds pass kar payegi.
+
+2. SUBMIT RESET REQUEST TO GOOGLE PLAY CONSOLE:
+   - Google Play Console par login karein aur apna App (PK AI) select karein.
+   - Left menu me Setup > App integrity par click karein.
+   - Page ke center/niche 'Upload key certificate' section me jayein aur 'Request upload key reset' par click karein.
+   - Option select karein aur upar diya gaya 'upload_certificate.pem' file ko upload kar dein.
+   - Google support request review karke 1-2 din (24 to 48 hours) me reset process complete kar dega. Uske baad aap naye builds upload kar payenge.
+
+--------------------------------------------------------------------------------
+🛠️ 5. REPOSITORY CODE MODIFICATIONS SUMMARY
+--------------------------------------------------------------------------------
+Humne codebase me ye changes secure aur standard tarike se commit aur push kar diye hain:
+1. Keystore generated: 'pk-ai-upload-key.jks' (release-ready upload key added to project).
+2. Cleaned old configurations: Purane leaked/obsolete keys ('release.keystore' aur 'ailatestfinder-release.jks') ko repo se completely delete kar diya hai taake future me koi mismatch na ho.
+3. Updated Gradle configuration: 'app/build.gradle.kts' naye keystore aur alias ko refer kar raha hai. Keystore passwords ko secure environment variables aur local properties se load karta hai (plaintext hardcoding completely removed).
+4. CI Signature Validator integrated: '.github/workflows/build.yml' me automatic hash verification integrate kar diya hai. Har build ke baad generated release .aab ke SHA1 fingerprint ko naye upload fingerprint se match kiya jata hai, mismatch hone par build turant fail ho jayegi (No incorrect signature leaks!).
+
+================================================================================
+                    🔐 END OF KEY RESET DETAIL SHEET 🔐
+================================================================================

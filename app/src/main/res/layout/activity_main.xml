@@ -53,19 +53,16 @@
         android:layout_width="320dp"
         android:layout_height="match_parent"
         android:layout_gravity="start"
-        android:elevation="18dp"
-        android:background="@drawable/bg_drawer_glass"
+        android:background="@color/surfaceContainerLow"
         android:fitsSystemWindows="true"
         app:headerLayout="@layout/drawer_header"
         app:menu="@menu/menu_drawer"
         app:itemTextColor="@color/on_surface"
         app:itemIconTint="@color/electric_blue_glow"
-        app:subheaderColor="@color/electric_blue_glow"
         app:itemBackground="@drawable/bg_drawer_item_premium"
         app:itemRippleColor="@color/primary"
         app:itemShapeAppearance="@style/PkAi.Shape.Medium"
         app:itemShapeFillColor="@android:color/transparent"
-        app:shapeAppearance="@style/PkAi.Shape.Large"
-        android:scrollbars="vertical" />
+        app:shapeAppearance="@style/PkAi.Shape.Large" />
 
 </androidx.drawerlayout.widget.DrawerLayout>

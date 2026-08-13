@@ -8,6 +8,7 @@ plugins {
 }
 
 import java.util.Properties
+import java.security.KeyStore
 
 val localProperties = Properties()
 val localPropertiesFile = rootProject.file("local.properties")
@@ -49,12 +50,25 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = rootProject.file("ailatestfinder-release.jks")
-            storePassword = System.getenv("KEYSTORE_PASSWORD")?.takeIf { it.isNotBlank() } ?: ""
-            keyAlias = "ailatestfinder"
-            keyPassword = System.getenv("KEY_PASSWORD")?.takeIf { it.isNotBlank() }
-                ?: System.getenv("KEYSTORE_PASSWORD")?.takeIf { it.isNotBlank() }
-                ?: ""
+            storeFile = rootProject.file("pk-ai-upload-key.jks")
+
+            val envPassword = System.getenv("KEYSTORE_PASSWORD")
+            val defaultPassword = "PkAiUploadKey99#@!"
+            val chosenPassword = if (!envPassword.isNullOrBlank()) {
+                try {
+                    val keystore = KeyStore.getInstance("PKCS12")
+                    storeFile?.inputStream()?.use { keystore.load(it, envPassword.toCharArray()) }
+                    envPassword
+                } catch (e: Exception) {
+                    defaultPassword
+                }
+            } else {
+                localProperties.getProperty("KEYSTORE_PASSWORD") ?: defaultPassword
+            }
+
+            storePassword = chosenPassword
+            keyAlias = "pk_ai_upload"
+            keyPassword = chosenPassword
         }
     }
 

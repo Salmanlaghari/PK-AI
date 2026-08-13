@@ -5,45 +5,44 @@
     android:layout_height="match_parent"
     android:background="@color/premium_black">
 
-    <!-- Subtle Premium Glow -->
+    <!-- Ambient Glow -->
     <View
-        android:layout_width="250dp"
-        android:layout_height="250dp"
+        android:layout_width="280dp"
+        android:layout_height="280dp"
+        android:alpha="0.12"
         android:background="@drawable/bg_gradient_button"
-        android:alpha="0.15"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- Centered Logo and App Name layout container -->
+    <!-- Logo + Title -->
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
         android:gravity="center"
+        android:orientation="vertical"
         app:layout_constraintBottom_toTopOf="@id/progress_loading"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintVertical_chainStyle="packed">
 
-        <!-- Glowing Premium Logo -->
         <ImageView
             android:id="@+id/iv_splash_logo"
-            android:layout_width="120dp"
-            android:layout_height="120dp"
-            android:layout_marginBottom="16dp"
+            android:layout_width="110dp"
+            android:layout_height="110dp"
+            android:layout_marginBottom="20dp"
             android:src="@drawable/ic_pkai_logo" />
 
         <TextView
             android:id="@+id/tv_splash_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:fontFamily="@font/poppins"
             android:text="@string/title_splash"
             android:textColor="@color/white"
-            android:textSize="36sp"
-            android:fontFamily="@font/poppins"
+            android:textSize="34sp"
             android:textStyle="bold" />
 
         <TextView
@@ -51,33 +50,37 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
+            android:fontFamily="@font/poppins"
+            android:letterSpacing="0.08"
             android:text="@string/subtitle_splash"
             android:textColor="@color/electric_blue_glow"
-            android:textSize="16sp"
-            android:fontFamily="@font/poppins"
-            android:letterSpacing="0.05" />
+            android:textSize="14sp" />
     </LinearLayout>
 
-    <ProgressBar
+    <!-- Loading Indicator -->
+    <com.google.android.material.progressindicator.LinearProgressIndicator
         android:id="@+id/progress_loading"
-        android:layout_width="wrap_content"
+        android:layout_width="120dp"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="32dp"
-        android:indeterminateTint="@color/electric_blue_glow"
+        android:layout_marginBottom="40dp"
+        app:indicatorColor="@color/electric_blue_glow"
         app:layout_constraintBottom_toTopOf="@id/tv_splash_branding"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:trackColor="@color/surfaceContainerHigh"
+        app:trackCornerRadius="4dp"
+        app:trackThickness="3dp" />
 
-    <!-- Developer Branding Signature Footer (Aligned Professionally at Bottom) -->
+    <!-- Branding -->
     <TextView
         android:id="@+id/tv_splash_branding"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginBottom="24dp"
+        android:fontFamily="@font/poppins"
         android:text="@string/lbl_developer_branding"
         android:textColor="@color/on_surface_variant"
-        android:textSize="12sp"
-        android:fontFamily="@font/poppins"
+        android:textSize="11sp"
         android:textStyle="bold"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"

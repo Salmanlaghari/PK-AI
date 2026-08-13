@@ -1,14 +1,10 @@
 package com.salmanlaghari.pkai.ui.home
 
-import android.animation.ValueAnimator
-import android.app.Activity
-import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
@@ -16,13 +12,11 @@ import androidx.navigation.fragment.findNavController
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.salmanlaghari.pkai.MainActivity
 import com.salmanlaghari.pkai.R
-import com.salmanlaghari.pkai.ads.AdManager
 import com.salmanlaghari.pkai.data.model.AiModel
 import com.salmanlaghari.pkai.databinding.FragmentHomeBinding
 import com.salmanlaghari.pkai.databinding.ItemModelSheetBinding
 import com.salmanlaghari.pkai.databinding.LayoutModelBottomSheetBinding
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
@@ -40,23 +34,6 @@ class HomeFragment : Fragment() {
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
         return binding.root
     }
-
-    // Launcher for VoiceAssistantActivity to receive transcripts
-    private val voiceLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            val transcript = result.data?.getStringExtra("confirmed_transcript")
-            if (!transcript.isNullOrBlank()) {
-                binding.etMessageInput.setText(transcript)
-                // Auto-send the message for a seamless hands-free experience
-                viewModel.sendMessage(transcript)
-                binding.etMessageInput.text?.clear()
-            }
-        }
-    }
-
-    private var rippleAnimator: ValueAnimator? = null
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -79,24 +56,55 @@ class HomeFragment : Fragment() {
 
         // 2. Setup Model Selector Click (Shows Bottom Sheet)
         binding.btnModelSelector.setOnClickListener {
-            showModelSelectionBottomSheet()
+            if (viewModel.isFreeMode.value) {
+                Toast.makeText(requireContext(), "🌍 Using Free Public Chat. Switch to Premium Chat to select models!", Toast.LENGTH_SHORT).show()
+            } else {
+                showModelSelectionBottomSheet()
+            }
         }
 
         // 3. Observe Selected Model StateFlow
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.selectedModel.collect { model ->
-                val emoji = when (model) {
-                    AiModel.GEMINI -> "💎"
-                    AiModel.CHATGPT -> "🤖"
-                    AiModel.CLAUDE -> "🧠"
-                    AiModel.GROK -> "⚡"
-                    AiModel.DEEPSEEK -> "🌊"
-                    AiModel.QWEN -> "🐪"
-                    AiModel.LLAMA -> "🦙"
-                    AiModel.MISTRAL -> "🌪️"
-                    AiModel.PERPLEXITY -> "🔍"
+                if (!viewModel.isFreeMode.value) {
+                    binding.btnModelSelector.text = "💎 ${model.displayName} ▼"
                 }
-                binding.btnModelSelector.text = "$emoji ${model.displayName} ▼"
+            }
+        }
+
+        // 3b. Setup Tab Mode Toggle Click Listeners
+        binding.btnTabPremium.setOnClickListener {
+            viewModel.setFreeMode(false)
+        }
+
+        binding.btnTabFree.setOnClickListener {
+            viewModel.setFreeMode(true)
+        }
+
+        // 3c. Observe Free Mode StateFlow to Update UI
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.isFreeMode.collect { isFree ->
+                if (isFree) {
+                    // Update Mode Switch Tabs styling
+                    binding.btnTabPremium.setTextColor(resources.getColor(R.color.outline, null))
+                    binding.btnTabPremium.setBackgroundColor(resources.getColor(android.R.color.transparent, null))
+
+                    binding.btnTabFree.setTextColor(resources.getColor(R.color.electric_blue_glow, null))
+                    binding.btnTabFree.setBackgroundColor(resources.getColor(R.color.glass_background, null))
+
+                    binding.btnModelSelector.text = "🌍 Free Public AI ▼"
+                    binding.etMessageInput.setHint("Ask Free Public AI anything...")
+                } else {
+                    // Update Mode Switch Tabs styling
+                    binding.btnTabPremium.setTextColor(resources.getColor(R.color.white, null))
+                    binding.btnTabPremium.setBackgroundColor(resources.getColor(R.color.glass_background, null))
+
+                    binding.btnTabFree.setTextColor(resources.getColor(R.color.outline, null))
+                    binding.btnTabFree.setBackgroundColor(resources.getColor(android.R.color.transparent, null))
+
+                    binding.btnModelSelector.text = "💎 ${viewModel.selectedModel.value.displayName} ▼"
+                    binding.etMessageInput.setHint("Ask Premium AI anything...")
+                }
             }
         }
 
@@ -119,19 +127,12 @@ class HomeFragment : Fragment() {
             }
         }
 
-        // 6. Send Button Click Action with Guest intercept pop up
+        // 6. Send Button Click Action
         binding.btnSend.setOnClickListener {
             val content = binding.etMessageInput.text?.toString().orEmpty()
             if (content.isNotBlank()) {
-                viewLifecycleOwner.lifecycleScope.launch {
-                    val session = viewModel.userSession.first()
-                    if (session.isGuest) {
-                        showGuestSignUpDialog()
-                    } else {
-                        viewModel.sendMessage(content)
-                        binding.etMessageInput.text?.clear()
-                    }
-                }
+                viewModel.sendMessage(content)
+                binding.etMessageInput.text?.clear()
             }
         }
 
@@ -148,72 +149,32 @@ class HomeFragment : Fragment() {
             findNavController().navigate(R.id.settingsFragment)
         }
 
-        // 8. Voice Trigger click opens premium VoiceAssistantActivity
-        binding.btnVoice.setOnClickListener {
-            val intent = Intent(requireContext(), com.salmanlaghari.pkai.ui.voice.VoiceAssistantActivity::class.java).apply {
-                putExtra("selected_model", viewModel.selectedModel.value.name)
-            }
-            voiceLauncher.launch(intent)
+        // 8. Quick Actions Click Listeners (Placeholders only)
+        setupQuickActions()
+    }
+
+    private fun setupQuickActions() {
+        binding.cardQaChat.setOnClickListener {
+            Toast.makeText(requireContext(), "💬 Premium Chat Generator is active", Toast.LENGTH_SHORT).show()
         }
-
-        // 9. Load Real AdMob Banner Ad
-        loadBannerAd()
-
-        // 10. Start continuous 60fps ripple ring animations for Voice Trigger
-        startVoiceRippleAnimations()
-    }
-
-    private fun startVoiceRippleAnimations() {
-        rippleAnimator?.cancel()
-        rippleAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = 2000
-            repeatCount = ValueAnimator.INFINITE
-            interpolator = android.view.animation.AccelerateDecelerateInterpolator()
-            addUpdateListener { anim ->
-                val progress = anim.animatedValue as Float
-
-                // Ripple 1
-                if (_binding != null) {
-                    binding.viewRipple1.scaleX = 0.8f + progress * 0.6f
-                    binding.viewRipple1.scaleY = 0.8f + progress * 0.6f
-                    binding.viewRipple1.alpha = (1f - progress) * 0.8f
-
-                    // Ripple 2 (staggered delay, starts at half progress)
-                    val progress2 = (progress + 0.5f) % 1f
-                    binding.viewRipple2.scaleX = 0.8f + progress2 * 1.0f
-                    binding.viewRipple2.scaleY = 0.8f + progress2 * 1.0f
-                    binding.viewRipple2.alpha = (1f - progress2) * 0.5f
-                }
-            }
+        binding.cardQaImage.setOnClickListener {
+            Toast.makeText(requireContext(), "🖼 Premium Image Generator Placeholder", Toast.LENGTH_SHORT).show()
         }
-        rippleAnimator?.start()
-    }
-
-    private fun showGuestSignUpDialog() {
-        val dialog = com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext(), R.style.Theme_PkAi)
-            .setTitle("💎 Upgrade to Premium Account")
-            .setMessage("Guest mode is temporary. Save your chat history, get higher limits, and unlock all 9 AI models by signing up with Google!")
-            .setPositiveButton("Sign Up with Google") { d, _ ->
-                d.dismiss()
-                findNavController().navigate(R.id.loginFragment)
-            }
-            .setNegativeButton("Maybe Later") { d, _ ->
-                d.dismiss()
-            }
-            .create()
-        dialog.show()
-    }
-
-    private fun loadBannerAd() {
-        val adView = AdManager.createBannerAdView(requireContext(), AdManager.BANNER_HOME_ID)
-        binding.adBannerContainer.addView(adView)
-    }
-
-    override fun onDestroyView() {
-        rippleAnimator?.cancel()
-        rippleAnimator = null
-        super.onDestroyView()
-        _binding = null
+        binding.cardQaVideo.setOnClickListener {
+            Toast.makeText(requireContext(), "🎥 Premium Video Generator Placeholder", Toast.LENGTH_SHORT).show()
+        }
+        binding.cardQaMusic.setOnClickListener {
+            Toast.makeText(requireContext(), "🎵 Premium Music Generator Placeholder", Toast.LENGTH_SHORT).show()
+        }
+        binding.cardQaPdf.setOnClickListener {
+            Toast.makeText(requireContext(), "📄 Premium PDF AI Analyst Placeholder", Toast.LENGTH_SHORT).show()
+        }
+        binding.cardQaCode.setOnClickListener {
+            Toast.makeText(requireContext(), "💻 Premium Code Assistant Placeholder", Toast.LENGTH_SHORT).show()
+        }
+        binding.cardQaSearch.setOnClickListener {
+            Toast.makeText(requireContext(), "🌐 Premium Web Search Assistant Placeholder", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun showModelSelectionBottomSheet() {
@@ -227,51 +188,32 @@ class HomeFragment : Fragment() {
         models.forEach { model ->
             val itemBinding = ItemModelSheetBinding.inflate(layoutInflater, sheetBinding.layoutModelsList, false)
             itemBinding.tvModelName.text = model.displayName
+            itemBinding.tvModelProvider.text = model.providerName
 
-            // Emoji mapping
-            itemBinding.tvModelEmoji.text = when (model) {
-                AiModel.GEMINI -> "💎"
-                AiModel.CHATGPT -> "🤖"
-                AiModel.CLAUDE -> "🧠"
-                AiModel.GROK -> "⚡"
-                AiModel.DEEPSEEK -> "🌊"
-                AiModel.QWEN -> "🐪"
-                AiModel.LLAMA -> "🦙"
-                AiModel.MISTRAL -> "🌪️"
-                AiModel.PERPLEXITY -> "🔍"
-            }
-
-            // Grok 2, Perplexity Sonar, ChatGPT, Gemini, and Claude are always Coming Soon and disabled
-            val isModelDisabled = model == AiModel.GROK || model == AiModel.PERPLEXITY || model == AiModel.CHATGPT || model == AiModel.GEMINI || model == AiModel.CLAUDE
-            if (isModelDisabled) {
-                itemBinding.tvModelProvider.text = "Coming Soon"
-                itemBinding.tvModelProvider.setTextColor(resources.getColor(R.color.error, null))
-                itemBinding.tvModelName.alpha = 0.5f
-                itemBinding.tvModelEmoji.alpha = 0.5f
-                itemBinding.btnModelItem.isEnabled = false
-                itemBinding.btnModelItem.alpha = 0.6f
+            // Show Coming Soon badge for unavailable providers
+            if (model.comingSoon) {
+                itemBinding.tvComingSoon.visibility = View.VISIBLE
+                itemBinding.tvModelName.setTextColor(resources.getColor(R.color.outline, null))
+                itemBinding.tvModelProvider.text = "${model.providerName} · Coming Soon"
             } else {
-                itemBinding.tvModelProvider.text = model.providerName
-                itemBinding.tvModelProvider.setTextColor(resources.getColor(R.color.outline, null))
-                itemBinding.tvModelName.alpha = 1.0f
-                itemBinding.tvModelEmoji.alpha = 1.0f
-                itemBinding.btnModelItem.isEnabled = true
-                itemBinding.btnModelItem.alpha = 1.0f
+                itemBinding.tvComingSoon.visibility = View.GONE
             }
 
-            // Highlight current selected model and apply custom selected backgrounds
-            if (model == currentSelected) {
+            // Highlight current selected model
+            if (model == currentSelected && !model.comingSoon) {
                 itemBinding.ivModelCheck.visibility = View.VISIBLE
-                itemBinding.tvModelName.setTextColor(resources.getColor(R.color.html_cyan, null))
-                itemBinding.btnModelItem.setBackgroundResource(R.drawable.bg_model_item_selected)
+                itemBinding.tvModelName.setTextColor(resources.getColor(R.color.electric_blue_glow, null))
             } else {
                 itemBinding.ivModelCheck.visibility = View.GONE
-                itemBinding.tvModelName.setTextColor(resources.getColor(R.color.white, null))
-                itemBinding.btnModelItem.setBackgroundResource(R.drawable.bg_model_item_default)
+                if (!model.comingSoon) {
+                    itemBinding.tvModelName.setTextColor(resources.getColor(R.color.white, null))
+                }
             }
 
-            if (!isModelDisabled) {
-                itemBinding.btnModelItem.setOnClickListener {
+            itemBinding.btnModelItem.setOnClickListener {
+                if (model.comingSoon) {
+                    Toast.makeText(context, "⏳ ${model.displayName} is coming soon! Stay tuned.", Toast.LENGTH_SHORT).show()
+                } else {
                     viewModel.selectModel(model)
                     dialog.dismiss()
                 }
@@ -282,5 +224,10 @@ class HomeFragment : Fragment() {
 
         dialog.setContentView(sheetBinding.root)
         dialog.show()
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
     }
 }

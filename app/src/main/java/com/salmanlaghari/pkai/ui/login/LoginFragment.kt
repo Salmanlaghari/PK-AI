@@ -1,6 +1,7 @@
 package com.salmanlaghari.pkai.ui.login
 
 import android.os.Bundle
+import android.text.Html
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -40,6 +41,9 @@ class LoginFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        // Set up the signup prompt with styled text
+        binding.tvSignupPrompt.text = Html.fromHtml(getString(R.string.prompt_signup), Html.FROM_HTML_MODE_LEGACY)
+
         // Observe UI state
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.uiState.collectLatest { state ->
@@ -78,6 +82,24 @@ class LoginFragment : Fragment() {
         binding.btnGuestSignin.setOnClickListener {
             viewModel.loginAsGuest()
         }
+
+        // Sign-up prompt
+        binding.tvSignupPrompt.setOnClickListener {
+            findNavController().navigate(R.id.action_loginFragment_to_registerFragment)
+        }
+
+        binding.btnLogin.setOnClickListener {
+            val email = binding.etEmail.text.toString().trim()
+            val password = binding.etPassword.text.toString().trim()
+
+            if (email.isEmpty() || password.isEmpty()) {
+                binding.tvErrorBanner.visibility = View.VISIBLE
+                binding.tvErrorBanner.text = "Please enter both email and password."
+                return@setOnClickListener
+            }
+
+            viewModel.loginWithEmailPassword(email, password)
+        }
     }
 
     private fun triggerGoogleSignIn() {
@@ -86,7 +108,7 @@ class LoginFragment : Fragment() {
         // Validate client ID before attempting sign-in
         if (clientId.isBlank() || clientId.contains("placeholder")) {
             binding.tvErrorBanner.visibility = View.VISIBLE
-            binding.tvErrorBanner.text = "Google Sign-In not configured. Please set up Firebase."
+            binding.tvErrorBanner.text = getString(R.string.error_google_signin_not_configured)
             showDiagnosticDialog()
             return
         }

@@ -1,18 +1,18 @@
 [versions]
-agp = "8.9.2"
+agp = "8.7.3"
 kotlin = "2.0.21"
-coreKtx = "1.16.0"
+coreKtx = "1.15.0"
 appcompat = "1.7.0"
 material = "1.12.0"
 constraintlayout = "2.1.4"
 lifecycle = "2.8.7"
-navigation = "2.8.9"
+navigation = "2.8.5"
 room = "2.6.1"
-datastore = "1.1.4"
+datastore = "1.1.1"
 retrofit = "2.11.0"
 okhttp = "4.12.0"
-hilt = "2.52"
-coroutines = "1.9.0"
+hilt = "2.51.1"
+coroutines = "1.8.1"
 junit = "4.13.2"
 extJunit = "1.2.1"
 espresso = "3.6.1"
@@ -22,7 +22,6 @@ googleid = "1.1.1"
 coreTesting = "2.2.0"
 mockito = "5.11.0"
 admob = "23.6.0"
-firebaseBom = "33.10.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -68,10 +67,6 @@ google-identity-googleid = { group = "com.google.android.libraries.identity.goog
 
 # Google AdMob
 google-admob = { group = "com.google.android.gms", name = "play-services-ads", version.ref = "admob" }
-
-# Firebase (BOM resolves firebase-auth version)
-firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
-firebase-auth = { group = "com.google.firebase", name = "firebase-auth" }
 
 # Testing
 junit = { group = "junit", name = "junit", version.ref = "junit" }

@@ -92,30 +92,3 @@ interface SambaNovaApiService {
         @Body request: ChatCompletionRequest
     ): ChatCompletionResponse
 }
-
-// --- OpenAI Images API (DALL-E) ---
-data class OpenAiImageRequest(
-    val prompt: String,
-    val n: Int = 1,
-    val size: String = "1024x1024",
-    val response_format: String = "b64_json",
-    val model: String = "dall-e-3"
-)
-
-data class OpenAiImageData(
-    val b64_json: String?,
-    val url: String?,
-    val revised_prompt: String?
-)
-
-data class OpenAiImageResponse(
-    val data: List<OpenAiImageData>?
-)
-
-interface OpenAiImageApiService {
-    @POST("images/generations")
-    suspend fun generateImage(
-        @Header("Authorization") authorization: String,
-        @Body request: OpenAiImageRequest
-    ): OpenAiImageResponse
-}

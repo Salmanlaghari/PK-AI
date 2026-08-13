@@ -3,8 +3,6 @@ name: Build and Sign APK & AAB
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
@@ -43,8 +41,6 @@ jobs:
           CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           SAMBANOVA_API_KEY: ${{ secrets.SAMBANOVA_API_KEY }}
-          RUNWAY_API_KEY: ${{ secrets.RUNWAY_API_KEY }}
-          SUNO_API_KEY: ${{ secrets.SUNO_API_KEY }}
 
       - name: Verify Release AAB Signature Fingerprint
         run: |

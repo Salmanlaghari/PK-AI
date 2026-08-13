@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>PK AI · Free Chat</title>
+<style>
+  :root {
+    --bg: #0A0E17;
+    --glass: rgba(255, 255, 255, 0.05);
+    --stroke: rgba(220, 220, 255, 0.12);
+    --cyan: #00BFFF;
+    --purple: #8A2BE2;
+    --white: #FFFFFF;
+    --gray: #9AA4B2;
+    --error: #FF6B6B;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    background: radial-gradient(circle at 20% -10%, rgba(0,191,255,0.18), transparent 45%),
+                radial-gradient(circle at 90% 0%, rgba(138,43,226,0.20), transparent 45%),
+                var(--bg);
+    color: var(--white);
+    font-family: -apple-system, "Segoe UI", Roboto, "Poppins", sans-serif;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ===== Header ===== */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: rgba(13, 18, 29, 0.72);
+    border-bottom: 1px solid var(--stroke);
+    backdrop-filter: blur(14px);
+  }
+  header .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15px; }
+  header .brand .logo { width: 30px; height: 30px; border-radius: 9px;
+    background: linear-gradient(135deg, var(--cyan), var(--purple));
+    display: flex; align-items: center; justify-content: center; font-size: 15px; }
+  header .badge {
+    font-size: 10px; font-weight: 700; color: var(--cyan);
+    border: 1px solid rgba(0,191,255,0.45); border-radius: 999px;
+    padding: 3px 9px; letter-spacing: 0.5px;
+  }
+  button.icon {
+    background: rgba(255,255,255,0.06); border: 1px solid var(--stroke);
+    color: var(--gray); border-radius: 10px; padding: 7px 10px;
+    font-size: 12px; cursor: pointer;
+  }
+
+  /* ===== Messages ===== */
+  main { flex: 1 1 auto; overflow-y: auto; padding: 16px 14px 8px; }
+  .bubble {
+    max-width: 84%; width: fit-content;
+    margin: 6px 0; padding: 11px 14px;
+    border-radius: 18px; font-size: 14.5px; line-height: 1.5;
+    white-space: pre-wrap; word-wrap: break-word;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  }
+  .bubble.user {
+    margin-left: auto;
+    background: linear-gradient(135deg, #0E86D9, #5B2BDE);
+    border-bottom-right-radius: 6px;
+  }
+  .bubble.ai {
+    background: var(--glass);
+    border: 1px solid var(--stroke);
+    border-bottom-left-radius: 6px;
+  }
+  .bubble.error { color: var(--error); border-color: rgba(255,107,107,0.4); }
+  .typing { display: none; align-items: center; gap: 5px; width: fit-content;
+    background: var(--glass); border: 1px solid var(--stroke);
+    border-radius: 18px; border-bottom-left-radius: 6px;
+    padding: 12px 16px; margin: 6px 0; }
+  .typing span { width: 7px; height: 7px; border-radius: 50%; background: var(--cyan);
+    animation: blink 1.2s infinite ease-in-out; }
+  .typing span:nth-child(2) { animation-delay: 0.15s; }
+  .typing span:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes blink { 0%,100% { opacity: 0.25; transform: scale(0.85);} 50% { opacity: 1; transform: scale(1.1);} }
+
+  .suggest { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 4px; }
+  .suggest button {
+    background: rgba(0,191,255,0.08); color: #7FDBFF;
+    border: 1px solid rgba(0,191,255,0.3); border-radius: 999px;
+    padding: 8px 14px; font-size: 12.5px; cursor: pointer;
+  }
+  .suggest button:active { background: rgba(0,191,255,0.2); }
+
+  /* ===== Input ===== */
+  footer { padding: 10px 12px calc(12px); background: rgba(10,14,23,0.8);
+    border-top: 1px solid var(--stroke); }
+  .input-bar {
+    display: flex; align-items: flex-end; gap: 8px;
+    background: rgba(255,255,255,0.05); border: 1px solid var(--stroke);
+    border-radius: 22px; padding: 6px 6px 6px 14px;
+  }
+  .input-bar textarea {
+    flex: 1; background: transparent; border: none; outline: none;
+    resize: none; color: var(--white); font-size: 14.5px;
+    font-family: inherit; max-height: 96px; padding-top: 8px; line-height: 1.4;
+  }
+  .input-bar textarea::placeholder { color: var(--gray); }
+  .send {
+    width: 44px; height: 44px; border: none; border-radius: 50%;
+    background: linear-gradient(135deg, var(--cyan), var(--purple));
+    color: #fff; font-size: 17px; cursor: pointer; flex-shrink: 0;
+    box-shadow: 0 4px 14px rgba(0,191,255,0.35);
+  }
+  .send:disabled { opacity: 0.5; }
+  .hint { text-align: center; font-size: 10.5px; color: var(--gray); margin-top: 7px; }
+  ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand"><span class="logo">✦</span> PK AI <span>·</span> Free Chat</div>
+  <div style="display:flex;gap:8px;align-items:center;">
+    <span class="badge">⚡ FREE</span>
+    <button class="icon" id="btnClear">Clear</button>
+  </div>
+</header>
+
+<main id="messages"></main>
+
+<div class="typing" id="typing"><span></span><span></span><span></span></div>
+
+<footer>
+  <div class="input-bar">
+    <textarea id="input" rows="1" placeholder="Type your message..."></textarea>
+    <button class="send" id="send" title="Send">➤</button>
+  </div>
+  <div class="hint">Free unlimited chat · No login required · Powered by PK AI providers</div>
+</footer>
+
+<script>
+  var messagesEl = document.getElementById('messages');
+  var inputEl = document.getElementById('input');
+  var sendEl = document.getElementById('send');
+  var typingEl = document.getElementById('typing');
+  var counter = 0;
+  var pendingTimeout = null;
+
+  function scrollDown() { messagesEl.scrollTop = messagesEl.scrollHeight; }
+
+  function addBubble(text, cls) {
+    var div = document.createElement('div');
+    div.className = 'bubble ' + cls;
+    div.appendChild(document.createTextNode(text));
+    messagesEl.appendChild(div);
+    scrollDown();
+    return div;
+  }
+
+  function renderIntro() {
+    while (messagesEl.firstChild) messagesEl.removeChild(messagesEl.firstChild);
+    typingEl.style.display = 'none';
+    var hello = document.createElement('div');
+    hello.className = 'bubble ai';
+    var strong = document.createElement('b');
+    strong.textContent = '✨ Welcome to Free Chat!';
+    hello.appendChild(strong);
+    hello.appendChild(document.createElement('br'));
+    hello.appendChild(document.createTextNode('Ask me anything — absolutely free, no login needed.'));
+    messagesEl.appendChild(hello);
+
+    var wrap = document.createElement('div');
+    wrap.className = 'suggest';
+    ['Explain quantum computing simply',
+     'Write a Python function for Fibonacci',
+     'Plan a 3-day trip to Lahore',
+     'Give me a motivational quote'].forEach(function (t) {
+      var b = document.createElement('button');
+      b.textContent = t;
+      b.onclick = function () { inputEl.value = t; send(); };
+      wrap.appendChild(b);
+    });
+    messagesEl.appendChild(wrap);
+    scrollDown();
+  }
+
+  function send() {
+    var text = inputEl.value.trim();
+    if (!text) return;
+    inputEl.value = '';
+    autoResize();
+    addBubble(text, 'user');
+
+    typingEl.style.display = 'flex';
+    scrollDown();
+    if (pendingTimeout) clearTimeout(pendingTimeout);
+    pendingTimeout = setTimeout(function () {
+      typingEl.style.display = 'none';
+    }, 120000);
+
+    try {
+      window.PkBridge.sendMessageAsync(text, 'cb' + (++counter));
+    } catch (e) {
+      typingEl.style.display = 'none';
+      addBubble('Sorry, the chat bridge could not be reached.', 'ai error');
+    }
+  }
+
+  // Called from native Android via evaluateJavascript(jsonObject)
+  window.onNativeResponse = function (payload) {
+    typingEl.style.display = 'none';
+    if (pendingTimeout) clearTimeout(pendingTimeout);
+    var text = (payload && payload.text) || 'No response received.';
+    if (text.indexOf('API key not configured') === 0) {
+      addBubble('⚠️ The AI provider is not configured yet (no API key found). Add a key in local.properties / environment, or try again later.', 'ai error');
+    } else if (text.indexOf('Error:') === 0) {
+      addBubble('⚠️ ' + text, 'ai error');
+    } else {
+      addBubble(text, 'ai');
+    }
+  };
+
+  function autoResize() {
+    inputEl.style.height = 'auto';
+    inputEl.style.height = Math.min(inputEl.scrollHeight, 96) + 'px';
+  }
+
+  sendEl.onclick = send;
+  inputEl.addEventListener('input', autoResize);
+  inputEl.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+  });
+  document.getElementById('btnClear').onclick = renderIntro;
+
+  renderIntro();
+</script>
+</body>
+</html>

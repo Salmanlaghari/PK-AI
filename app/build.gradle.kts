@@ -23,8 +23,8 @@ android {
         applicationId = "com.salmanlaghari.pkai"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -36,6 +36,8 @@ android {
         val cerebrasApiKey = System.getenv("CEREBRAS_API_KEY") ?: localProperties.getProperty("CEREBRAS_API_KEY") ?: ""
         val openaiApiKey = System.getenv("OPENAI_API_KEY") ?: localProperties.getProperty("OPENAI_API_KEY") ?: ""
         val sambanovaApiKey = System.getenv("SAMBANOVA_API_KEY") ?: localProperties.getProperty("SAMBANOVA_API_KEY") ?: ""
+        val runwayApiKey = System.getenv("RUNWAY_API_KEY") ?: localProperties.getProperty("RUNWAY_API_KEY") ?: ""
+        val sunoApiKey = System.getenv("SUNO_API_KEY") ?: localProperties.getProperty("SUNO_API_KEY") ?: ""
 
         buildConfigField("String", "GEMINI_API_KEY", "\"$geminiApiKey\"")
         buildConfigField("String", "OPENROUTER_API_KEY", "\"$openrouterApiKey\"")
@@ -45,6 +47,8 @@ android {
         buildConfigField("String", "CEREBRAS_API_KEY", "\"$cerebrasApiKey\"")
         buildConfigField("String", "OPENAI_API_KEY", "\"$openaiApiKey\"")
         buildConfigField("String", "SAMBANOVA_API_KEY", "\"$sambanovaApiKey\"")
+        buildConfigField("String", "RUNWAY_API_KEY", "\"$runwayApiKey\"")
+        buildConfigField("String", "SUNO_API_KEY", "\"$sunoApiKey\"")
     }
 
     signingConfigs {
@@ -128,6 +132,10 @@ dependencies {
 
     // Google AdMob
     implementation(libs.google.admob)
+
+    // Firebase (Auth for email/password + Google Sign-In flows)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
 
     // Testing
     testImplementation(libs.junit)

@@ -1,31 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    style="@style/Widget.Material3.CardView.Filled"
+    style="@style/PkAi.GlassCard"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginBottom="12dp"
     android:clickable="true"
     android:focusable="true"
-    app:cardBackgroundColor="@color/glass_background"
-    app:cardCornerRadius="16dp"
-    app:strokeColor="@color/glass_stroke"
-    app:strokeWidth="1dp">
+    app:cardCornerRadius="16dp">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:padding="16dp">
 
-        <!-- Logo / Icon Emoji -->
+        <!-- Logo -->
         <TextView
             android:id="@+id/tv_ai_logo"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:background="@drawable/bg_glass_card"
+            android:background="@drawable/bg_pill_chip"
             android:gravity="center"
             android:text="💎"
-            android:textSize="24sp"
+            android:textSize="22sp"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
@@ -34,42 +31,45 @@
             android:id="@+id/tv_ai_name"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
+            android:layout_marginStart="14dp"
+            android:fontFamily="@font/poppins"
             android:textColor="@color/white"
-            android:textSize="18sp"
+            android:textSize="16sp"
             android:textStyle="bold"
             app:layout_constraintEnd_toStartOf="@id/layout_actions"
             app:layout_constraintStart_toEndOf="@id/tv_ai_logo"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <!-- Short Description -->
+        <!-- Description -->
         <TextView
             android:id="@+id/tv_ai_description"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
+            android:fontFamily="@font/poppins"
             android:textColor="@color/outline"
-            android:textSize="13sp"
+            android:textSize="12sp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="@id/tv_ai_name"
             app:layout_constraintTop_toBottomOf="@id/tv_ai_name" />
 
-        <!-- Availability Status Badge -->
+        <!-- Status Badge -->
         <TextView
             android:id="@+id/tv_ai_status"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="10dp"
             android:background="@drawable/bg_gradient_button"
+            android:fontFamily="@font/poppins"
             android:paddingHorizontal="10dp"
             android:paddingVertical="4dp"
             android:textColor="@color/white"
-            android:textSize="11sp"
+            android:textSize="10sp"
             android:textStyle="bold"
             app:layout_constraintStart_toStartOf="@id/tv_ai_name"
             app:layout_constraintTop_toBottomOf="@id/tv_ai_description" />
 
-        <!-- Action Buttons Container (Right) -->
+        <!-- Actions -->
         <LinearLayout
             android:id="@+id/layout_actions"
             android:layout_width="wrap_content"
@@ -78,7 +78,6 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent">
 
-            <!-- Favorite Button -->
             <ImageButton
                 android:id="@+id/btn_favorite"
                 android:layout_width="36dp"
@@ -88,7 +87,6 @@
                 android:src="@drawable/ic_star_border"
                 app:tint="@color/electric_blue_glow" />
 
-            <!-- Information Button -->
             <ImageButton
                 android:id="@+id/btn_info"
                 android:layout_width="36dp"
@@ -97,7 +95,6 @@
                 android:contentDescription="Information"
                 android:src="@drawable/ic_info"
                 app:tint="@color/electric_blue_glow" />
-
         </LinearLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>

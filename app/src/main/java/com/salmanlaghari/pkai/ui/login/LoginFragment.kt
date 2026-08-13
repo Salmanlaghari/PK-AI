@@ -14,7 +14,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.salmanlaghari.pkai.R
 import com.salmanlaghari.pkai.databinding.FragmentLoginBinding
 import dagger.hilt.android.AndroidEntryPoint
@@ -28,7 +27,6 @@ class LoginFragment : Fragment() {
     private val binding get() = _binding!!
 
     private val viewModel: LoginViewModel by viewModels()
-    private var diagnosticDialog: androidx.appcompat.app.AlertDialog? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -60,7 +58,7 @@ class LoginFragment : Fragment() {
                     }
                     is LoginUiState.Success -> {
                         binding.layoutLoading.visibility = View.GONE
-                        diagnosticDialog?.dismiss()
+                        // Navigate to Home Dashboard upon successful login
                         findNavController().navigate(R.id.action_loginFragment_to_homeFragment)
                     }
                     is LoginUiState.Error -> {
@@ -73,12 +71,12 @@ class LoginFragment : Fragment() {
             }
         }
 
-        // Google Sign-In button
+        // Trigger Google Sign-In with official Android Credential Manager
         binding.btnGoogleSignin.setOnClickListener {
             triggerGoogleSignIn()
         }
 
-        // Guest sign-in button
+        // Sign in as guest
         binding.btnGuestSignin.setOnClickListener {
             viewModel.loginAsGuest()
         }
@@ -103,22 +101,13 @@ class LoginFragment : Fragment() {
     }
 
     private fun triggerGoogleSignIn() {
-        val clientId = getString(R.string.default_web_client_id)
-
-        // Validate client ID before attempting sign-in
-        if (clientId.isBlank() || clientId.contains("placeholder")) {
-            binding.tvErrorBanner.visibility = View.VISIBLE
-            binding.tvErrorBanner.text = getString(R.string.error_google_signin_not_configured)
-            showDiagnosticDialog()
-            return
-        }
-
         val credentialManager = CredentialManager.create(requireContext())
+        val clientId = getString(R.string.default_web_client_id)
 
         val googleIdOption = GetGoogleIdOption.Builder()
             .setFilterByAuthorizedAccounts(false)
             .setServerClientId(clientId)
-            .setAutoSelectEnabled(false)
+            .setAutoSelectEnabled(true)
             .build()
 
         val request = GetCredentialRequest.Builder()
@@ -128,17 +117,13 @@ class LoginFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             try {
                 viewModel.resetState()
-                android.util.Log.d("PKAI_AUTH", "Requesting Google credentials, client ID: $clientId")
-
+                android.util.Log.d("PKAI_AUTH", "Requesting credentials with client ID: $clientId")
                 val result = credentialManager.getCredential(
                     request = request,
                     context = requireContext()
                 )
                 val credential = result.credential
-
-                if (credential is CustomCredential &&
-                    credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
-                ) {
+                if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
                     val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
                     val idToken = googleIdTokenCredential.idToken
                     val displayName = googleIdTokenCredential.displayName
@@ -156,52 +141,34 @@ class LoginFragment : Fragment() {
                     binding.tvErrorBanner.visibility = View.VISIBLE
                     binding.tvErrorBanner.text = getString(R.string.error_auth_failed)
                 }
-            } catch (e: androidx.credentials.exceptions.GetCredentialCancellationException) {
-                android.util.Log.d("PKAI_AUTH", "User cancelled sign-in")
-                // User cancelled — just reset state, no error shown
-                viewModel.resetState()
-            } catch (e: androidx.credentials.exceptions.NoCredentialException) {
-                android.util.Log.e("PKAI_AUTH", "No credentials available", e)
-                binding.tvErrorBanner.visibility = View.VISIBLE
-                binding.tvErrorBanner.text = "No Google account found on this device.\nPlease add a Google account in Settings → Accounts."
-                showDiagnosticDialog()
             } catch (e: androidx.credentials.exceptions.GetCredentialException) {
-                android.util.Log.e("PKAI_AUTH", "GetCredentialException: ", e)
+                android.util.Log.e("PKAI_AUTH", "GetCredentialException occurred: ", e)
                 binding.tvErrorBanner.visibility = View.VISIBLE
-                binding.tvErrorBanner.text = "Google Sign-In error: ${e.message}\n\nPlease check Firebase configuration."
-                showDiagnosticDialog()
+                val userFriendlyMessage = when (e) {
+                    is androidx.credentials.exceptions.GetCredentialCancellationException -> {
+                        "Sign-In cancelled by user."
+                    }
+                    is androidx.credentials.exceptions.NoCredentialException -> {
+                        "Google Sign-In is not configured correctly on this device.\n\n" +
+                        "🔧 Action required:\n" +
+                        "1. Replace 'default_web_client_id' in strings.xml with your real Firebase Web Client ID.\n" +
+                        "2. Register your Android app package 'com.salmanlaghari.pkai' with your debug SHA-1/SHA-256 fingerprint in Firebase / Google Developer Console."
+                    }
+                    else -> {
+                        "Google Sign-In error: ${e.message}\n\nPlease check your Firebase client configuration, package name, and SHA-1 fingerprints."
+                    }
+                }
+                binding.tvErrorBanner.text = userFriendlyMessage
             } catch (e: Exception) {
-                android.util.Log.e("PKAI_AUTH", "Unknown exception: ", e)
+                android.util.Log.e("PKAI_AUTH", "Unknown Google Sign-In exception occurred: ", e)
                 binding.tvErrorBanner.visibility = View.VISIBLE
-                binding.tvErrorBanner.text = "Sign-In failed: ${e.localizedMessage ?: "Unknown error"}"
+                binding.tvErrorBanner.text = "Google Sign-In failed: ${e.localizedMessage ?: "Unknown Error"}.\n\nPlease ensure you have replaced 'default_web_client_id' in strings.xml and configured Firebase."
             }
         }
     }
 
-    private fun showDiagnosticDialog() {
-        diagnosticDialog?.dismiss()
-        val dialogView = LayoutInflater.from(requireContext())
-            .inflate(R.layout.dialog_google_signin_diagnostic, null)
-        val dialog = MaterialAlertDialogBuilder(requireContext(), R.style.Theme_PkAi)
-            .setView(dialogView)
-            .create()
-
-        dialogView.findViewById<View>(R.id.btn_diagnostic_dismiss)?.setOnClickListener {
-            dialog.dismiss()
-            viewModel.loginAsGuest()
-        }
-
-        dialog.window?.setBackgroundDrawable(
-            android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT)
-        )
-        dialog.show()
-        diagnosticDialog = dialog
-    }
-
     override fun onDestroyView() {
         super.onDestroyView()
-        diagnosticDialog?.dismiss()
-        diagnosticDialog = null
         _binding = null
     }
 }

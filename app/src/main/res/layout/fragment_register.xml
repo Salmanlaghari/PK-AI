@@ -21,7 +21,7 @@
 
     <!-- Centered Glassmorphism Card Wrapper -->
     <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/card_login_container"
+        android:id="@+id/card_register_container"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:background="@drawable/bg_glass_card"
@@ -45,11 +45,11 @@
 
         <!-- Title -->
         <TextView
-            android:id="@+id/tv_login_title"
+            android:id="@+id/tv_register_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="@string/title_login"
+            android:text="@string/title_register"
             android:textColor="@color/white"
             android:textSize="24sp"
             android:textStyle="bold"
@@ -59,17 +59,17 @@
 
         <!-- Subtitle -->
         <TextView
-            android:id="@+id/tv_login_subtitle"
+            android:id="@+id/tv_register_subtitle"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:gravity="center"
-            android:text="@string/subtitle_login"
+            android:text="@string/subtitle_register"
             android:textColor="@color/electric_blue_glow"
             android:textSize="14sp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tv_login_title" />
+            app:layout_constraintTop_toBottomOf="@id/tv_register_title" />
 
         <!-- Loading State Container (Hidden by default) -->
         <LinearLayout
@@ -82,7 +82,7 @@
             android:visibility="gone"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tv_login_subtitle">
+            app:layout_constraintTop_toBottomOf="@id/tv_register_subtitle">
 
             <ProgressBar
                 android:id="@+id/progress_bar"
@@ -108,7 +108,25 @@
             android:orientation="vertical"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tv_login_subtitle">
+            app:layout_constraintTop_toBottomOf="@id/tv_register_subtitle">
+
+            <!-- Username Input -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/til_username"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/hint_username"
+                app:boxStrokeColor="@color/electric_blue_glow"
+                app:hintTextColor="@color/electric_blue_glow">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/et_username"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="text"
+                    android:textColor="@color/white" />
+            </com.google.android.material.textfield.TextInputLayout>
 
             <!-- Email Input -->
             <com.google.android.material.textfield.TextInputLayout
@@ -116,6 +134,7 @@
                 style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
                 android:hint="@string/hint_email"
                 app:boxStrokeColor="@color/electric_blue_glow"
                 app:hintTextColor="@color/electric_blue_glow">
@@ -149,68 +168,27 @@
                     android:textColor="@color/white" />
             </com.google.android.material.textfield.TextInputLayout>
 
-            <!-- Login Button -->
+            <!-- Register Button -->
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_login"
+                android:id="@+id/btn_register"
                 android:layout_width="match_parent"
                 android:layout_height="56dp"
                 android:layout_marginTop="24dp"
                 android:backgroundTint="@color/electric_blue_glow"
-                android:text="@string/btn_login"
+                android:text="@string/btn_register"
                 android:textColor="@color/premium_black"
                 android:textSize="16sp"
                 android:textStyle="bold"
                 app:cornerRadius="24dp" />
-
-            <!-- OR Separator -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginTop="16dp"
-                android:layout_marginBottom="16dp"
-                android:text="@string/lbl_or"
-                android:textColor="@color/white"
-                android:textSize="14sp" />
-
-            <!-- Sign in with Google Button (Electric Blue Glow & Purple Gradient accent) -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_google_signin"
-                style="@style/Widget.Material3.Button.Icon"
-                android:layout_width="match_parent"
-                android:layout_height="56dp"
-                android:backgroundTint="@color/purple_accent"
-                android:text="@string/btn_sign_in_google"
-                android:textColor="@color/white"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                app:icon="@drawable/ic_google"
-                app:iconSize="20dp"
-                app:iconTint="@color/white"
-                app:cornerRadius="24dp" />
-
-            <!-- Continue as Guest Button (Electric Blue outlined feel) -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_guest_signin"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                android:layout_width="match_parent"
-                android:layout_height="56dp"
-                android:layout_marginTop="12dp"
-                android:text="@string/btn_guest_mode"
-                android:textColor="@color/electric_blue_glow"
-                android:textSize="15sp"
-                app:strokeColor="@color/electric_blue_glow"
-                app:strokeWidth="1.5dp"
-                app:cornerRadius="24dp" />
         </LinearLayout>
 
-        <!-- Sign Up Prompt -->
+        <!-- Login Prompt -->
         <TextView
-            android:id="@+id/tv_signup_prompt"
+            android:id="@+id/tv_login_prompt"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
-            android:text="@string/prompt_signup"
+            android:text="@string/prompt_login"
             android:textColor="@color/white"
             android:textSize="14sp"
             app:layout_constraintEnd_toEndOf="parent"
@@ -233,7 +211,7 @@
             android:visibility="gone"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tv_signup_prompt" />
+            app:layout_constraintTop_toBottomOf="@id/tv_login_prompt" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

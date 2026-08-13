@@ -52,4 +52,16 @@ class LoginViewModel @Inject constructor(
     fun resetState() {
         _uiState.value = LoginUiState.Idle
     }
+
+    fun loginWithEmailPassword(email: String, password: String) {
+        _uiState.value = LoginUiState.Loading
+        viewModelScope.launch {
+            val result = authRepository.loginWithEmailPassword(email, password)
+            result.onSuccess { session ->
+                _uiState.value = LoginUiState.Success(session)
+            }.onFailure { exception ->
+                _uiState.value = LoginUiState.Error(exception.message ?: "Login failed")
+            }
+        }
+    }
 }

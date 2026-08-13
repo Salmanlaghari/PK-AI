@@ -3,8 +3,6 @@ name: Build and Sign APK & AAB
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
@@ -43,8 +41,20 @@ jobs:
           CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           SAMBANOVA_API_KEY: ${{ secrets.SAMBANOVA_API_KEY }}
-          RUNWAY_API_KEY: ${{ secrets.RUNWAY_API_KEY }}
-          SUNO_API_KEY: ${{ secrets.SUNO_API_KEY }}
+
+      - name: Verify Release AAB Signature Fingerprint
+        run: |
+          echo "Extracting fingerprints from the generated Release AAB..."
+          AAB_PATH="app/build/outputs/bundle/release/app-release.aab"
+          FINGERPRINT=$(keytool -printcert -jarfile "$AAB_PATH" | grep "SHA1:" | awk '{print $2}')
+          EXPECTED_SHA1="AC:F9:49:5A:C3:0A:AC:A2:CE:3E:10:71:95:73:A6:00:C6:C9:F8:64"
+          echo "Extracted SHA1: $FINGERPRINT"
+          echo "Expected SHA1:  $EXPECTED_SHA1"
+          if [ "$FINGERPRINT" != "$EXPECTED_SHA1" ]; then
+            echo "🚨 ERROR: Generated AAB SHA1 ($FINGERPRINT) does not match the expected Upload Key SHA1 ($EXPECTED_SHA1)!"
+            exit 1
+          fi
+          echo "✅ SUCCESS: AAB successfully verified with expected Upload Key SHA1!"
 
       - name: Build Debug AAB
         run: ./gradlew bundleDebug --stacktrace

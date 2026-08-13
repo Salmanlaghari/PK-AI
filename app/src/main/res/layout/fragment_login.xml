@@ -115,70 +115,7 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/tv_login_subtitle">
 
-            <!-- Email Input -->
-            <com.google.android.material.textfield.TextInputLayout
-                android:id="@+id/til_email"
-                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="@string/hint_email"
-                app:boxStrokeColor="@color/electric_blue_glow"
-                app:hintTextColor="@color/electric_blue_glow">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/et_email"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:inputType="textEmailAddress"
-                    android:textColor="@color/white" />
-            </com.google.android.material.textfield.TextInputLayout>
-
-            <!-- Password Input -->
-            <com.google.android.material.textfield.TextInputLayout
-                android:id="@+id/til_password"
-                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:hint="@string/hint_password"
-                app:boxStrokeColor="@color/electric_blue_glow"
-                app:hintTextColor="@color/electric_blue_glow"
-                app:passwordToggleEnabled="true"
-                app:passwordToggleTint="@color/electric_blue_glow">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/et_password"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:inputType="textPassword"
-                    android:textColor="@color/white" />
-            </com.google.android.material.textfield.TextInputLayout>
-
-            <!-- Login Button -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_login"
-                android:layout_width="match_parent"
-                android:layout_height="56dp"
-                android:layout_marginTop="24dp"
-                android:backgroundTint="@color/electric_blue_glow"
-                android:text="@string/btn_login"
-                android:textColor="@color/premium_black"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                app:cornerRadius="24dp" />
-
-            <!-- OR Separator -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginTop="16dp"
-                android:layout_marginBottom="16dp"
-                android:text="@string/lbl_or"
-                android:textColor="@color/white"
-                android:textSize="14sp" />
-
-            <!-- Sign in with Google Button (Electric Blue Glow & Purple Gradient accent) -->
+            <!-- Google Sign In -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_google_signin"
                 style="@style/Widget.Material3.Button"
@@ -210,20 +147,7 @@
                 app:strokeWidth="1.5dp" />
         </LinearLayout>
 
-        <!-- Sign Up Prompt -->
-        <TextView
-            android:id="@+id/tv_signup_prompt"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:text="@string/prompt_signup"
-            android:textColor="@color/white"
-            android:textSize="14sp"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/layout_auth_options" />
-
-        <!-- Dynamic Error Banner State -->
+        <!-- Error Banner -->
         <TextView
             android:id="@+id/tv_error_banner"
             android:layout_width="0dp"
@@ -240,7 +164,7 @@
             android:visibility="gone"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tv_signup_prompt" />
+            app:layout_constraintTop_toBottomOf="@id/layout_auth_options" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

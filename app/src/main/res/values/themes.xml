@@ -102,6 +102,12 @@
         <item name="cardElevation">0dp</item>
     </style>
 
+    <!-- Rounded glass item highlight for the premium drawer -->
+    <style name="ShapeAppearanceOverlay.App.RoundedItem" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">16dp</item>
+    </style>
+
     <!-- Elevated Glass Card -->
     <style name="PkAi.GlassCard.Elevated" parent="Widget.Material3.CardView.Elevated">
         <item name="cardBackgroundColor">@color/glass_elevated</item>

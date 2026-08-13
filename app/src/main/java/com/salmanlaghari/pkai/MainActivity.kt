@@ -59,6 +59,7 @@ class MainActivity : AppCompatActivity() {
             .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
         navController = navHostFragment.navController
 
+        binding.drawerLayout.setScrimColor(0x66000510)
         binding.bottomNavigation.setupWithNavController(navController)
 
         navController.addOnDestinationChangedListener { _, destination, _ ->
@@ -127,6 +128,12 @@ class MainActivity : AppCompatActivity() {
                     }
                     true
                 }
+                R.id.nav_free_chat -> {
+                    if (navController.currentDestination?.id != R.id.freeChatFragment) {
+                        navController.navigate(R.id.freeChatFragment)
+                    }
+                    true
+                }
                 R.id.nav_chat_history, R.id.nav_mgr_shared -> {
                     if (navController.currentDestination?.id != R.id.historyFragment) {
                         navController.navigate(R.id.historyFragment)
@@ -153,6 +160,24 @@ class MainActivity : AppCompatActivity() {
                     lifecycleScope.launch {
                         authRepository.logout()
                         navController.navigate(R.id.loginFragment)
+                    }
+                    true
+                }
+                R.id.nav_studio_image -> {
+                    if (navController.currentDestination?.id != R.id.imageGeneratorFragment) {
+                        navController.navigate(R.id.imageGeneratorFragment)
+                    }
+                    true
+                }
+                R.id.nav_studio_video -> {
+                    if (navController.currentDestination?.id != R.id.videoGeneratorFragment) {
+                        navController.navigate(R.id.videoGeneratorFragment)
+                    }
+                    true
+                }
+                R.id.nav_studio_music -> {
+                    if (navController.currentDestination?.id != R.id.musicGeneratorFragment) {
+                        navController.navigate(R.id.musicGeneratorFragment)
                     }
                     true
                 }

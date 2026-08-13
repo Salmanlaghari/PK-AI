@@ -6,6 +6,7 @@ import com.salmanlaghari.pkai.data.local.datastore.PreferencesManager
 import com.salmanlaghari.pkai.data.local.room.AppDatabase
 import com.salmanlaghari.pkai.data.local.room.AppLogDao
 import com.salmanlaghari.pkai.data.remote.ApiService
+import com.google.firebase.auth.FirebaseAuth
 import com.salmanlaghari.pkai.data.repository.AuthRepository
 import com.salmanlaghari.pkai.data.repository.AuthRepositoryImpl
 import dagger.Module
@@ -22,6 +23,12 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object AppModule {
+
+    @Provides
+    @Singleton
+    fun provideFirebaseAuth(): FirebaseAuth {
+        return FirebaseAuth.getInstance()
+    }
 
     @Provides
     @Singleton
@@ -128,6 +135,17 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideOpenAiImageApiService(okHttpClient: OkHttpClient): com.salmanlaghari.pkai.data.remote.OpenAiImageApiService {
+        return Retrofit.Builder()
+            .baseUrl("https://api.openai.com/v1/")
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(com.salmanlaghari.pkai.data.remote.OpenAiImageApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
     fun provideCerebrasApiService(okHttpClient: OkHttpClient): com.salmanlaghari.pkai.data.remote.CerebrasApiService {
         return Retrofit.Builder()
             .baseUrl("https://api.cerebras.ai/v1/")
@@ -161,6 +179,15 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideAuthRepository(
+        preferencesManager: PreferencesManager,
+        firebaseAuth: FirebaseAuth
+    ): AuthRepository {
+        return AuthRepositoryImpl(preferencesManager, firebaseAuth)
+    }
+
+    @Provides
+    @Singleton
     fun providePublicFreeApiService(okHttpClient: OkHttpClient): com.salmanlaghari.pkai.data.remote.PublicFreeApiService {
         return Retrofit.Builder()
             .baseUrl("https://api.adviceslip.com/")
@@ -168,11 +195,5 @@ object AppModule {
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(com.salmanlaghari.pkai.data.remote.PublicFreeApiService::class.java)
-    }
-
-    @Provides
-    @Singleton
-    fun provideAuthRepository(preferencesManager: PreferencesManager): AuthRepository {
-        return AuthRepositoryImpl(preferencesManager)
     }
 }

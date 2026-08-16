@@ -1,47 +1,55 @@
 {
- "project_info": {
- "project_number": "193399978595",
- "project_id": "ailatestfinder",
- "storage_bucket": "ailatestfinder.firebasestorage.app"
- },
- "client": [
- {
- "client_info": {
- "mobilesdk_app_id": "1:193399978595:android:1b105b318c0fcf1e0dd656",
- "android_client_info": {
- "package_name": "com.salmanlaghari.pkai"
- }
- },
- "oauth_client": [
- {
- "client_id": "193399978595-460ml63k5m9nma7v59ae6sfin4ncgh2g.apps.googleusercontent.com",
- "client_type": 1,
- "android_info": {
- "package_name": "com.salmanlaghari.pkai",
- "certificate_hash": "4c2f6a95f480b85a9020daf9bd61fd9b21d3ddf9"
- }
- },
- {
- "client_id": "193399978595-7m1be36k2ud87o0bgu95b4q012b5psnj.apps.googleusercontent.com",
- "client_type": 3
- }
- ],
- "api_key": [
- {
- "current_key": "AIzaSyDuN7QWodkCsr6eyQDtu10dQkkttD0QNNk"
- }
- ],
- "services": {
- "appinvite_service": {
- "other_platform_oauth_client": [
- {
- "client_id": "193399978595-7m1be36k2ud87o0bgu95b4q012b5psnj.apps.googleusercontent.com",
- "client_type": 3
- }
- ]
- }
- }
- }
- ],
- "configuration_version": "1"
+  "project_info": {
+    "project_number": "193399978595",
+    "project_id": "ailatestfinder",
+    "storage_bucket": "ailatestfinder.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:193399978595:android:1b105b318c0fcf1e0dd656",
+        "android_client_info": {
+          "package_name": "com.salmanlaghari.pkai"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "193399978595-460ml63k5m9nma7v59ae6sfin4ncgh2g.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.salmanlaghari.pkai",
+            "certificate_hash": "4c2f6a95f480b85a9020daf9bd61fd9b21d3ddf9"
+          }
+        },
+        {
+          "client_id": "193399978595-9sc0pu2aaqgtjajv2e7pi4ths8jjlpmh.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.salmanlaghari.pkai",
+            "certificate_hash": "acf9495ac30aaca2ce3e10719573a600c6c9f864"
+          }
+        },
+        {
+          "client_id": "193399978595-7m1be36k2ud87o0bgu95b4q012b5psnj.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDuN7QWodkCsr6eyQDtu10dQkkttD0QNNk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "193399978595-7m1be36k2ud87o0bgu95b4q012b5psnj.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
 }

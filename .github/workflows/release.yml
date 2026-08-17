@@ -1,0 +1,78 @@
+name: Release APK
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v1.1.2)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Build Release APK & AAB
+        run: ./gradlew assembleRelease bundleRelease --stacktrace
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
+          CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+          SAMBANOVA_API_KEY: ${{ secrets.SAMBANOVA_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: Verify Release signature uses the NEW upload key
+        run: |
+          AAB_PATH="app/build/outputs/bundle/release/app-release.aab"
+          FINGERPRINT=$(keytool -printcert -jarfile "$AAB_PATH" | grep "SHA1:" | awk '{print $2}')
+          EXPECTED_SHA1="AC:F9:49:5A:C3:0A:AC:A2:CE:3E:10:71:95:73:A6:00:C6:C9:F8:64"
+          echo "Extracted SHA1: $FINGERPRINT"
+          echo "Expected SHA1:  $EXPECTED_SHA1"
+          if [ "$FINGERPRINT" != "$EXPECTED_SHA1" ]; then
+            echo "ERROR: Generated AAB SHA1 ($FINGERPRINT) does not match the expected NEW Upload Key SHA1 ($EXPECTED_SHA1)!"
+            exit 1
+          fi
+          echo "SUCCESS: APK/AAB signed with the new upload key (pk_ai_upload)."
+
+      - name: Prepare named APK artifact
+        id: meta
+        run: |
+          VERSION_NAME=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
+          echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+          cp app/build/outputs/apk/release/app-release.apk "PK-AI-v${VERSION_NAME}-release.apk"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          name: PK AI v${{ steps.meta.outputs.version_name }}
+          files: |
+            PK-AI-v${{ steps.meta.outputs.version_name }}-release.apk
+            app/build/outputs/bundle/release/app-release.aab
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

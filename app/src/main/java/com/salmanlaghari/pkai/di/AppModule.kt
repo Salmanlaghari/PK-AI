@@ -161,6 +161,28 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideAnthropicApiService(okHttpClient: OkHttpClient): com.salmanlaghari.pkai.data.remote.AnthropicApiService {
+        return Retrofit.Builder()
+            .baseUrl("https://api.anthropic.com/")
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(com.salmanlaghari.pkai.data.remote.AnthropicApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideXAiApiService(okHttpClient: OkHttpClient): com.salmanlaghari.pkai.data.remote.XAiApiService {
+        return Retrofit.Builder()
+            .baseUrl("https://api.x.ai/v1/")
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(com.salmanlaghari.pkai.data.remote.XAiApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
     fun providePublicFreeApiService(okHttpClient: OkHttpClient): com.salmanlaghari.pkai.data.remote.PublicFreeApiService {
         return Retrofit.Builder()
             .baseUrl("https://api.adviceslip.com/")

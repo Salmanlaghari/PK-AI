@@ -16,6 +16,8 @@ class AiProviderFactory @Inject constructor(
     private val cerebrasApiService: com.salmanlaghari.pkai.data.remote.CerebrasApiService,
     private val sambaNovaApiService: com.salmanlaghari.pkai.data.remote.SambaNovaApiService,
     private val cohereApiService: com.salmanlaghari.pkai.data.remote.CohereApiService,
+    private val anthropicApiService: com.salmanlaghari.pkai.data.remote.AnthropicApiService,
+    private val xAiApiService: com.salmanlaghari.pkai.data.remote.XAiApiService,
     private val publicFreeApiService: com.salmanlaghari.pkai.data.remote.PublicFreeApiService
 ) {
     fun getPublicFreeProvider(): AiProvider {
@@ -46,8 +48,22 @@ class AiProviderFactory @Inject constructor(
                     OpenRouterAiProvider(model, openRouterApiService)
                 }
             }
-            AiModel.CLAUDE -> OpenRouterAiProvider(model, openRouterApiService)
-            AiModel.GROK -> GroqAiProvider(model, groqApiService)
+            AiModel.CLAUDE -> {
+                // Prefer the native Anthropic API; fall back to OpenRouter if no key is configured.
+                if (com.salmanlaghari.pkai.BuildConfig.ANTHROPIC_API_KEY.isNotBlank()) {
+                    AnthropicAiProvider(anthropicApiService)
+                } else {
+                    OpenRouterAiProvider(model, openRouterApiService)
+                }
+            }
+            AiModel.GROK -> {
+                // Prefer the native xAI (Grok) API; fall back to Groq if no key is configured.
+                if (com.salmanlaghari.pkai.BuildConfig.XAI_API_KEY.isNotBlank()) {
+                    XAiGrokAiProvider(xAiApiService)
+                } else {
+                    GroqAiProvider(model, groqApiService)
+                }
+            }
             AiModel.DEEPSEEK -> OpenRouterAiProvider(model, openRouterApiService)
             AiModel.QWEN -> OpenRouterAiProvider(model, openRouterApiService)
             AiModel.LLAMA -> CerebrasAiProvider(model, cerebrasApiService)

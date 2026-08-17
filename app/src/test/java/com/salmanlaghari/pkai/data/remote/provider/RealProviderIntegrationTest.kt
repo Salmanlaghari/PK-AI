@@ -28,43 +28,14 @@ class RealProviderIntegrationTest {
         report.append("          REAL AI PROVIDER VERIFICATION REPORT     \n")
         report.append("==================================================\n")
 
-        // 1. Google Gemini
-        val geminiKey = System.getenv("GEMINI_API_KEY") ?: ""
-        if (geminiKey.isNotBlank()) {
-            try {
-                val service = Retrofit.Builder()
-                    .baseUrl("https://generativelanguage.googleapis.com/")
-                    .client(okHttpClient)
-                    .addConverterFactory(GsonConverterFactory.create())
-                    .build()
-                    .create(GeminiApiService::class.java)
-
-                val request = GeminiRequest(
-                    contents = listOf(GeminiContent(parts = listOf(GeminiPart(prompt))))
-                )
-                val response = service.generateContent(geminiKey, request)
-                val text = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
-                if (text != null) {
-                    report.append("✓ Google Gemini: Succeeded. Response:\n   \"${text.trim()}\"\n")
-                } else {
-                    report.append("✗ Google Gemini: Failed. Reason: Empty response structure.\n")
-                }
-            } catch (e: Exception) {
-                report.append("✗ Google Gemini: Failed. Reason: ${e.localizedMessage}\n")
-            }
-        } else {
-            report.append("✗ Google Gemini: Skipped. Reason: GEMINI_API_KEY not configured.\n")
-        }
-
-        // 2. OpenRouter (multiple models: ChatGPT, Claude, DeepSeek, Qwen, Grok)
+        // 2. OpenRouter (multiple models: Claude, DeepSeek, Qwen, Web)
         val openrouterKey = System.getenv("OPENROUTER_API_KEY") ?: ""
         if (openrouterKey.isNotBlank()) {
             val openRouterModels = listOf(
-                "openai/gpt-4o-mini" to "ChatGPT",
                 "anthropic/claude-3-haiku" to "Claude",
                 "deepseek/deepseek-chat" to "DeepSeek",
                 "qwen/qwen-2.5-72b-instruct" to "Qwen",
-                "x-ai/grok-2-latest" to "Grok"
+                "perplexity/sonar" to "Web"
             )
             try {
                 val service = Retrofit.Builder()
@@ -98,35 +69,6 @@ class RealProviderIntegrationTest {
             report.append("✗ OpenRouter: Skipped. Reason: OPENROUTER_API_KEY not configured.\n")
         }
 
-        // 3. Groq
-        val groqKey = System.getenv("GROQ_API_KEY") ?: ""
-        if (groqKey.isNotBlank()) {
-            try {
-                val service = Retrofit.Builder()
-                    .baseUrl("https://api.groq.com/openai/v1/")
-                    .client(okHttpClient)
-                    .addConverterFactory(GsonConverterFactory.create())
-                    .build()
-                    .create(GroqApiService::class.java)
-
-                val request = ChatCompletionRequest(
-                    model = "llama3-8b-8192",
-                    messages = listOf(ChatMessageDto(role = "user", content = prompt))
-                )
-                val response = service.generateChatResponse("Bearer $groqKey", request)
-                val text = response.choices.firstOrNull()?.message?.content
-                if (text != null) {
-                    report.append("✓ Groq: Succeeded. Response:\n   \"${text.trim()}\"\n")
-                } else {
-                    report.append("✗ Groq: Failed. Reason: Empty response structure.\n")
-                }
-            } catch (e: Exception) {
-                report.append("✗ Groq: Failed. Reason: ${e.localizedMessage}\n")
-            }
-        } else {
-            report.append("✗ Groq: Skipped. Reason: GROQ_API_KEY not configured.\n")
-        }
-
         // 4. Together AI
         val togetherKey = System.getenv("TOGETHER_API_KEY") ?: ""
         if (togetherKey.isNotBlank()) {
@@ -154,35 +96,6 @@ class RealProviderIntegrationTest {
             }
         } else {
             report.append("✗ Together AI: Skipped. Reason: TOGETHER_API_KEY not configured.\n")
-        }
-
-        // 5. Cohere
-        val cohereKey = System.getenv("COHERE_API_KEY") ?: ""
-        if (cohereKey.isNotBlank()) {
-            try {
-                val service = Retrofit.Builder()
-                    .baseUrl("https://api.cohere.com/")
-                    .client(okHttpClient)
-                    .addConverterFactory(GsonConverterFactory.create())
-                    .build()
-                    .create(CohereApiService::class.java)
-
-                val request = CohereChatRequest(
-                    message = prompt,
-                    model = "command-r-plus"
-                )
-                val response = service.generateChatResponse("Bearer $cohereKey", request)
-                val text = response.text
-                if (text != null) {
-                    report.append("✓ Cohere: Succeeded. Response:\n   \"${text.trim()}\"\n")
-                } else {
-                    report.append("✗ Cohere: Failed. Reason: Empty response structure.\n")
-                }
-            } catch (e: Exception) {
-                report.append("✗ Cohere: Failed. Reason: ${e.localizedMessage}\n")
-            }
-        } else {
-            report.append("✗ Cohere: Skipped. Reason: COHERE_API_KEY not configured.\n")
         }
 
         // 6. Cerebras
@@ -241,59 +154,6 @@ class RealProviderIntegrationTest {
             }
         } else {
             report.append("✗ SambaNova: Skipped. Reason: SAMBANOVA_API_KEY not configured.\n")
-        }
-
-        // 8. xAI (Grok) — native xAI API, falls back to Groq if no key
-        val xAiKey = System.getenv("XAI_API_KEY") ?: ""
-        val groqKeyForGrok = System.getenv("GROQ_API_KEY") ?: ""
-        if (xAiKey.isNotBlank()) {
-            try {
-                val service = Retrofit.Builder()
-                    .baseUrl("https://api.x.ai/v1/")
-                    .client(okHttpClient)
-                    .addConverterFactory(GsonConverterFactory.create())
-                    .build()
-                    .create(XAiApiService::class.java)
-
-                val request = ChatCompletionRequest(
-                    model = "grok-2-latest",
-                    messages = listOf(ChatMessageDto(role = "user", content = prompt))
-                )
-                val response = service.generateChatResponse("Bearer $xAiKey", request)
-                val text = response.choices.firstOrNull()?.message?.content
-                if (text != null) {
-                    report.append("✓ xAI Grok (native): Succeeded. Response:\n   \"${text.trim()}\"\n")
-                } else {
-                    report.append("✗ xAI Grok (native): Failed. Reason: Empty response structure.\n")
-                }
-            } catch (e: Exception) {
-                report.append("✗ xAI Grok (native): Failed. Reason: ${e.localizedMessage}\n")
-            }
-        } else if (groqKeyForGrok.isNotBlank()) {
-            try {
-                val service = Retrofit.Builder()
-                    .baseUrl("https://api.groq.com/openai/v1/")
-                    .client(okHttpClient)
-                    .addConverterFactory(GsonConverterFactory.create())
-                    .build()
-                    .create(GroqApiService::class.java)
-
-                val request = ChatCompletionRequest(
-                    model = "llama3-8b-8192",
-                    messages = listOf(ChatMessageDto(role = "user", content = prompt))
-                )
-                val response = service.generateChatResponse("Bearer $groqKeyForGrok", request)
-                val text = response.choices.firstOrNull()?.message?.content
-                if (text != null) {
-                    report.append("✓ Grok (Groq fallback): Succeeded. Response:\n   \"${text.trim()}\"\n")
-                } else {
-                    report.append("✗ Grok (Groq fallback): Failed. Reason: Empty response structure.\n")
-                }
-            } catch (e: Exception) {
-                report.append("✗ Grok (Groq fallback): Failed. Reason: ${e.localizedMessage}\n")
-            }
-        } else {
-            report.append("✗ xAI Grok: Skipped. Reason: XAI_API_KEY (and GROQ_API_KEY) not configured.\n")
         }
 
         // 9. Anthropic (Claude) — native Anthropic API, falls back to OpenRouter if no key

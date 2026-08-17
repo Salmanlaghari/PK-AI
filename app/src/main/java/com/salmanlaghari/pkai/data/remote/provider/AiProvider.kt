@@ -14,10 +14,7 @@ class PlaceholderAiProvider(private val model: AiModel) : AiProvider {
         // Simulate premium AI thoughts/processing
         kotlinx.coroutines.delay(1500)
         return when (model) {
-            AiModel.GEMINI -> "Greetings from Gemini! I am Google's highly advanced multimodal intelligence model. How can I assist you in building premium concepts today?"
-            AiModel.CHATGPT -> "Hello! I am ChatGPT by OpenAI, powered by the state-of-the-art GPT architecture. Ready to co-write, brainstorm, or explore ideas with you."
             AiModel.CLAUDE -> "Welcome! I am Claude, an advanced model created by Anthropic. I specialize in safe, deeply structured, and exceptionally detailed text reasoning."
-            AiModel.GROK -> "Grok here! Ready to slice through facts with real-time understanding and a touch of wit. What's on your mind?"
             AiModel.DEEPSEEK -> "Greetings from DeepSeek! I am highly optimized for mathematical reasoning, science, coding, and complex problem solving."
             AiModel.QWEN -> "Hello! I am Qwen, Alibaba's top-tier language model. I am excellent at multilingual synthesis and logical calculations."
             AiModel.LLAMA -> "Hi there! I am Llama, Meta's open-weights model. I provide high-performance text comprehension and logical output."
@@ -45,31 +42,10 @@ class PublicFreeAiProvider(
                 advice ?: "Stay positive and keep coding!"
             } else {
                 val words = prompt.trim().split("\\s+".toRegex()).size
-                "I am PK AI's **Free Public Chatbot** (No API Key required)!\n\nI processed your query (\"$prompt\") containing $words words using unauthenticated public endpoints. To experience ultra-fast reasoning with Gemini, Claude, or Grok, please configure your keys in the **Settings** and use the **Premium Chat** tab!"
+                "I am PK AI's **Free Public Chatbot** (No API Key required)!\n\nI processed your query (\"$prompt\") containing $words words using unauthenticated public endpoints. To experience ultra-fast reasoning with PK AI, please use the **Premium Chat** tab!"
             }
         } catch (e: Exception) {
-            "I am PK AI's **Free Public Chatbot**!\n\nYour query: \"$prompt\"\n\nI am currently operating in smart offline mode. Switch to the **Premium Chat** tab at any time to utilize Gemini, Claude, or Grok!"
-        }
-    }
-}
-
-class CohereAiProvider(
-    private val apiService: com.salmanlaghari.pkai.data.remote.CohereApiService
-) : AiProvider {
-    override suspend fun generateResponse(prompt: String): String {
-        val apiKey = com.salmanlaghari.pkai.BuildConfig.COHERE_API_KEY
-        if (apiKey.isBlank()) {
-            return "API key not configured."
-        }
-        val request = com.salmanlaghari.pkai.data.remote.CohereChatRequest(
-            message = prompt,
-            model = "command-r-plus"
-        )
-        return try {
-            val response = apiService.generateChatResponse("Bearer $apiKey", request)
-            response.text ?: "Empty response from Cohere server."
-        } catch (e: Exception) {
-            "Error: ${e.localizedMessage ?: "Unknown network error"}"
+            "I am PK AI's **Free Public Chatbot**!\n\nYour query: \"$prompt\"\n\nI am currently operating in smart offline mode. Switch to the **Premium Chat** tab at any time to utilize PK AI!"
         }
     }
 }
@@ -92,32 +68,7 @@ class NetworkAiProvider(
     }
 }
 
-// --- Real Providers (Phase 4.3) ---
-
-class GeminiAiProvider(
-    private val apiService: com.salmanlaghari.pkai.data.remote.GeminiApiService
-) : AiProvider {
-    override suspend fun generateResponse(prompt: String): String {
-        val apiKey = com.salmanlaghari.pkai.BuildConfig.GEMINI_API_KEY
-        if (apiKey.isBlank()) {
-            return "API key not configured."
-        }
-        val request = com.salmanlaghari.pkai.data.remote.GeminiRequest(
-            contents = listOf(
-                com.salmanlaghari.pkai.data.remote.GeminiContent(
-                    parts = listOf(com.salmanlaghari.pkai.data.remote.GeminiPart(prompt))
-                )
-            )
-        )
-        return try {
-            val response = apiService.generateContent(apiKey, request)
-            response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
-                ?: "Empty response from Gemini server."
-        } catch (e: Exception) {
-            "Error: ${e.localizedMessage ?: "Unknown network error"}"
-        }
-    }
-}
+// --- Real Providers (OpenRouter-backed, working since PR #28) ---
 
 class OpenRouterAiProvider(
     private val model: AiModel,
@@ -133,7 +84,6 @@ class OpenRouterAiProvider(
             AiModel.DEEPSEEK -> "deepseek/deepseek-chat"
             AiModel.LLAMA -> "meta-llama/llama-3.1-8b-instruct"
             AiModel.MISTRAL -> "mistralai/mistral-7b-instruct"
-            AiModel.CHATGPT -> "openai/gpt-4o-mini"
             AiModel.CLAUDE -> "anthropic/claude-3-haiku"
             AiModel.PERPLEXITY -> "perplexity/sonar"
             AiModel.WEB -> "perplexity/sonar"
@@ -173,33 +123,6 @@ class OpenRouterAiProvider(
     }
 }
 
-class GroqAiProvider(
-    private val model: AiModel,
-    private val apiService: com.salmanlaghari.pkai.data.remote.GroqApiService
-) : AiProvider {
-    override suspend fun generateResponse(prompt: String): String {
-        val apiKey = com.salmanlaghari.pkai.BuildConfig.GROQ_API_KEY
-        if (apiKey.isBlank()) {
-            return "API key not configured."
-        }
-        val modelId = when (model) {
-            AiModel.GROK -> "llama3-8b-8192"
-            AiModel.LLAMA -> "llama3-8b-8192"
-            else -> "gemma2-9b-it"
-        }
-        val request = ChatCompletionRequest(
-            model = modelId,
-            messages = listOf(ChatMessageDto(role = "user", content = prompt))
-        )
-        return try {
-            val response = apiService.generateChatResponse("Bearer $apiKey", request)
-            response.choices.firstOrNull()?.message?.content ?: "Empty response from Groq server."
-        } catch (e: Exception) {
-            "Error: ${e.localizedMessage ?: "Unknown network error"}"
-        }
-    }
-}
-
 class TogetherAiProvider(
     private val model: AiModel,
     private val apiService: com.salmanlaghari.pkai.data.remote.TogetherApiService
@@ -221,32 +144,6 @@ class TogetherAiProvider(
         return try {
             val response = apiService.generateChatResponse("Bearer $apiKey", request)
             response.choices.firstOrNull()?.message?.content ?: "Empty response from Together AI server."
-        } catch (e: Exception) {
-            "Error: ${e.localizedMessage ?: "Unknown network error"}"
-        }
-    }
-}
-
-class OpenAiAiProvider(
-    private val model: AiModel,
-    private val apiService: com.salmanlaghari.pkai.data.remote.OpenAiApiService
-) : AiProvider {
-    override suspend fun generateResponse(prompt: String): String {
-        val apiKey = com.salmanlaghari.pkai.BuildConfig.OPENAI_API_KEY
-        if (apiKey.isBlank()) {
-            return "API key not configured."
-        }
-        val modelId = when (model) {
-            AiModel.CHATGPT -> "gpt-4o-mini"
-            else -> "gpt-3.5-turbo"
-        }
-        val request = ChatCompletionRequest(
-            model = modelId,
-            messages = listOf(ChatMessageDto(role = "user", content = prompt))
-        )
-        return try {
-            val response = apiService.generateChatResponse("Bearer $apiKey", request)
-            response.choices.firstOrNull()?.message?.content ?: "Empty response from OpenAI server."
         } catch (e: Exception) {
             "Error: ${e.localizedMessage ?: "Unknown network error"}"
         }
@@ -299,7 +196,7 @@ class SambaNovaAiProvider(
     }
 }
 
-// --- Native Anthropic (Claude) Provider (Phase 4.4) ---
+// --- Native Anthropic (Claude) Provider ---
 
 class AnthropicAiProvider(
     private val apiService: com.salmanlaghari.pkai.data.remote.AnthropicApiService
@@ -338,40 +235,6 @@ class AnthropicAiProvider(
             "Error: Timeout/Network connection failed. Check your internet connection."
         } catch (e: Exception) {
             "Error: ${e.localizedMessage ?: "Unknown Anthropic connection issue."}"
-        }
-    }
-}
-
-// --- Native xAI (Grok) Provider (Phase 4.4) ---
-
-class XAiGrokAiProvider(
-    private val apiService: com.salmanlaghari.pkai.data.remote.XAiApiService
-) : AiProvider {
-    override suspend fun generateResponse(prompt: String): String {
-        val apiKey = com.salmanlaghari.pkai.BuildConfig.XAI_API_KEY
-        if (apiKey.isBlank()) {
-            return "xAI API Key not configured. Please supply an API key."
-        }
-        val modelId = "grok-2-latest"
-        val request = ChatCompletionRequest(
-            model = modelId,
-            messages = listOf(ChatMessageDto(role = "user", content = prompt))
-        )
-        return try {
-            val response = apiService.generateChatResponse("Bearer $apiKey", request)
-            response.choices.firstOrNull()?.message?.content
-                ?: "Error: Received empty response from xAI. Please retry."
-        } catch (e: retrofit2.HttpException) {
-            val code = e.code()
-            when {
-                code == 401 || code == 403 -> "Error: xAI Authentication failed (HTTP $code). Verify your API Key."
-                code == 429 -> "Error: xAI rate limit exceeded (HTTP 429). Please wait and try again."
-                else -> "Error: xAI error (HTTP $code). Server responded with: ${e.message()}"
-            }
-        } catch (e: java.io.IOException) {
-            "Error: Timeout/Network connection failed. Check your internet connection."
-        } catch (e: Exception) {
-            "Error: ${e.localizedMessage ?: "Unknown xAI connection issue."}"
         }
     }
 }

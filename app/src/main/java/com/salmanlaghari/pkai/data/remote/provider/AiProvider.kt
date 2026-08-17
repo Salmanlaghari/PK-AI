@@ -23,6 +23,7 @@ class PlaceholderAiProvider(private val model: AiModel) : AiProvider {
             AiModel.LLAMA -> "Hi there! I am Llama, Meta's open-weights model. I provide high-performance text comprehension and logical output."
             AiModel.MISTRAL -> "Welcome! I am Mistral, a highly optimized, high-efficiency model crafted in France. Let's solve things quickly and elegantly!"
             AiModel.PERPLEXITY -> "Hello! I am Perplexity. I specialize in contextual search, research summarization, and citation-based logical thinking."
+            AiModel.WEB -> "Hi! I am PK AI Web — your real-time web search assistant, powered by PK AI."
         }
     }
 }

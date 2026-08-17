@@ -47,6 +47,7 @@ class ActiveChatsAdapter(
                 AiModel.LLAMA -> "🦙"
                 AiModel.MISTRAL -> "🌪️"
                 AiModel.PERPLEXITY -> "🔍"
+                AiModel.WEB -> "🌐"
             }
         }
     }

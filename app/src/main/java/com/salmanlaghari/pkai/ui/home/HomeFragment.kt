@@ -4,20 +4,23 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.material.button.MaterialButton
 import com.salmanlaghari.pkai.MainActivity
 import com.salmanlaghari.pkai.R
-import com.salmanlaghari.pkai.data.model.AiModel
+import com.salmanlaghari.pkai.data.local.datastore.PreferencesManager
 import com.salmanlaghari.pkai.databinding.FragmentHomeBinding
-import com.salmanlaghari.pkai.databinding.ItemModelSheetBinding
-import com.salmanlaghari.pkai.databinding.LayoutModelBottomSheetBinding
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class HomeFragment : Fragment() {
@@ -26,6 +29,12 @@ class HomeFragment : Fragment() {
     private val binding get() = _binding!!
 
     private val viewModel: HomeViewModel by viewModels()
+
+    @Inject
+    lateinit var preferencesManager: PreferencesManager
+
+    private var isGuest = false
+    private var guestMessageCount = 0
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -38,78 +47,70 @@ class HomeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // 0. Parse potential model argument passed from other destinations (e.g. ChatsFragment)
-        arguments?.getString("selectedModelName")?.let { modelName ->
-            try {
-                val model = AiModel.valueOf(modelName)
-                viewModel.selectModel(model)
-                // Clear the argument so it doesn't persist on configuration changes / subsequent navigations
-                arguments?.remove("selectedModelName")
-            } catch (e: Exception) {
-                // Ignore invalid model name
-            }
-        }
-
-        // 1. Setup Chat Adapter
+        // 0. Setup Chat Adapter
         val chatAdapter = ChatAdapter()
         binding.rvChatMessages.adapter = chatAdapter
 
-        // 2. Setup Model Selector Click (Shows Bottom Sheet)
+        // 1. Observe guest session + message count for the 10-message hard limit
+        lifecycleScope.launch {
+            preferencesManager.userSession.collect { session ->
+                isGuest = session.isLoggedIn && session.isGuest
+            }
+        }
+        lifecycleScope.launch {
+            preferencesManager.guestMessageCount.collect { count ->
+                guestMessageCount = count
+            }
+        }
+
+        // 2. Setup PK AI mode label (no provider names are ever shown)
         binding.btnModelSelector.setOnClickListener {
             if (viewModel.isFreeMode.value) {
-                Toast.makeText(requireContext(), "🌍 Using Free Public Chat. Switch to Premium Chat to select models!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    requireContext(),
+                    "Web AI is a Premium feature — switch to Premium to enable.",
+                    Toast.LENGTH_SHORT
+                ).show()
             } else {
-                showModelSelectionBottomSheet()
+                viewModel.setWebSearchMode(!viewModel.webSearchMode.value)
             }
         }
 
-        // 3. Observe Selected Model StateFlow
-        viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.selectedModel.collect { model ->
-                if (!viewModel.isFreeMode.value) {
-                    binding.btnModelSelector.text = "💎 ${model.displayName} ▼"
-                }
-            }
-        }
-
-        // 3b. Setup Tab Mode Toggle Click Listeners
-        binding.btnTabPremium.setOnClickListener {
-            viewModel.setFreeMode(false)
-        }
-
-        binding.btnTabFree.setOnClickListener {
-            viewModel.setFreeMode(true)
-        }
-
-        // 3c. Observe Free Mode StateFlow to Update UI
-        viewLifecycleOwner.lifecycleScope.launch {
+        // 3. Observe Free Mode StateFlow to Update UI
+        lifecycleScope.launch {
             viewModel.isFreeMode.collect { isFree ->
                 if (isFree) {
-                    // Update Mode Switch Tabs styling
                     binding.btnTabPremium.setTextColor(resources.getColor(R.color.outline, null))
                     binding.btnTabPremium.setBackgroundColor(resources.getColor(android.R.color.transparent, null))
-
                     binding.btnTabFree.setTextColor(resources.getColor(R.color.electric_blue_glow, null))
                     binding.btnTabFree.setBackgroundColor(resources.getColor(R.color.glass_background, null))
-
-                    binding.btnModelSelector.text = "🌍 Free Public AI ▼"
+                    binding.btnModelSelector.text = "🌍 Free Public AI"
                     binding.etMessageInput.setHint("Ask Free Public AI anything...")
                 } else {
-                    // Update Mode Switch Tabs styling
                     binding.btnTabPremium.setTextColor(resources.getColor(R.color.white, null))
                     binding.btnTabPremium.setBackgroundColor(resources.getColor(R.color.glass_background, null))
-
                     binding.btnTabFree.setTextColor(resources.getColor(R.color.outline, null))
                     binding.btnTabFree.setBackgroundColor(resources.getColor(android.R.color.transparent, null))
-
-                    binding.btnModelSelector.text = "💎 ${viewModel.selectedModel.value.displayName} ▼"
-                    binding.etMessageInput.setHint("Ask Premium AI anything...")
+                    binding.etMessageInput.setHint("Ask PK AI anything...")
                 }
             }
         }
 
+        // 3b. Observe Web Search Mode to update the PK AI label
+        lifecycleScope.launch {
+            viewModel.webSearchMode.collect { web ->
+                if (!viewModel.isFreeMode.value) {
+                    binding.btnModelSelector.text = if (web) "🌐 Web AI" else "PK AI"
+                }
+            }
+        }
+
+        // 3c. Tab Mode Toggle Click Listeners
+        binding.btnTabPremium.setOnClickListener { viewModel.setFreeMode(false) }
+        binding.btnTabFree.setOnClickListener { viewModel.setFreeMode(true) }
+
         // 4. Observe Messages StateFlow
-        viewLifecycleOwner.lifecycleScope.launch {
+        lifecycleScope.launch {
             viewModel.chatMessages.collect { messages ->
                 chatAdapter.submitList(messages) {
                     if (messages.isNotEmpty()) {
@@ -120,23 +121,34 @@ class HomeFragment : Fragment() {
         }
 
         // 5. Observe Typing StateFlow
-        viewLifecycleOwner.lifecycleScope.launch {
+        lifecycleScope.launch {
             viewModel.isGenerating.collect { isGenerating ->
                 binding.layoutTyping.visibility = if (isGenerating) View.VISIBLE else View.GONE
                 binding.btnSend.isEnabled = !isGenerating
+                binding.btnTools.isEnabled = !isGenerating
             }
         }
 
-        // 6. Send Button Click Action
+        // 6. Tools / Attachment button opens the tools bottom sheet
+        binding.btnTools.setOnClickListener { openToolsBottomSheet() }
+
+        // 7. Send Button Click Action (with guest limit enforcement)
         binding.btnSend.setOnClickListener {
             val content = binding.etMessageInput.text?.toString().orEmpty()
             if (content.isNotBlank()) {
+                if (isGuest && guestMessageCount >= 10) {
+                    showGuestLimitDialog()
+                    return@setOnClickListener
+                }
                 viewModel.sendMessage(content)
+                if (isGuest) {
+                    lifecycleScope.launch { preferencesManager.incrementGuestMessageCount() }
+                }
                 binding.etMessageInput.text?.clear()
             }
         }
 
-        // 7. Premium Header Toolbar Actions
+        // 8. Premium Header Toolbar Actions
         binding.btnMenu.setOnClickListener {
             (activity as? MainActivity)?.openDrawer()
         }
@@ -148,82 +160,66 @@ class HomeFragment : Fragment() {
         binding.btnSettings.setOnClickListener {
             findNavController().navigate(R.id.settingsFragment)
         }
-
-        // 8. Quick Actions Click Listeners (Placeholders only)
-        setupQuickActions()
     }
 
-    private fun setupQuickActions() {
-        binding.cardQaChat.setOnClickListener {
-            Toast.makeText(requireContext(), "💬 Premium Chat Generator is active", Toast.LENGTH_SHORT).show()
-        }
-        binding.cardQaImage.setOnClickListener {
-            Toast.makeText(requireContext(), "🖼 Premium Image Generator Placeholder", Toast.LENGTH_SHORT).show()
-        }
-        binding.cardQaVideo.setOnClickListener {
-            Toast.makeText(requireContext(), "🎥 Premium Video Generator Placeholder", Toast.LENGTH_SHORT).show()
-        }
-        binding.cardQaMusic.setOnClickListener {
-            Toast.makeText(requireContext(), "🎵 Premium Music Generator Placeholder", Toast.LENGTH_SHORT).show()
-        }
-        binding.cardQaPdf.setOnClickListener {
-            Toast.makeText(requireContext(), "📄 Premium PDF AI Analyst Placeholder", Toast.LENGTH_SHORT).show()
-        }
-        binding.cardQaCode.setOnClickListener {
-            Toast.makeText(requireContext(), "💻 Premium Code Assistant Placeholder", Toast.LENGTH_SHORT).show()
-        }
-        binding.cardQaSearch.setOnClickListener {
-            Toast.makeText(requireContext(), "🌐 Premium Web Search Assistant Placeholder", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    private fun showModelSelectionBottomSheet() {
+    private fun openToolsBottomSheet() {
         val context = requireContext()
         val dialog = BottomSheetDialog(context)
-        val sheetBinding = LayoutModelBottomSheetBinding.inflate(layoutInflater)
-
-        val models = AiModel.values()
-        val currentSelected = viewModel.selectedModel.value
-
-        models.forEach { model ->
-            val itemBinding = ItemModelSheetBinding.inflate(layoutInflater, sheetBinding.layoutModelsList, false)
-            itemBinding.tvModelName.text = model.displayName
-            itemBinding.tvModelProvider.text = model.providerName
-
-            // Show Coming Soon badge for unavailable providers
-            if (model.comingSoon) {
-                itemBinding.tvComingSoon.visibility = View.VISIBLE
-                itemBinding.tvModelName.setTextColor(resources.getColor(R.color.outline, null))
-                itemBinding.tvModelProvider.text = "${model.providerName} · Coming Soon"
-            } else {
-                itemBinding.tvComingSoon.visibility = View.GONE
-            }
-
-            // Highlight current selected model
-            if (model == currentSelected && !model.comingSoon) {
-                itemBinding.ivModelCheck.visibility = View.VISIBLE
-                itemBinding.tvModelName.setTextColor(resources.getColor(R.color.electric_blue_glow, null))
-            } else {
-                itemBinding.ivModelCheck.visibility = View.GONE
-                if (!model.comingSoon) {
-                    itemBinding.tvModelName.setTextColor(resources.getColor(R.color.white, null))
-                }
-            }
-
-            itemBinding.btnModelItem.setOnClickListener {
-                if (model.comingSoon) {
-                    Toast.makeText(context, "⏳ ${model.displayName} is coming soon! Stay tuned.", Toast.LENGTH_SHORT).show()
-                } else {
-                    viewModel.selectModel(model)
-                    dialog.dismiss()
-                }
-            }
-
-            sheetBinding.layoutModelsList.addView(itemBinding.root)
+        val scroll = ScrollView(context)
+        val layout = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(32, 28, 32, 28)
         }
 
-        dialog.setContentView(sheetBinding.root)
+        val tools = listOf(
+            "🌐 Web Search (AI Mode)" to true,
+            "💬 Chat" to false,
+            "🖼 Image" to false,
+            "🎥 Video" to false,
+            "🎵 Music" to false,
+            "📄 PDF" to false,
+            "💻 Code" to false
+        )
+
+        tools.forEach { (label, isWeb) ->
+            val btn = MaterialButton(context).apply {
+                text = label
+                setTextColor(resources.getColor(R.color.white, null))
+                setBackgroundColor(resources.getColor(R.color.glass_surface, null))
+                cornerRadius = 24
+                setPadding(24, 20, 24, 20)
+                val lp = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { bottomMargin = 12 }
+                layoutParams = lp
+            }
+            btn.setOnClickListener {
+                if (isWeb) {
+                    viewModel.setWebSearchMode(true)
+                    Toast.makeText(context, "🌐 Web AI Mode enabled", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, "$label is part of PK AI Premium", Toast.LENGTH_SHORT).show()
+                }
+                dialog.dismiss()
+            }
+            layout.addView(btn)
+        }
+
+        scroll.addView(layout)
+        dialog.setContentView(scroll)
         dialog.show()
+    }
+
+    private fun showGuestLimitDialog() {
+        AlertDialog.Builder(requireContext())
+            .setTitle("Guest limit reached")
+            .setMessage("You've used all 10 free messages. Sign in with Google to continue using PK AI.")
+            .setPositiveButton("Sign in with Google") { _, _ ->
+                findNavController().navigate(R.id.loginFragment)
+            }
+            .setNegativeButton("Maybe later", null)
+            .show()
     }
 
     override fun onDestroyView() {

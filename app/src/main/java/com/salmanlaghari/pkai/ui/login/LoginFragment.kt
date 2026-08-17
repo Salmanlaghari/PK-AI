@@ -124,23 +124,20 @@ class LoginFragment : Fragment() {
                 binding.tvErrorBanner.visibility = View.VISIBLE
                 val userFriendlyMessage = when (e) {
                     is androidx.credentials.exceptions.GetCredentialCancellationException -> {
-                        "Sign-In cancelled by user."
+                        "Sign-In cancelled. You can continue as a Guest instead."
                     }
                     is androidx.credentials.exceptions.NoCredentialException -> {
-                        "Google Sign-In is not configured correctly on this device.\n\n" +
-                        "🔧 Action required:\n" +
-                        "1. Replace 'default_web_client_id' in strings.xml with your real Firebase Web Client ID.\n" +
-                        "2. Register your Android app package 'com.salmanlaghari.pkai' with your debug SHA-1/SHA-256 fingerprint in Firebase / Google Developer Console."
+                        "No Google account found on this device. You can continue as a Guest instead."
                     }
                     else -> {
-                        "Google Sign-In error: ${e.message}\n\nPlease check your Firebase client configuration, package name, and SHA-1 fingerprints."
+                        "Google Sign-In failed. Please try again or continue as a Guest."
                     }
                 }
                 binding.tvErrorBanner.text = userFriendlyMessage
             } catch (e: Exception) {
                 android.util.Log.e("PKAI_AUTH", "Unknown Google Sign-In exception occurred: ", e)
                 binding.tvErrorBanner.visibility = View.VISIBLE
-                binding.tvErrorBanner.text = "Google Sign-In failed: ${e.localizedMessage ?: "Unknown Error"}.\n\nPlease ensure you have replaced 'default_web_client_id' in strings.xml and configured Firebase."
+                binding.tvErrorBanner.text = "Google Sign-In failed. Please try again or continue as a Guest."
             }
         }
     }

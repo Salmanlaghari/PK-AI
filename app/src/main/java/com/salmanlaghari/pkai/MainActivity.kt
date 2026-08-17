@@ -87,23 +87,9 @@ class MainActivity : AppCompatActivity() {
         val headerView = binding.navView.getHeaderView(0)
         val tvUserName = headerView.findViewById<android.widget.TextView>(R.id.tv_drawer_user_name)
         val tvMarquee = headerView.findViewById<android.widget.TextView>(R.id.tv_drawer_marquee)
-        val cardGithub = headerView.findViewById<android.view.View>(R.id.card_drawer_github)
 
         // Make marquee scroll loop infinitely
         tvMarquee?.isSelected = true
-
-        // Click to open GitHub repository url
-        cardGithub?.setOnClickListener {
-            try {
-                val intent = android.content.Intent(
-                    android.content.Intent.ACTION_VIEW,
-                    android.net.Uri.parse("https://github.com/Salmanlaghari/PK-AI")
-                )
-                startActivity(intent)
-            } catch (e: Exception) {
-                Toast.makeText(this, "Unable to open GitHub link", Toast.LENGTH_SHORT).show()
-            }
-        }
 
         // Dynamic loaded user name from login session
         lifecycleScope.launch {
@@ -133,25 +119,25 @@ class MainActivity : AppCompatActivity() {
                     }
                     true
                 }
-                R.id.nav_chat_history, R.id.nav_mgr_shared -> {
+                R.id.nav_profile -> {
+                    if (navController.currentDestination?.id != R.id.profileFragment) {
+                        navController.navigate(R.id.profileFragment)
+                    }
+                    true
+                }
+                R.id.nav_premium -> {
+                    Toast.makeText(this, "PK AI Premium — full access unlocked.", Toast.LENGTH_SHORT).show()
+                    true
+                }
+                R.id.nav_chat_history -> {
                     if (navController.currentDestination?.id != R.id.historyFragment) {
                         navController.navigate(R.id.historyFragment)
                     }
                     true
                 }
-                R.id.nav_favorites -> {
-                    Toast.makeText(this, "Favorites Feature coming soon!", Toast.LENGTH_SHORT).show()
-                    true
-                }
                 R.id.nav_sys_settings -> {
                     if (navController.currentDestination?.id != R.id.settingsFragment) {
                         navController.navigate(R.id.settingsFragment)
-                    }
-                    true
-                }
-                R.id.nav_sys_about -> {
-                    if (navController.currentDestination?.id != R.id.aboutFragment) {
-                        navController.navigate(R.id.aboutFragment)
                     }
                     true
                 }

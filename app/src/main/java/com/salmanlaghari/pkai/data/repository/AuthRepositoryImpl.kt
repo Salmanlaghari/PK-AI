@@ -27,6 +27,7 @@ class AuthRepositoryImpl @Inject constructor(
             }
             // Parse token or standard user details
             val userId = "google_$idToken" // Secure representation for local session
+            preferencesManager.resetGuestMessageCount()
             preferencesManager.saveUserSession(
                 userId = userId,
                 displayName = displayName,

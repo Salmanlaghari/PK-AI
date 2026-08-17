@@ -262,7 +262,7 @@
         android:layout_marginBottom="24dp"
         android:fontFamily="@font/poppins"
         android:gravity="center"
-        android:text="● Connected to Gemini 1.5 Pro"
+        android:text="● Connected to PK AI"
         android:textColor="@color/electric_blue_glow"
         android:textSize="12sp"
         android:textStyle="bold"

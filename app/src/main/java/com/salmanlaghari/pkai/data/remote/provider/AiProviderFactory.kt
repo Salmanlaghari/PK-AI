@@ -69,6 +69,7 @@ class AiProviderFactory @Inject constructor(
             AiModel.LLAMA -> CerebrasAiProvider(model, cerebrasApiService)
             AiModel.MISTRAL -> TogetherAiProvider(model, togetherApiService)
             AiModel.PERPLEXITY -> SambaNovaAiProvider(model, sambaNovaApiService)
+            AiModel.WEB -> OpenRouterAiProvider(model, openRouterApiService)
         }
     }
 }

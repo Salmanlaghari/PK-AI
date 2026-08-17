@@ -155,7 +155,7 @@ class HomeViewModelTest {
         val secondMsg = currentMessages[1]
         assertEquals("Response from Gemini for prompt: Hello PK AI", secondMsg.content)
         assertEquals(false, secondMsg.isUser)
-        assertEquals("Gemini", secondMsg.modelUsed)
+        assertEquals("PK AI", secondMsg.modelUsed)
     }
 
     @Test

@@ -1,0 +1,22 @@
+
+==================================================
+          REAL AI PROVIDER VERIFICATION REPORT     
+==================================================
+✗ Google Gemini: Failed. Reason: HTTP 404 
+✓ OpenRouter (ChatGPT): Succeeded. Response:
+   "Hello! I'm an AI language model created by OpenAI. I'm here to help you with information, answer questions, and assist with a variety of topics. How can I help you today?"
+✓ OpenRouter (Claude): Succeeded. Response:
+   "Hello! I'm an artificial intelligence created by Anthropic. I'm an advanced language model, which means I can engage in natural conversations and assist with a wide variety of tasks like answering questions, offering advice and suggestions, and helping with writing and analysis. It's nice to meet you! Please let me know if you have any other questions."
+✓ OpenRouter (DeepSeek): Succeeded. Response:
+   "Hi! I’m an AI-powered assistant here to help answer your questions, provide explanations, or assist with anything you need. How can I assist you today? 😊"
+✓ OpenRouter (Qwen): Succeeded. Response:
+   "I am a large language model created by Alibaba Cloud. I am called Qwen."
+✗ OpenRouter (Grok): Failed. Reason: HTTP 400 
+✗ Groq: Failed. Reason: HTTP 400 
+✗ Together AI: Failed. Reason: HTTP 401 
+✗ Cohere: Failed. Reason: HTTP 404 
+✗ Cerebras: Failed. Reason: HTTP 404 
+✗ SambaNova: Failed. Reason: HTTP 410 
+✗ Grok (Groq fallback): Failed. Reason: HTTP 400 
+ℹ Anthropic Claude: Using OpenRouter fallback (no ANTHROPIC_API_KEY set).
+==================================================

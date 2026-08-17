@@ -16,6 +16,7 @@ class SettingsViewModel @Inject constructor(
     val isDarkMode = preferencesManager.isDarkMode.asLiveData()
     val appLanguage = preferencesManager.appLanguage.asLiveData()
     val isNotificationsEnabled = preferencesManager.isNotificationsEnabled.asLiveData()
+    val appTheme = preferencesManager.appTheme.asLiveData()
 
     fun setDarkMode(enabled: Boolean) {
         viewModelScope.launch {
@@ -26,6 +27,12 @@ class SettingsViewModel @Inject constructor(
     fun setAppLanguage(languageCode: String) {
         viewModelScope.launch {
             preferencesManager.setAppLanguage(languageCode)
+        }
+    }
+
+    fun setAppTheme(themeId: String) {
+        viewModelScope.launch {
+            preferencesManager.setAppTheme(themeId)
         }
     }
 

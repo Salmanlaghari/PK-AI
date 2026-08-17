@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -38,6 +39,7 @@ class PreferencesManager @Inject constructor(
     private val isDarkModeKey = booleanPreferencesKey("is_dark_mode")
     private val appLanguageKey = stringPreferencesKey("app_language")
     private val notificationsEnabledKey = booleanPreferencesKey("notifications_enabled")
+    private val appThemeKey = stringPreferencesKey("app_theme")
 
     val isOnboardingCompleted: Flow<Boolean> = context.dataStore.data.map { preferences ->
         preferences[onboardingCompletedKey] ?: false
@@ -122,5 +124,20 @@ class PreferencesManager @Inject constructor(
         context.dataStore.edit { preferences ->
             preferences[notificationsEnabledKey] = enabled
         }
+    }
+
+    // Theme (aurora | ocean | sunset)
+    val appTheme: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[appThemeKey] ?: "aurora" // Defaults to Aurora
+    }
+
+    suspend fun setAppTheme(themeId: String) {
+        context.dataStore.edit { preferences ->
+            preferences[appThemeKey] = themeId
+        }
+    }
+
+    suspend fun getAppTheme(): String {
+        return context.dataStore.data.first()[appThemeKey] ?: "aurora"
     }
 }

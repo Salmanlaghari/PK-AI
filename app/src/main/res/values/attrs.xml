@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Theme-aware aurora gradient colors used by AuroraBackgroundView -->
+    <declare-styleable name="PkAiThemeColors">
+        <attr name="pkAiAuroraBase" format="color" />
+        <attr name="pkAiAurora1" format="color" />
+        <attr name="pkAiAurora2" format="color" />
+        <attr name="pkAiAurora3" format="color" />
+    </declare-styleable>
+</resources>

@@ -67,7 +67,7 @@ android {
             }
 
             storePassword = chosenPassword
-            keyAlias = "pk_ai_upload"
+             keyAlias = "pk_ai_upload"
             keyPassword = chosenPassword
         }
     }
@@ -93,6 +93,13 @@ android {
         viewBinding = true
         buildConfig = true
     }
+
+    // Theme color overlays for runtime theme switching
+    androidResources {
+        // The default values/ folder is the Cyberpunk Cyan theme
+        // values-theme-purple/ overrides colors for Royal Purple
+        // values-theme-green/ overrides colors for Emerald Green
+    }
 }
 
 dependencies {
@@ -106,10 +113,9 @@ dependencies {
     implementation(libs.androidx.navigation.ui.ktx)
 
     // Lifecycle
-    implementation(libs.androidx.lifecycle.viewmodel.ktx)
+    implementation(libs.androidx.lifecycle.viewwodel.ktx)
     implementation(libs.androidx.lifecycle.livedata.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
-
     // Room
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
@@ -118,7 +124,7 @@ dependencies {
     // DataStore
     implementation(libs.androidx.datastore.preferences)
 
-    // Retrofit & OkHttp
+    // Retrofit & Okhttp
     implementation(libs.retrofit)
     implementation(libs.retrofit.converter.gson)
     implementation(libs.okhttp.logging.interceptor)

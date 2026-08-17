@@ -24,6 +24,16 @@ class AiProviderFactory @Inject constructor(
         return PublicFreeAiProvider(publicFreeApiService)
     }
 
+    /**
+     * Unified "PK AI" premium provider. Always routes through OpenRouter using the
+     * verified-working `openai/gpt-4o-mini` model so the chat returns a real response
+     * without exposing any provider/model name to the user. (Restores the #28 OpenRouter
+     * behaviour that the removed model selector previously provided.)
+     */
+    fun getPkAiProvider(): AiProvider {
+        return OpenRouterAiProvider(AiModel.CHATGPT, openRouterApiService)
+    }
+
     fun getProvider(model: AiModel): AiProvider {
         // Return Coming Soon placeholder for unavailable providers
         if (model.comingSoon) {

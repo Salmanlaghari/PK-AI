@@ -135,8 +135,8 @@ class OpenRouterAiProvider(
             AiModel.MISTRAL -> "mistralai/mistral-7b-instruct"
             AiModel.CHATGPT -> "openai/gpt-4o-mini"
             AiModel.CLAUDE -> "anthropic/claude-3-haiku"
-            AiModel.PERPLEXITY -> "perplexity/sonar-chat"
-            AiModel.WEB -> "perplexity/sonar-chat"
+            AiModel.PERPLEXITY -> "perplexity/sonar"
+            AiModel.WEB -> "perplexity/sonar"
             else -> "google/gemma-2-9b-it"
         }
         val request = ChatCompletionRequest(

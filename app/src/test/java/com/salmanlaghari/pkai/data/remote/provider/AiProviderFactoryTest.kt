@@ -9,6 +9,8 @@ import com.salmanlaghari.pkai.data.remote.TogetherApiService
 import com.salmanlaghari.pkai.data.remote.OpenAiApiService
 import com.salmanlaghari.pkai.data.remote.CerebrasApiService
 import com.salmanlaghari.pkai.data.remote.SambaNovaApiService
+import com.salmanlaghari.pkai.data.remote.AnthropicApiService
+import com.salmanlaghari.pkai.data.remote.XAiApiService
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -27,6 +29,8 @@ class AiProviderFactoryTest {
     private lateinit var mockCerebrasApiService: CerebrasApiService
     private lateinit var mockSambaNovaApiService: SambaNovaApiService
     private lateinit var mockCohereApiService: com.salmanlaghari.pkai.data.remote.CohereApiService
+    private lateinit var mockAnthropicApiService: AnthropicApiService
+    private lateinit var mockXAiApiService: XAiApiService
     private lateinit var mockPublicFreeApiService: com.salmanlaghari.pkai.data.remote.PublicFreeApiService
     private lateinit var factory: AiProviderFactory
 
@@ -41,6 +45,8 @@ class AiProviderFactoryTest {
         mockCerebrasApiService = mock(CerebrasApiService::class.java)
         mockSambaNovaApiService = mock(SambaNovaApiService::class.java)
         mockCohereApiService = mock(com.salmanlaghari.pkai.data.remote.CohereApiService::class.java)
+        mockAnthropicApiService = mock(AnthropicApiService::class.java)
+        mockXAiApiService = mock(XAiApiService::class.java)
         mockPublicFreeApiService = mock(com.salmanlaghari.pkai.data.remote.PublicFreeApiService::class.java)
 
         factory = AiProviderFactory(
@@ -53,6 +59,8 @@ class AiProviderFactoryTest {
             mockCerebrasApiService,
             mockSambaNovaApiService,
             mockCohereApiService,
+            mockAnthropicApiService,
+            mockXAiApiService,
             mockPublicFreeApiService
         )
     }

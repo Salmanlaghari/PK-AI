@@ -56,7 +56,7 @@ class RealProviderIntegrationTest {
             report.append("✗ Google Gemini: Skipped. Reason: GEMINI_API_KEY not configured.\n")
         }
 
-        // 2. OpenRouter (multiple models: ChatGPT, Claude, DeepSeek, Qwen, Grok)
+        // 2. OpenRouter (multiple models: ChatGPT, Claude, DeepSeek, Qwen, Mistral, Grok)
         val openrouterKey = System.getenv("OPENROUTER_API_KEY") ?: ""
         if (openrouterKey.isNotBlank()) {
             val openRouterModels = listOf(
@@ -64,7 +64,10 @@ class RealProviderIntegrationTest {
                 "anthropic/claude-3-haiku" to "Claude",
                 "deepseek/deepseek-chat" to "DeepSeek",
                 "qwen/qwen-2.5-72b-instruct" to "Qwen",
-                "x-ai/grok-2-latest" to "Grok"
+                "mistralai/mistral-7b-instruct" to "Mistral",
+                "x-ai/grok-2-latest" to "Grok (grok-2-latest)",
+                "x-ai/grok-beta" to "Grok (grok-beta)",
+                "x-ai/grok-3" to "Grok (grok-3)"
             )
             try {
                 val service = Retrofit.Builder()

@@ -36,17 +36,8 @@ class AiProviderFactory @Inject constructor(
         return when (model) {
             AiModel.GEMINI -> GeminiAiProvider(geminiApiService)
             AiModel.CHATGPT -> {
-                // Since user didn't supply an explicit OpenAI key, fallback to Cohere (or OpenRouter)
-                val openaiKey = com.salmanlaghari.pkai.BuildConfig.OPENAI_API_KEY
-                val cohereKey = com.salmanlaghari.pkai.BuildConfig.COHERE_API_KEY
-                if (openaiKey.isNotBlank()) {
-                    OpenAiAiProvider(model, openAiApiService)
-                } else if (cohereKey.isNotBlank()) {
-                    CohereAiProvider(cohereApiService)
-                } else {
-                    // Default to OpenRouter since it can also serve ChatGPT model IDs
-                    OpenRouterAiProvider(model, openRouterApiService)
-                }
+                // OpenRouter serves ChatGPT (gpt-4o-mini) reliably with the configured key.
+                OpenRouterAiProvider(model, openRouterApiService)
             }
             AiModel.CLAUDE -> {
                 // Prefer the native Anthropic API; fall back to OpenRouter if no key is configured.
@@ -57,17 +48,20 @@ class AiProviderFactory @Inject constructor(
                 }
             }
             AiModel.GROK -> {
-                // Prefer the native xAI (Grok) API; fall back to Groq if no key is configured.
+                // Prefer the native xAI (Grok) API; fall back to OpenRouter if no key is configured.
                 if (com.salmanlaghari.pkai.BuildConfig.XAI_API_KEY.isNotBlank()) {
                     XAiGrokAiProvider(xAiApiService)
                 } else {
-                    GroqAiProvider(model, groqApiService)
+                    OpenRouterAiProvider(model, openRouterApiService)
                 }
             }
             AiModel.DEEPSEEK -> OpenRouterAiProvider(model, openRouterApiService)
             AiModel.QWEN -> OpenRouterAiProvider(model, openRouterApiService)
             AiModel.LLAMA -> CerebrasAiProvider(model, cerebrasApiService)
-            AiModel.MISTRAL -> TogetherAiProvider(model, togetherApiService)
+            AiModel.MISTRAL -> {
+                // OpenRouter serves Mistral reliably with the configured key.
+                OpenRouterAiProvider(model, openRouterApiService)
+            }
             AiModel.PERPLEXITY -> SambaNovaAiProvider(model, sambaNovaApiService)
         }
     }

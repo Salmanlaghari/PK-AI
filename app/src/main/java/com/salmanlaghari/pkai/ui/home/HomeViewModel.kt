@@ -48,11 +48,18 @@ class HomeViewModel @Inject constructor(
     private val _selectedModel = MutableStateFlow(AiModel.GEMINI)
     val selectedModel: StateFlow<AiModel> = _selectedModel.asStateFlow()
 
+    private val _webSearchMode = MutableStateFlow(false)
+    val webSearchMode: StateFlow<Boolean> = _webSearchMode.asStateFlow()
+
     private val _isGenerating = MutableStateFlow(false)
     val isGenerating: StateFlow<Boolean> = _isGenerating.asStateFlow()
 
     fun setFreeMode(free: Boolean) {
         _isFreeMode.value = free
+    }
+
+    fun setWebSearchMode(enabled: Boolean) {
+        _webSearchMode.value = enabled
     }
 
     fun selectModel(model: AiModel) {
@@ -64,36 +71,37 @@ class HomeViewModel @Inject constructor(
 
         viewModelScope.launch {
             val isFree = _isFreeMode.value
+            val webSearch = _webSearchMode.value
             val model = _selectedModel.value
 
             // 1. Insert user message (tag with "Free Public AI" if in free mode)
             val userMessage = ChatMessage(
                 content = content.trim(),
                 isUser = true,
-                modelUsed = if (isFree) "Free Public AI" else null
+                modelUsed = if (isFree) "Free Public AI" else "PK AI"
             )
             chatMessageDao.insertMessage(userMessage)
 
             // 2. Trigger AI generating response
             _isGenerating.value = true
             try {
-                val provider = if (isFree) {
-                    aiProviderFactory.getPublicFreeProvider()
-                } else {
-                    aiProviderFactory.getProvider(model)
+                val provider = when {
+                    isFree -> aiProviderFactory.getPublicFreeProvider()
+                    webSearch -> aiProviderFactory.getProvider(AiModel.WEB)
+                    else -> aiProviderFactory.getProvider(model)
                 }
                 val responseText = provider.generateResponse(content)
                 val aiMessage = ChatMessage(
                     content = responseText,
                     isUser = false,
-                    modelUsed = if (isFree) "Free Public AI" else model.displayName
+                    modelUsed = if (isFree) "Free Public AI" else "PK AI"
                 )
                 chatMessageDao.insertMessage(aiMessage)
             } catch (e: Exception) {
                 val errorMessage = ChatMessage(
                     content = "Unable to fetch response. Please try again. (${e.localizedMessage ?: "Unknown Error"})",
                     isUser = false,
-                    modelUsed = if (isFree) "Free Public AI" else model.displayName
+                    modelUsed = if (isFree) "Free Public AI" else "PK AI"
                 )
                 chatMessageDao.insertMessage(errorMessage)
             } finally {

@@ -119,38 +119,9 @@
                 android:requiresFadingEdge="horizontal"
                 android:scrollHorizontally="true"
                 android:singleLine="true"
-                android:text="✨ Welcome to PK AI — Developed by Prince Laghari ❤️ ✨"
+                android:text="✨ Welcome to PK AI — Premium Assist ✨"
                 android:textColor="@color/on_surface_variant"
                 android:textSize="11sp" />
-
-            <!-- GitHub Button -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/card_drawer_github"
-                style="@style/PkAi.GlassCard"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:clickable="true"
-                android:focusable="true"
-                android:foreground="?attr/selectableItemBackground"
-                app:cardCornerRadius="12dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:gravity="center"
-                    android:orientation="horizontal"
-                    android:paddingVertical="10dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:fontFamily="@font/poppins"
-                        android:text="📂 View on GitHub"
-                        android:textColor="@color/electric_blue_glow"
-                        android:textSize="12sp"
-                        android:textStyle="bold" />
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
 
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>

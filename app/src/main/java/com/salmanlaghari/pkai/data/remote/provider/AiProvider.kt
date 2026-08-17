@@ -296,3 +296,80 @@ class SambaNovaAiProvider(
         }
     }
 }
+
+// --- Native Anthropic (Claude) Provider (Phase 4.4) ---
+
+class AnthropicAiProvider(
+    private val apiService: com.salmanlaghari.pkai.data.remote.AnthropicApiService
+) : AiProvider {
+    override suspend fun generateResponse(prompt: String): String {
+        val apiKey = com.salmanlaghari.pkai.BuildConfig.ANTHROPIC_API_KEY
+        if (apiKey.isBlank()) {
+            return "Anthropic API Key not configured. Please supply an API key."
+        }
+        val request = com.salmanlaghari.pkai.data.remote.AnthropicRequest(
+            messages = listOf(
+                com.salmanlaghari.pkai.data.remote.AnthropicMessage(
+                    role = "user",
+                    content = prompt
+                )
+            )
+        )
+        return try {
+            val response = apiService.createMessage(apiKey, request = request)
+            val text = response.content
+                ?.firstOrNull { it.type == "text" }
+                ?.text
+            if (text.isNullOrBlank()) {
+                "Error: Received empty response from Anthropic. Please retry."
+            } else {
+                text
+            }
+        } catch (e: retrofit2.HttpException) {
+            val code = e.code()
+            when {
+                code == 401 || code == 403 -> "Error: Anthropic Authentication failed (HTTP $code). Verify your API Key."
+                code == 429 -> "Error: Anthropic rate limit exceeded (HTTP 429). Please wait and try again."
+                else -> "Error: Anthropic error (HTTP $code). Server responded with: ${e.message()}"
+            }
+        } catch (e: java.io.IOException) {
+            "Error: Timeout/Network connection failed. Check your internet connection."
+        } catch (e: Exception) {
+            "Error: ${e.localizedMessage ?: "Unknown Anthropic connection issue."}"
+        }
+    }
+}
+
+// --- Native xAI (Grok) Provider (Phase 4.4) ---
+
+class XAiGrokAiProvider(
+    private val apiService: com.salmanlaghari.pkai.data.remote.XAiApiService
+) : AiProvider {
+    override suspend fun generateResponse(prompt: String): String {
+        val apiKey = com.salmanlaghari.pkai.BuildConfig.XAI_API_KEY
+        if (apiKey.isBlank()) {
+            return "xAI API Key not configured. Please supply an API key."
+        }
+        val modelId = "grok-2-latest"
+        val request = ChatCompletionRequest(
+            model = modelId,
+            messages = listOf(ChatMessageDto(role = "user", content = prompt))
+        )
+        return try {
+            val response = apiService.generateChatResponse("Bearer $apiKey", request)
+            response.choices.firstOrNull()?.message?.content
+                ?: "Error: Received empty response from xAI. Please retry."
+        } catch (e: retrofit2.HttpException) {
+            val code = e.code()
+            when {
+                code == 401 || code == 403 -> "Error: xAI Authentication failed (HTTP $code). Verify your API Key."
+                code == 429 -> "Error: xAI rate limit exceeded (HTTP 429). Please wait and try again."
+                else -> "Error: xAI error (HTTP $code). Server responded with: ${e.message()}"
+            }
+        } catch (e: java.io.IOException) {
+            "Error: Timeout/Network connection failed. Check your internet connection."
+        } catch (e: Exception) {
+            "Error: ${e.localizedMessage ?: "Unknown xAI connection issue."}"
+        }
+    }
+}

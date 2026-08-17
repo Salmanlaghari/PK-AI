@@ -58,6 +58,16 @@ class SettingsFragment : Fragment() {
             binding.tvCurrentLanguage.text = languageName
         }
 
+        // Observe Theme selection
+        viewModel.appTheme.observe(viewLifecycleOwner) { themeId ->
+            val themeName = when (themeId) {
+                "ocean" -> getString(R.string.theme_ocean)
+                "sunset" -> getString(R.string.theme_sunset)
+                else -> getString(R.string.theme_aurora)
+            }
+            binding.tvCurrentTheme.text = themeName
+        }
+
         // Observe Notifications
         viewModel.isNotificationsEnabled.observe(viewLifecycleOwner) { enabled ->
             binding.switchNotifications.isChecked = enabled
@@ -79,6 +89,11 @@ class SettingsFragment : Fragment() {
             showLanguageDialog()
         }
 
+        // Handle Theme selection dialog
+        binding.rowTheme.setOnClickListener {
+            showThemeDialog()
+        }
+
         // Handle Privacy Policy dialog
         binding.rowPrivacy.setOnClickListener {
             showPrivacyDialog()
@@ -93,6 +108,31 @@ class SettingsFragment : Fragment() {
         binding.rowAbout.setOnClickListener {
             findNavController().navigate(R.id.action_settingsFragment_to_aboutFragment)
         }
+    }
+
+    private fun showThemeDialog() {
+        val themes = arrayOf(
+            getString(R.string.theme_aurora),
+            getString(R.string.theme_ocean),
+            getString(R.string.theme_sunset)
+        )
+        val themeIds = arrayOf("aurora", "ocean", "sunset")
+
+        val currentThemeId = viewModel.appTheme.value ?: "aurora"
+        val selectedIndex = themeIds.indexOf(currentThemeId).coerceAtLeast(0)
+
+        MaterialAlertDialogBuilder(requireContext(), R.style.Theme_PkAi)
+            .setTitle(R.string.title_theme_picker)
+            .setSingleChoiceItems(themes, selectedIndex) { dialog, which ->
+                val selectedThemeId = themeIds[which]
+                viewModel.setAppTheme(selectedThemeId)
+
+                Toast.makeText(requireContext(), "Theme changed to ${themes[which]}", Toast.LENGTH_SHORT).show()
+                dialog.dismiss()
+                activity?.recreate()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun showLanguageDialog() {

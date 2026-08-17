@@ -56,7 +56,7 @@ class VoiceAssistantActivity : AppCompatActivity() {
     private var currentState = AssistantState.IDLE
 
     // Active components
-    private var selectedModel: AiModel = AiModel.GEMINI
+    private var selectedModel: AiModel = AiModel.DEEPSEEK
     private var ttsActiveJob: Job? = null
     private var simulatedSpeechVisualizerAnimator: ValueAnimator? = null
 
@@ -92,7 +92,7 @@ class VoiceAssistantActivity : AppCompatActivity() {
             try {
                 selectedModel = AiModel.valueOf(modelName)
             } catch (e: Exception) {
-                selectedModel = AiModel.GEMINI
+                selectedModel = AiModel.DEEPSEEK
             }
         }
 

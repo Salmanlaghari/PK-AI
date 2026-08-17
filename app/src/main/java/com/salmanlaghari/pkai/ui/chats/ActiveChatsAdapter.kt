@@ -38,10 +38,7 @@ class ActiveChatsAdapter(
 
         private fun getEmoji(model: AiModel): String {
             return when (model) {
-                AiModel.GEMINI -> "💎"
-                AiModel.CHATGPT -> "🤖"
                 AiModel.CLAUDE -> "🧠"
-                AiModel.GROK -> "⚡"
                 AiModel.DEEPSEEK -> "🌊"
                 AiModel.QWEN -> "🐪"
                 AiModel.LLAMA -> "🦙"

@@ -77,28 +77,10 @@ class HistoryViewModel @Inject constructor(
 
             val items = listOf(
                 ChatHistoryItem(
-                    title = "💎 Gemini: Marketing Copy",
-                    lastMessage = "Here is your customized marketing strategy copy for PK AI...",
-                    timestamp = now,
-                    isPinned = true
-                ),
-                ChatHistoryItem(
-                    title = "🤖 ChatGPT: Code Architecting",
-                    lastMessage = "I recommend using Hilt with standard Navigation Component...",
-                    timestamp = now - 500000,
-                    isPinned = false
-                ),
-                ChatHistoryItem(
                     title = "🧠 Claude: Legal Alignment",
                     lastMessage = "To establish a safe user agreement, we must state that...",
-                    timestamp = now - oneDay + 10000,
-                    isPinned = false
-                ),
-                ChatHistoryItem(
-                    title = "⚡ Grok: Global Market Factual Analysis",
-                    lastMessage = "Real-time signals reflect deep tech bullish trends across...",
-                    timestamp = now - oneDay * 3,
-                    isPinned = false
+                    timestamp = now,
+                    isPinned = true
                 ),
                 ChatHistoryItem(
                     title = "🌊 DeepSeek: Logic & Math Calculations",

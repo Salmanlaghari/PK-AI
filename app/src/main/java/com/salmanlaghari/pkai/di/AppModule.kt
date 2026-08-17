@@ -73,17 +73,6 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideGeminiApiService(okHttpClient: OkHttpClient): com.salmanlaghari.pkai.data.remote.GeminiApiService {
-        return Retrofit.Builder()
-            .baseUrl("https://generativelanguage.googleapis.com/")
-            .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-            .create(com.salmanlaghari.pkai.data.remote.GeminiApiService::class.java)
-    }
-
-    @Provides
-    @Singleton
     fun provideOpenRouterApiService(okHttpClient: OkHttpClient): com.salmanlaghari.pkai.data.remote.OpenRouterApiService {
         return Retrofit.Builder()
             .baseUrl("https://openrouter.ai/api/v1/")
@@ -95,17 +84,6 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideGroqApiService(okHttpClient: OkHttpClient): com.salmanlaghari.pkai.data.remote.GroqApiService {
-        return Retrofit.Builder()
-            .baseUrl("https://api.groq.com/openai/v1/")
-            .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-            .create(com.salmanlaghari.pkai.data.remote.GroqApiService::class.java)
-    }
-
-    @Provides
-    @Singleton
     fun provideTogetherApiService(okHttpClient: OkHttpClient): com.salmanlaghari.pkai.data.remote.TogetherApiService {
         return Retrofit.Builder()
             .baseUrl("https://api.together.xyz/v1/")
@@ -113,17 +91,6 @@ object AppModule {
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(com.salmanlaghari.pkai.data.remote.TogetherApiService::class.java)
-    }
-
-    @Provides
-    @Singleton
-    fun provideOpenAiApiService(okHttpClient: OkHttpClient): com.salmanlaghari.pkai.data.remote.OpenAiApiService {
-        return Retrofit.Builder()
-            .baseUrl("https://api.openai.com/v1/")
-            .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-            .create(com.salmanlaghari.pkai.data.remote.OpenAiApiService::class.java)
     }
 
     @Provides
@@ -150,17 +117,6 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideCohereApiService(okHttpClient: OkHttpClient): com.salmanlaghari.pkai.data.remote.CohereApiService {
-        return Retrofit.Builder()
-            .baseUrl("https://api.cohere.com/")
-            .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-            .create(com.salmanlaghari.pkai.data.remote.CohereApiService::class.java)
-    }
-
-    @Provides
-    @Singleton
     fun provideAnthropicApiService(okHttpClient: OkHttpClient): com.salmanlaghari.pkai.data.remote.AnthropicApiService {
         return Retrofit.Builder()
             .baseUrl("https://api.anthropic.com/")
@@ -168,17 +124,6 @@ object AppModule {
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(com.salmanlaghari.pkai.data.remote.AnthropicApiService::class.java)
-    }
-
-    @Provides
-    @Singleton
-    fun provideXAiApiService(okHttpClient: OkHttpClient): com.salmanlaghari.pkai.data.remote.XAiApiService {
-        return Retrofit.Builder()
-            .baseUrl("https://api.x.ai/v1/")
-            .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-            .create(com.salmanlaghari.pkai.data.remote.XAiApiService::class.java)
     }
 
     @Provides

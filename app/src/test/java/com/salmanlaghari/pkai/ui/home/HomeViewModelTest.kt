@@ -120,23 +120,23 @@ class HomeViewModelTest {
     @Test
     fun `initial states are correctly setup`() {
         testDispatcher.scheduler.advanceUntilIdle()
-        assertEquals(AiModel.GEMINI, viewModel.selectedModel.value)
+        assertEquals(AiModel.DEEPSEEK, viewModel.selectedModel.value)
         assertEquals(false, viewModel.isGenerating.value)
         assertTrue(viewModel.chatMessages.value.isEmpty())
     }
 
     @Test
     fun `selectModel updates selected model state`() {
-        viewModel.selectModel(AiModel.CHATGPT)
+        viewModel.selectModel(AiModel.DEEPSEEK)
         testDispatcher.scheduler.advanceUntilIdle()
-        assertEquals(AiModel.CHATGPT, viewModel.selectedModel.value)
+        assertEquals(AiModel.DEEPSEEK, viewModel.selectedModel.value)
     }
 
     @Test
     fun `sendMessage inserts prompt and generates AI response successfully`() {
         // Given
         val prompt = "Hello PK AI"
-        viewModel.selectModel(AiModel.GEMINI)
+        viewModel.selectModel(AiModel.DEEPSEEK)
         testDispatcher.scheduler.advanceUntilIdle()
 
         // When
@@ -154,7 +154,7 @@ class HomeViewModelTest {
 
         // Second is AI response
         val secondMsg = currentMessages[1]
-        assertEquals("Response from Gemini for prompt: Hello PK AI", secondMsg.content)
+        assertEquals("Response from DeepSeek for prompt: Hello PK AI", secondMsg.content)
         assertEquals(false, secondMsg.isUser)
         assertEquals("PK AI", secondMsg.modelUsed)
     }

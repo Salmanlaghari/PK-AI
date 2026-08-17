@@ -21,39 +21,12 @@ class AiHubViewModel @Inject constructor() : ViewModel() {
     private fun loadAiModels() {
         val list = listOf(
             AiHubModel(
-                id = "gemini",
-                name = "Gemini",
-                provider = "Google",
-                emojiLogo = "💎",
-                shortDesc = "Google's premium multimodal reasoning engine.",
-                longDesc = "Gemini is built from the ground up to be multimodal, meaning it can generalize and seamlessly understand, operate across, and combine different types of information including text, code, images, and audio.",
-                availability = "Free Access"
-            ),
-            AiHubModel(
-                id = "chatgpt",
-                name = "ChatGPT",
-                provider = "OpenAI",
-                emojiLogo = "🤖",
-                shortDesc = "OpenAI's benchmark text-generation wizard.",
-                longDesc = "ChatGPT is a state-of-the-art language model optimized for conversational interaction, writing generation, brainstorming, programming help, and multi-turn complex logical workflows.",
-                availability = "Free Access"
-            ),
-            AiHubModel(
                 id = "claude",
                 name = "Claude",
                 provider = "Anthropic",
                 emojiLogo = "🧠",
                 shortDesc = "Anthropic's safety-first deep context reasoner.",
                 longDesc = "Claude is optimized for extremely long contexts, safe system alignments, complex language translations, legal reviews, deeply structured reports, and meticulous factual correctness.",
-                availability = "Premium"
-            ),
-            AiHubModel(
-                id = "grok",
-                name = "Grok",
-                provider = "xAI",
-                emojiLogo = "⚡",
-                shortDesc = "Real-time contextual awareness with wit.",
-                longDesc = "Grok is designed by xAI to answer questions with a bit of wit and has a rebellious streak, accessing real-time search signals and live streams of current global factual context.",
                 availability = "Premium"
             ),
             AiHubModel(

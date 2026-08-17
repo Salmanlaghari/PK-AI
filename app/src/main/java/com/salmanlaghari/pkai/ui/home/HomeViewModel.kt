@@ -45,7 +45,7 @@ class HomeViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
-    private val _selectedModel = MutableStateFlow(AiModel.GEMINI)
+    private val _selectedModel = MutableStateFlow(AiModel.DEEPSEEK)
     val selectedModel: StateFlow<AiModel> = _selectedModel.asStateFlow()
 
     private val _webSearchMode = MutableStateFlow(false)

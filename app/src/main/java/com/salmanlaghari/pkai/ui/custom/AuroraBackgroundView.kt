@@ -8,6 +8,7 @@ import android.graphics.RadialGradient
 import android.graphics.Shader
 import android.util.AttributeSet
 import android.view.View
+import com.salmanlaghari.pkai.R
 import kotlin.math.sin
 
 class AuroraBackgroundView @JvmOverloads constructor(

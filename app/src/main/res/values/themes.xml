@@ -63,6 +63,128 @@
         <item name="shapeAppearanceSmallComponent">@style/PkAi.Shape.Small</item>
         <item name="shapeAppearanceMediumComponent">@style/PkAi.Shape.Medium</item>
         <item name="shapeAppearanceLargeComponent">@style/PkAi.Shape.Large</item>
+
+        <!-- Theme-aware aurora gradient colors (read by AuroraBackgroundView) -->
+        <item name="pkAiAuroraBase">#03050A</item>
+        <item name="pkAiAurora1">#00F5FF</item>
+        <item name="pkAiAurora2">#8B2EFF</item>
+        <item name="pkAiAurora3">#FF2FD0</item>
+    </style>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         PK AI — Ocean Theme (Blue/Teal)
+         ═══════════════════════════════════════════════════════════════ -->
+
+    <style name="Theme.PkAi.Ocean" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">#4FC3F7</item>
+        <item name="colorOnPrimary">#00263B</item>
+        <item name="colorPrimaryContainer">#00344E</item>
+        <item name="colorOnPrimaryContainer">#CDEBFF</item>
+
+        <item name="colorSecondary">#18FFFF</item>
+        <item name="colorOnSecondary">#003738</item>
+        <item name="colorSecondaryContainer">#00393A</item>
+        <item name="colorOnSecondaryContainer">#9FF6F8</item>
+
+        <item name="colorTertiary">#80D8FF</item>
+        <item name="colorOnTertiary">#00344A</item>
+        <item name="colorTertiaryContainer">#004B6A</item>
+        <item name="colorOnTertiaryContainer">#C6E8FF</item>
+
+        <item name="android:colorBackground">#04121C</item>
+        <item name="android:windowBackground">#04121C</item>
+        <item name="colorSurface">#071824</item>
+        <item name="colorOnSurface">#D6EAF5</item>
+        <item name="colorSurfaceVariant">#102A3A</item>
+        <item name="colorOnSurfaceVariant">#B4CADA</item>
+
+        <item name="colorSurfaceContainerLowest">#020A12</item>
+        <item name="colorSurfaceContainerLow">#0A1B28</item>
+        <item name="colorSurfaceContainer">#0E2231</item>
+        <item name="colorSurfaceContainerHigh">#152B3B</item>
+        <item name="colorSurfaceContainerHighest">#1E3346</item>
+
+        <item name="colorError">#FFB4AB</item>
+        <item name="colorOnError">#690005</item>
+        <item name="colorErrorContainer">#93000A</item>
+        <item name="colorOnErrorContainer">#FFDAD6</item>
+
+        <item name="colorOutline">#35506A</item>
+        <item name="colorOutlineVariant">#1E3245</item>
+
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+
+        <item name="android:fontFamily">@font/poppins</item>
+        <item name="fontFamily">@font/poppins</item>
+
+        <item name="shapeAppearanceSmallComponent">@style/PkAi.Shape.Small</item>
+        <item name="shapeAppearanceMediumComponent">@style/PkAi.Shape.Medium</item>
+        <item name="shapeAppearanceLargeComponent">@style/PkAi.Shape.Large</item>
+
+        <item name="pkAiAuroraBase">#02101A</item>
+        <item name="pkAiAurora1">#00E5FF</item>
+        <item name="pkAiAurora2">#2979FF</item>
+        <item name="pkAiAurora3">#00B8D4</item>
+    </style>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         PK AI — Sunset Theme (Orange/Pink)
+         ═══════════════════════════════════════════════════════════════ -->
+
+    <style name="Theme.PkAi.Sunset" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">#FF8A65</item>
+        <item name="colorOnPrimary">#3A1300</item>
+        <item name="colorPrimaryContainer">#5C2600</item>
+        <item name="colorOnPrimaryContainer">#FFDBCC</item>
+
+        <item name="colorSecondary">#FF7597</item>
+        <item name="colorOnSecondary">#3F0018</item>
+        <item name="colorSecondaryContainer">#540024</item>
+        <item name="colorOnSecondaryContainer">#FFD9E4</item>
+
+        <item name="colorTertiary">#FFD54F</item>
+        <item name="colorOnTertiary">#3A2C00</item>
+        <item name="colorTertiaryContainer">#544200</item>
+        <item name="colorOnTertiaryContainer">#FFF0BE</item>
+
+        <item name="android:colorBackground">#160A0A</item>
+        <item name="android:windowBackground">#160A0A</item>
+        <item name="colorSurface">#20100F</item>
+        <item name="colorOnSurface">#F2DDD9</item>
+        <item name="colorSurfaceVariant">#3A2422</item>
+        <item name="colorOnSurfaceVariant">#E0C3BE</item>
+
+        <item name="colorSurfaceContainerLowest">#0D0606</item>
+        <item name="colorSurfaceContainerLow">#160C0B</item>
+        <item name="colorSurfaceContainer">#1E1110</item>
+        <item name="colorSurfaceContainerHigh">#291816</item>
+        <item name="colorSurfaceContainerHighest">#34201D</item>
+
+        <item name="colorError">#FFB4AB</item>
+        <item name="colorOnError">#690005</item>
+        <item name="colorErrorContainer">#93000A</item>
+        <item name="colorOnErrorContainer">#FFDAD6</item>
+
+        <item name="colorOutline">#5B3B37</item>
+        <item name="colorOutlineVariant">#3D2825</item>
+
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+
+        <item name="android:fontFamily">@font/poppins</item>
+        <item name="fontFamily">@font/poppins</item>
+
+        <item name="shapeAppearanceSmallComponent">@style/PkAi.Shape.Small</item>
+        <item name="shapeAppearanceMediumComponent">@style/PkAi.Shape.Medium</item>
+        <item name="shapeAppearanceLargeComponent">@style/PkAi.Shape.Large</item>
+
+        <item name="pkAiAuroraBase">#1A0A0A</item>
+        <item name="pkAiAurora1">#FF6A00</item>
+        <item name="pkAiAurora2">#FF2D55</item>
+        <item name="pkAiAurora3">#FFB300</item>
     </style>
 
     <!-- ═══════════════════════════════════════════════════════════════

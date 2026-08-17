@@ -155,6 +155,46 @@
                         android:layout_marginVertical="4dp"
                         app:dividerColor="@color/outlineVariant" />
 
+                    <!-- Theme -->
+                    <androidx.constraintlayout.widget.ConstraintLayout
+                        android:id="@+id/row_theme"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:background="?android:attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/poppins"
+                            android:text="@string/lbl_theme"
+                            android:textColor="@color/white"
+                            android:textSize="15sp"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintStart_toStartOf="parent"
+                            app:layout_constraintTop_toTopOf="parent" />
+
+                        <TextView
+                            android:id="@+id/tv_current_theme"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/poppins"
+                            android:textColor="@color/electric_blue_glow"
+                            android:textSize="13sp"
+                            android:textStyle="bold"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintEnd_toEndOf="parent"
+                            app:layout_constraintTop_toTopOf="parent"
+                            tools:text="Aurora" />
+                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                    <com.google.android.material.divider.MaterialDivider
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginVertical="4dp"
+                        app:dividerColor="@color/outlineVariant" />
+
                     <!-- Notifications -->
                     <androidx.constraintlayout.widget.ConstraintLayout
                         android:id="@+id/row_notifications"

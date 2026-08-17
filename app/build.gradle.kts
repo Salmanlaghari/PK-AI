@@ -37,6 +37,8 @@ android {
         val cerebrasApiKey = System.getenv("CEREBRAS_API_KEY") ?: localProperties.getProperty("CEREBRAS_API_KEY") ?: ""
         val openaiApiKey = System.getenv("OPENAI_API_KEY") ?: localProperties.getProperty("OPENAI_API_KEY") ?: ""
         val sambanovaApiKey = System.getenv("SAMBANOVA_API_KEY") ?: localProperties.getProperty("SAMBANOVA_API_KEY") ?: ""
+        val anthropicApiKey = System.getenv("ANTHROPIC_API_KEY") ?: localProperties.getProperty("ANTHROPIC_API_KEY") ?: ""
+        val xAiApiKey = System.getenv("XAI_API_KEY") ?: localProperties.getProperty("XAI_API_KEY") ?: ""
 
         buildConfigField("String", "GEMINI_API_KEY", "\"$geminiApiKey\"")
         buildConfigField("String", "OPENROUTER_API_KEY", "\"$openrouterApiKey\"")
@@ -46,6 +48,8 @@ android {
         buildConfigField("String", "CEREBRAS_API_KEY", "\"$cerebrasApiKey\"")
         buildConfigField("String", "OPENAI_API_KEY", "\"$openaiApiKey\"")
         buildConfigField("String", "SAMBANOVA_API_KEY", "\"$sambanovaApiKey\"")
+        buildConfigField("String", "ANTHROPIC_API_KEY", "\"$anthropicApiKey\"")
+        buildConfigField("String", "XAI_API_KEY", "\"$xAiApiKey\"")
     }
 
     signingConfigs {

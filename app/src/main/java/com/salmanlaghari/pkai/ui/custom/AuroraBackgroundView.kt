@@ -16,8 +16,27 @@ class AuroraBackgroundView @JvmOverloads constructor(
     defStyleAttr: Int = 0
 ) : View(context, attrs, defStyleAttr) {
 
-    // Base background color #03050A
-    private val baseColor = Color.parseColor("#03050A")
+    // Base background color (theme-aware, fallback #03050A)
+    private var baseColor = Color.parseColor("#03050A")
+
+    // Aurora bubble colors (theme-aware)
+    private var auroraColor1 = Color.parseColor("#00F5FF")
+    private var auroraColor2 = Color.parseColor("#8B2EFF")
+    private var auroraColor3 = Color.parseColor("#FF2FD0")
+
+    init {
+        // Resolve theme-aware aurora colors (fall back to the brand defaults)
+        try {
+            val ta = context.obtainStyledAttributes(R.styleable.PkAiThemeColors)
+            baseColor = ta.getColor(R.styleable.PkAiThemeColors_pkAiAuroraBase, baseColor)
+            auroraColor1 = ta.getColor(R.styleable.PkAiThemeColors_pkAiAurora1, auroraColor1)
+            auroraColor2 = ta.getColor(R.styleable.PkAiThemeColors_pkAiAurora2, auroraColor2)
+            auroraColor3 = ta.getColor(R.styleable.PkAiThemeColors_pkAiAurora3, auroraColor3)
+            ta.recycle()
+        } catch (_: Exception) {
+            // Keep defaults if attributes are unavailable
+        }
+    }
 
     // Paint for drawing background and gradients
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -46,7 +65,7 @@ class AuroraBackgroundView @JvmOverloads constructor(
         var radius: Float,
         var speed: Float,
         var baseAlpha: Int, // Out of 255
-        var colorHex: String
+        var colorInt: Int
     )
 
     private val bubbles = ArrayList<FloatingBubble>()
@@ -83,7 +102,7 @@ class AuroraBackgroundView @JvmOverloads constructor(
                 targetX = w * 0.2f, targetY = h * 0.4f,
                 radius = w * 0.6f, speed = 0.0008f,
                 baseAlpha = 22, // ~0.08 in HTML
-                colorHex = "#00F5FF"
+                colorInt = auroraColor1
             )
         )
         // Purple Bubble
@@ -93,7 +112,7 @@ class AuroraBackgroundView @JvmOverloads constructor(
                 targetX = w * 0.8f, targetY = h * 0.2f,
                 radius = w * 0.5f, speed = 0.0006f,
                 baseAlpha = 20, // ~0.08 in HTML
-                colorHex = "#8B2EFF"
+                colorInt = auroraColor2
             )
         )
         // Pink Bubble
@@ -103,7 +122,7 @@ class AuroraBackgroundView @JvmOverloads constructor(
                 targetX = w * 0.6f, targetY = h * 0.8f,
                 radius = w * 0.45f, speed = 0.001f,
                 baseAlpha = 15, // ~0.06 in HTML
-                colorHex = "#FF2FD0"
+                colorInt = auroraColor3
             )
         )
     }
@@ -134,7 +153,7 @@ class AuroraBackgroundView @JvmOverloads constructor(
             val drawY = bubble.y + offsetY
 
             // Create gradient for current bubble position
-            val centerColor = adjustAlpha(Color.parseColor(bubble.colorHex), bubble.baseAlpha)
+            val centerColor = adjustAlpha(bubble.colorInt, bubble.baseAlpha)
             val colors = intArrayOf(centerColor, Color.TRANSPARENT)
             val stops = floatArrayOf(0f, 1f)
 

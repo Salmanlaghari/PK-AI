@@ -72,7 +72,6 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             val isFree = _isFreeMode.value
             val webSearch = _webSearchMode.value
-            val model = _selectedModel.value
 
             // 1. Insert user message (tag with "Free Public AI" if in free mode)
             val userMessage = ChatMessage(
@@ -88,7 +87,7 @@ class HomeViewModel @Inject constructor(
                 val provider = when {
                     isFree -> aiProviderFactory.getPublicFreeProvider()
                     webSearch -> aiProviderFactory.getProvider(AiModel.WEB)
-                    else -> aiProviderFactory.getProvider(model)
+                    else -> aiProviderFactory.getPkAiProvider()
                 }
                 val responseText = provider.generateResponse(content)
                 val aiMessage = ChatMessage(

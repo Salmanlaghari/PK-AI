@@ -88,6 +88,7 @@ class HomeViewModelTest {
         for (model in AiModel.values()) {
             whenever(mockAiProviderFactory.getProvider(model)).thenReturn(mockAiProvider)
         }
+        whenever(mockAiProviderFactory.getPkAiProvider()).thenReturn(mockAiProvider)
 
         val mockFreeAiProvider = object : AiProvider {
             override suspend fun generateResponse(prompt: String): String {

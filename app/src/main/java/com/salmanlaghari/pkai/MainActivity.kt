@@ -16,6 +16,7 @@ import com.salmanlaghari.pkai.data.repository.AuthRepository
 import com.salmanlaghari.pkai.databinding.ActivityMainBinding
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -32,6 +33,10 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Apply the user-selected theme before inflating the layout
+        val themeId = runBlocking { preferencesManager.getAppTheme() }
+        setTheme(themeResId(themeId))
 
         // Observe and apply theme/localization settings as early as possible
         lifecycleScope.launch {
@@ -167,5 +172,13 @@ class MainActivity : AppCompatActivity() {
 
     fun openDrawer() {
         binding.drawerLayout.openDrawer(GravityCompat.START)
+    }
+
+    private fun themeResId(themeId: String): Int {
+        return when (themeId) {
+            "ocean" -> R.style.Theme_PkAi_Ocean
+            "sunset" -> R.style.Theme_PkAi_Sunset
+            else -> R.style.Theme_PkAi
+        }
     }
 }

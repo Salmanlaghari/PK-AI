@@ -3,6 +3,7 @@ package com.salmanlaghari.pkai.data.local.datastore
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -92,6 +93,25 @@ class PreferencesManager @Inject constructor(
             preferences[displayNameKey] = ""
             preferences[emailKey] = ""
             preferences[profileImageUrlKey] = ""
+        }
+    }
+
+    // Guest message limit (10 AI messages for guest users)
+    private val guestMessageCountKey = intPreferencesKey("guest_message_count")
+
+    val guestMessageCount: Flow<Int> = context.dataStore.data.map { preferences ->
+        preferences[guestMessageCountKey] ?: 0
+    }
+
+    suspend fun incrementGuestMessageCount() {
+        context.dataStore.edit { preferences ->
+            preferences[guestMessageCountKey] = (preferences[guestMessageCountKey] ?: 0) + 1
+        }
+    }
+
+    suspend fun resetGuestMessageCount() {
+        context.dataStore.edit { preferences ->
+            preferences[guestMessageCountKey] = 0
         }
     }
 

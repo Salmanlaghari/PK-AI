@@ -1,6 +1,7 @@
 package com.salmanlaghari.pkai.ui.home
 
 import android.graphics.Bitmap
+import com.salmanlaghari.pkai.R
 import android.media.MediaMetadataRetriever
 import android.view.LayoutInflater
 import android.view.View
@@ -89,14 +90,7 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(ChatDiffCa
 
         private fun showFileChip(message: ChatMessage, type: String) {
             binding.layoutUserFileChip.visibility = View.VISIBLE
-            binding.ivUserFileIcon.setImageResource(
-                when (type) {
-                    "pdf" -> android.R.drawable.ic_menu_agenda
-                    "audio" -> android.R.drawable.ic_btn_speak_now
-                    "video" -> android.R.drawable.ic_media_play
-                    else -> android.R.drawable.ic_menu_attachment
-                }
-            )
+            binding.ivUserFileIcon.setImageResource(R.drawable.ic_tools)
             binding.tvUserFileName.text = "${message.attachmentName ?: "Attachment"}"
         }
 

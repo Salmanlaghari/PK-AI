@@ -308,7 +308,7 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="@id/input_message_layout"
             app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.App.Circular"
-            app:srcCompat="@android:drawable/ic_menu_attachment"
+            app:srcCompat="@drawable/ic_attach"
             app:tint="@color/html_cyan" />
 
         <!-- Input Field -->

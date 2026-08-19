@@ -39,6 +39,7 @@
     <!-- AI Providers (Settings → AI) -->
     <string name="section_ai">AI PROVIDER</string>
     <string name="lbl_ai_provider">Choose your AI engine</string>
+    <string name="lbl_free_model">FREE MODEL — NO API KEY NEEDED</string>
 
     <!-- Theme picker -->
     <string name="title_theme_picker">Select Theme</string>

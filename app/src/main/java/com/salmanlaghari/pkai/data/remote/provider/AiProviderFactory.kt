@@ -89,7 +89,12 @@ class AiProviderFactory @Inject constructor(
      */
     fun getFreeProvider(freeModelId: String): AiProvider =
         when (FreeAiModel.fromId(freeModelId).id) {
-            FreeAiModel.POLLINATIONS.id -> PollinationsAiProvider(pollinationsService)
+            FreeAiModel.FREE_LLM.id -> KeylessLlmAiProvider(
+                pollinations = pollinationsService,
+                // LLM7 accepts anonymous requests, so this reuses the OpenAI-compatible
+                // adapter without ever reading an API key.
+                llm7 = openAiService(LlmProvider.fromId("llm7"))
+            )
             else -> PublicFreeAiProvider(publicFreeApiService)
         }
 

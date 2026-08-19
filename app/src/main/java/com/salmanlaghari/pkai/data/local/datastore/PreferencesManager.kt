@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.salmanlaghari.pkai.data.model.LlmProvider
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -41,6 +42,19 @@ class PreferencesManager @Inject constructor(
     private val appLanguageKey = stringPreferencesKey("app_language")
     private val notificationsEnabledKey = booleanPreferencesKey("notifications_enabled")
     private val appThemeKey = stringPreferencesKey("app_theme")
+
+    // AI provider selection
+    private val selectedProviderIdKey = stringPreferencesKey("selected_provider_id")
+
+    val selectedProviderId: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[selectedProviderIdKey] ?: LlmProvider.DEFAULT.id
+    }
+
+    suspend fun setSelectedProviderId(providerId: String) {
+        context.dataStore.edit { preferences ->
+            preferences[selectedProviderIdKey] = providerId
+        }
+    }
 
     val isOnboardingCompleted: Flow<Boolean> = context.dataStore.data.map { preferences ->
         preferences[onboardingCompletedKey] ?: false

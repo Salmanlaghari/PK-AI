@@ -1,58 +1,91 @@
 package com.salmanlaghari.pkai.data.remote.provider
 
-import com.salmanlaghari.pkai.data.model.AiModel
-import com.salmanlaghari.pkai.data.remote.ApiService
+import com.salmanlaghari.pkai.BuildConfig
+import com.salmanlaghari.pkai.data.model.LlmProvider
+import com.salmanlaghari.pkai.data.model.ProviderFormat
+import com.salmanlaghari.pkai.data.remote.PublicFreeApiService
+import com.google.gson.Gson
+import okhttp3.OkHttpClient
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * Builds the correct [AiProvider] implementation for the user's selected provider.
+ *
+ * OpenAI-compatible providers (Groq, LLM7.io, Mistral, Cerebras, Hugging Face) all
+ * share [OpenAiCompatibleProvider]; Cloudflare and Cohere get their own adapters.
+ *
+ * API keys are read from BuildConfig (injected at build time from local.properties /
+ * CI secrets) — never hardcoded in source.
+ */
 @Singleton
 class AiProviderFactory @Inject constructor(
-    private val apiService: ApiService,
-    private val openRouterApiService: com.salmanlaghari.pkai.data.remote.OpenRouterApiService,
-    private val togetherApiService: com.salmanlaghari.pkai.data.remote.TogetherApiService,
-    private val cerebrasApiService: com.salmanlaghari.pkai.data.remote.CerebrasApiService,
-    private val sambaNovaApiService: com.salmanlaghari.pkai.data.remote.SambaNovaApiService,
-    private val anthropicApiService: com.salmanlaghari.pkai.data.remote.AnthropicApiService,
-    private val publicFreeApiService: com.salmanlaghari.pkai.data.remote.PublicFreeApiService
+    private val okHttpClient: OkHttpClient,
+    private val publicFreeApiService: PublicFreeApiService
 ) {
-    fun getPublicFreeProvider(): AiProvider {
-        return PublicFreeAiProvider(publicFreeApiService)
+    private val gson = Gson()
+
+    private fun retrofit(baseUrl: String): Retrofit = Retrofit.Builder()
+        .baseUrl(baseUrl)
+        .client(okHttpClient)
+        .addConverterFactory(GsonConverterFactory.create(gson))
+        .build()
+
+    private val openAiServiceCache = mutableMapOf<String, OpenAiCompatibleApiService>()
+
+    private fun openAiService(provider: LlmProvider): OpenAiCompatibleApiService =
+        openAiServiceCache.getOrPut(provider.id) {
+            retrofit(provider.baseUrl).create(OpenAiCompatibleApiService::class.java)
+        }
+
+    private val cloudflareService: CloudflareWorkersApiService by lazy {
+        retrofit(LlmProvider.fromId("cloudflare").baseUrl)
+            .create(CloudflareWorkersApiService::class.java)
     }
 
-    /**
-     * Unified "PK AI" premium provider. Always routes through OpenRouter using the
-     * verified-working `deepseek/deepseek-chat` model so the chat returns a real response
-     * without exposing any provider/model name to the user. (Preserves the #28/#29
-     * OpenRouter behaviour; Gemini/Grok/ChatGPT/OpenAI were removed.)
-     */
-    fun getPkAiProvider(): AiProvider {
-        return OpenRouterAiProvider(AiModel.DEEPSEEK, openRouterApiService)
+    private val cohereService: CohereApiService by lazy {
+        retrofit(LlmProvider.fromId("cohere").baseUrl)
+            .create(CohereApiService::class.java)
     }
 
-    fun getProvider(model: AiModel): AiProvider {
-        // Return Coming Soon placeholder for unavailable providers
-        if (model.comingSoon) {
-            return object : AiProvider {
-                override suspend fun generateResponse(prompt: String): String {
-                    return "⏳ **${model.displayName}** is coming soon!\n\nWe're working hard to integrate ${model.providerName}'s AI capabilities. Stay tuned for updates!"
-                }
-            }
+    /** Returns the provider implementation for the given provider id. */
+    fun getProvider(providerId: String): AiProvider {
+        val provider = LlmProvider.fromId(providerId)
+        return when (provider.format) {
+            ProviderFormat.OPENAI -> OpenAiCompatibleProvider(
+                provider,
+                keyFor(provider),
+                openAiService(provider)
+            )
+            ProviderFormat.CLOUDFLARE -> CloudflareWorkersAiProvider(
+                provider,
+                BuildConfig.CLOUDFLARE_API_TOKEN,
+                BuildConfig.CLOUDFLARE_ACCOUNT_ID,
+                cloudflareService
+            )
+            ProviderFormat.COHERE -> CohereAiProvider(
+                provider,
+                keyFor(provider),
+                cohereService
+            )
         }
-        return when (model) {
-            AiModel.CLAUDE -> {
-                // Prefer the native Anthropic API; fall back to OpenRouter if no key is configured.
-                if (com.salmanlaghari.pkai.BuildConfig.ANTHROPIC_API_KEY.isNotBlank()) {
-                    AnthropicAiProvider(anthropicApiService)
-                } else {
-                    OpenRouterAiProvider(model, openRouterApiService)
-                }
-            }
-            AiModel.DEEPSEEK -> OpenRouterAiProvider(model, openRouterApiService)
-            AiModel.QWEN -> OpenRouterAiProvider(model, openRouterApiService)
-            AiModel.LLAMA -> CerebrasAiProvider(model, cerebrasApiService)
-            AiModel.MISTRAL -> TogetherAiProvider(model, togetherApiService)
-            AiModel.PERPLEXITY -> SambaNovaAiProvider(model, sambaNovaApiService)
-            AiModel.WEB -> OpenRouterAiProvider(model, openRouterApiService)
-        }
+    }
+
+    /** Returns the key-less public provider used by the Free AI tab. */
+    fun getPublicFreeProvider(): AiProvider = PublicFreeAiProvider(publicFreeApiService)
+
+    /** Returns the user's default provider (Groq). */
+    fun getDefaultProvider(): AiProvider = getProvider(LlmProvider.DEFAULT.id)
+
+    private fun keyFor(provider: LlmProvider): String = when (provider.apiKeyBuildConfig) {
+        "GROQ_API_KEY" -> BuildConfig.GROQ_API_KEY
+        "LLM7_API_KEY" -> BuildConfig.LLM7_API_KEY
+        "MISTRAL_API_KEY" -> BuildConfig.MISTRAL_API_KEY
+        "CEREBRAS_API_KEY" -> BuildConfig.CEREBRAS_API_KEY
+        "HUGGINGFACE_API_KEY" -> BuildConfig.HUGGINGFACE_API_KEY
+        "COHERE_API_KEY" -> BuildConfig.COHERE_API_KEY
+        else -> ""
     }
 }

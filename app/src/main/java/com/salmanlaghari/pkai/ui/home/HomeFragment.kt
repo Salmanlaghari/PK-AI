@@ -1,5 +1,6 @@
 package com.salmanlaghari.pkai.ui.home
 
+import android.content.res.ColorStateList
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -8,12 +9,14 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import androidx.core.view.children
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.chip.Chip
 import com.salmanlaghari.pkai.MainActivity
 import com.salmanlaghari.pkai.R
 import com.salmanlaghari.pkai.data.local.datastore.PreferencesManager
@@ -79,13 +82,16 @@ class HomeFragment : Fragment() {
         // 3. Observe Free Mode StateFlow to Update UI
         lifecycleScope.launch {
             viewModel.isFreeMode.collect { isFree ->
+                // The key-less model selector only makes sense on the Free AI tab.
+                binding.layoutFreeModelSelector.visibility = if (isFree) View.VISIBLE else View.GONE
                 if (isFree) {
                     binding.btnTabPremium.setTextColor(resources.getColor(R.color.outline, null))
                     binding.btnTabPremium.setBackgroundColor(resources.getColor(android.R.color.transparent, null))
                     binding.btnTabFree.setTextColor(resources.getColor(R.color.electric_blue_glow, null))
                     binding.btnTabFree.setBackgroundColor(resources.getColor(R.color.glass_background, null))
-                    binding.btnModelSelector.text = "🌍 Free Public AI"
-                    binding.etMessageInput.setHint("Ask Free Public AI anything...")
+                    val freeModel = viewModel.selectedFreeModel.value
+                    binding.btnModelSelector.text = "${freeModel.logoEmoji} ${freeModel.displayName}"
+                    binding.etMessageInput.setHint("Ask ${freeModel.displayName} anything...")
                 } else {
                     binding.btnTabPremium.setTextColor(resources.getColor(R.color.white, null))
                     binding.btnTabPremium.setBackgroundColor(resources.getColor(R.color.glass_background, null))
@@ -108,6 +114,9 @@ class HomeFragment : Fragment() {
         // 3c. Tab Mode Toggle Click Listeners
         binding.btnTabPremium.setOnClickListener { viewModel.setFreeMode(false) }
         binding.btnTabFree.setOnClickListener { viewModel.setFreeMode(true) }
+
+        // 3d. Free AI tab model selector — one chip per key-less model
+        setupFreeModelChips()
 
         // 4. Observe Messages StateFlow
         lifecycleScope.launch {
@@ -220,6 +229,55 @@ class HomeFragment : Fragment() {
             }
             .setNegativeButton("Maybe later", null)
             .show()
+    }
+
+    /**
+     * Builds one selectable chip per key-less [FreeAiModel] and keeps it in sync with the
+     * persisted selection, so the Free AI tab offers a real choice of free models.
+     */
+    private fun setupFreeModelChips() {
+        val chipGroup = binding.chipGroupFreeModel
+        chipGroup.removeAllViews()
+
+        viewModel.freeModels.forEach { model ->
+            val chip = Chip(requireContext()).apply {
+                id = View.generateViewId()
+                text = "${model.logoEmoji} ${model.displayName}"
+                tag = model.id
+                isCheckable = true
+                isCheckedIconVisible = true
+                setTextColor(resources.getColor(R.color.white, null))
+                chipBackgroundColor = ColorStateList.valueOf(
+                    resources.getColor(R.color.glass_background, null)
+                )
+                chipStrokeWidth = 1f
+                chipStrokeColor = ColorStateList.valueOf(
+                    resources.getColor(R.color.glass_stroke, null)
+                )
+                setOnClickListener { viewModel.selectFreeModel(model.id) }
+            }
+            chipGroup.addView(chip)
+        }
+
+        // Reflect the persisted selection (and update the header label + input hint).
+        lifecycleScope.launch {
+            viewModel.selectedFreeModel.collect { selected ->
+                chipGroup.children.filterIsInstance<Chip>().forEach { chip ->
+                    val isSelected = chip.tag == selected.id
+                    if (chip.isChecked != isSelected) chip.isChecked = isSelected
+                    chip.chipStrokeColor = ColorStateList.valueOf(
+                        resources.getColor(
+                            if (isSelected) R.color.electric_blue_glow else R.color.glass_stroke,
+                            null
+                        )
+                    )
+                }
+                if (viewModel.isFreeMode.value) {
+                    binding.btnModelSelector.text = "${selected.logoEmoji} ${selected.displayName}"
+                    binding.etMessageInput.setHint("Ask ${selected.displayName} anything...")
+                }
+            }
+        }
     }
 
     override fun onDestroyView() {

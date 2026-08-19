@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.salmanlaghari.pkai.data.model.FreeAiModel
 import com.salmanlaghari.pkai.data.model.LlmProvider
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -53,6 +54,19 @@ class PreferencesManager @Inject constructor(
     suspend fun setSelectedProviderId(providerId: String) {
         context.dataStore.edit { preferences ->
             preferences[selectedProviderIdKey] = providerId
+        }
+    }
+
+    // Free AI tab (key-less) model selection
+    private val selectedFreeModelIdKey = stringPreferencesKey("selected_free_model_id")
+
+    val selectedFreeModelId: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[selectedFreeModelIdKey] ?: FreeAiModel.DEFAULT.id
+    }
+
+    suspend fun setSelectedFreeModelId(freeModelId: String) {
+        context.dataStore.edit { preferences ->
+            preferences[selectedFreeModelIdKey] = freeModelId
         }
     }
 

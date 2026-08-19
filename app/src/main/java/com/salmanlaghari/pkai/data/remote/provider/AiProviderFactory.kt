@@ -1,6 +1,7 @@
 package com.salmanlaghari.pkai.data.remote.provider
 
 import com.salmanlaghari.pkai.BuildConfig
+import com.salmanlaghari.pkai.data.model.FreeAiModel
 import com.salmanlaghari.pkai.data.model.LlmProvider
 import com.salmanlaghari.pkai.data.model.ProviderFormat
 import com.salmanlaghari.pkai.data.remote.PublicFreeApiService
@@ -75,6 +76,27 @@ class AiProviderFactory @Inject constructor(
 
     /** Returns the key-less public provider used by the Free AI tab. */
     fun getPublicFreeProvider(): AiProvider = PublicFreeAiProvider(publicFreeApiService)
+
+    private val pollinationsService: PollinationsApiService by lazy {
+        retrofit("https://text.pollinations.ai/").create(PollinationsApiService::class.java)
+    }
+
+    /**
+     * Returns the key-less provider backing the given [FreeAiModel] id.
+     *
+     * Used by the Home screen's "Free AI" tab, where the user can switch between the free
+     * models without ever supplying an API key.
+     */
+    fun getFreeProvider(freeModelId: String): AiProvider =
+        when (FreeAiModel.fromId(freeModelId).id) {
+            FreeAiModel.FREE_LLM.id -> KeylessLlmAiProvider(
+                pollinations = pollinationsService,
+                // LLM7 accepts anonymous requests, so this reuses the OpenAI-compatible
+                // adapter without ever reading an API key.
+                llm7 = openAiService(LlmProvider.fromId("llm7"))
+            )
+            else -> PublicFreeAiProvider(publicFreeApiService)
+        }
 
     /** Returns the user's default provider (Groq). */
     fun getDefaultProvider(): AiProvider = getProvider(LlmProvider.DEFAULT.id)

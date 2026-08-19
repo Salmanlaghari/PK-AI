@@ -69,7 +69,10 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(ChatDiffCa
                         binding.root.context,
                         uri,
                         binding.ivUserAttachment
-                    ) { binding.layoutUserFileChip.visibility = View.VISIBLE }
+                    ) {
+                        binding.ivUserAttachment.visibility = View.GONE
+                        binding.layoutUserFileChip.visibility = View.VISIBLE
+                    }
                 } else if (type == "video") {
                     val thumb = videoThumbnail(uri)
                     if (thumb != null) {
@@ -131,15 +134,15 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(ChatDiffCa
             if (parsed.images.isNotEmpty()) {
                 binding.layoutAiImages.visibility = View.VISIBLE
                 var anyError = false
+                val density = binding.root.resources.displayMetrics.density
                 parsed.images.forEach { image ->
                     val imageView = ImageView(binding.root.context).apply {
                         layoutParams = LinearLayout.LayoutParams(
                             LinearLayout.LayoutParams.MATCH_PARENT,
-                            (160 * resources.displayMetrics.density).toInt()
-                        ).apply { bottomMargin = (8 * resources.displayMetrics.density).toInt() }
+                            (160 * density).toInt()
+                        ).apply { bottomMargin = (8 * density).toInt() }
                         scaleType = ImageView.ScaleType.CENTER_CROP
                         adjustViewBounds = true
-                        background = context.getDrawable(android.R.color.transparent)
                     }
                     binding.layoutAiImages.addView(imageView)
                     ImageLoadHelper.load(

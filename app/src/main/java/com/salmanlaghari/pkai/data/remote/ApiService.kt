@@ -6,7 +6,8 @@ import retrofit2.http.POST
 
 data class ChatMessageDto(
     val role: String,
-    val content: String
+    // Either a plain [String] (text) or a [List] of multimodal parts (vision input).
+    val content: Any?
 )
 
 data class ChatCompletionRequest(

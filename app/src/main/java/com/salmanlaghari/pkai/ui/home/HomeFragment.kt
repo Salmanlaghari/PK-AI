@@ -1,13 +1,16 @@
 package com.salmanlaghari.pkai.ui.home
 
 import android.content.res.ColorStateList
+import android.net.Uri
 import android.os.Bundle
+import android.util.Base64
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.core.view.children
 import androidx.fragment.app.Fragment
@@ -39,6 +42,22 @@ class HomeFragment : Fragment() {
     private var isGuest = false
     private var guestMessageCount = 0
 
+    /** A file the user picked but hasn't sent yet. */
+    private data class PendingAttachment(
+        val type: String,
+        val uri: String,
+        val name: String,
+        val mime: String
+    )
+
+    private var pendingAttachment: PendingAttachment? = null
+
+    private val pickMedia =
+        registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+            uri ?: return@registerForActivityResult
+            handlePicked(uri)
+        }
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
@@ -50,11 +69,9 @@ class HomeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // 0. Setup Chat Adapter
         val chatAdapter = ChatAdapter()
         binding.rvChatMessages.adapter = chatAdapter
 
-        // 1. Observe guest session + message count for the 10-message hard limit
         lifecycleScope.launch {
             preferencesManager.userSession.collect { session ->
                 isGuest = session.isLoggedIn && session.isGuest
@@ -66,8 +83,8 @@ class HomeFragment : Fragment() {
             }
         }
 
-        // 2. Setup PK AI mode label (no provider names are ever shown)
-        binding.btnModelSelector.setOnClickListener {
+        // Active provider chip — persistent indicator (Issue 1) and web-search toggle.
+        binding.chipActiveProvider.setOnClickListener {
             if (viewModel.isFreeMode.value) {
                 Toast.makeText(
                     requireContext(),
@@ -79,46 +96,24 @@ class HomeFragment : Fragment() {
             }
         }
 
-        // 3. Observe Free Mode StateFlow to Update UI
         lifecycleScope.launch {
-            viewModel.isFreeMode.collect { isFree ->
-                // The key-less model selector only makes sense on the Free AI tab.
-                binding.layoutFreeModelSelector.visibility = if (isFree) View.VISIBLE else View.GONE
-                if (isFree) {
-                    binding.btnTabPremium.setTextColor(resources.getColor(R.color.outline, null))
-                    binding.btnTabPremium.setBackgroundColor(resources.getColor(android.R.color.transparent, null))
-                    binding.btnTabFree.setTextColor(resources.getColor(R.color.electric_blue_glow, null))
-                    binding.btnTabFree.setBackgroundColor(resources.getColor(R.color.glass_background, null))
-                    val freeModel = viewModel.selectedFreeModel.value
-                    binding.btnModelSelector.text = "${freeModel.logoEmoji} ${freeModel.displayName}"
-                    binding.etMessageInput.setHint("Ask ${freeModel.displayName} anything...")
-                } else {
-                    binding.btnTabPremium.setTextColor(resources.getColor(R.color.white, null))
-                    binding.btnTabPremium.setBackgroundColor(resources.getColor(R.color.glass_background, null))
-                    binding.btnTabFree.setTextColor(resources.getColor(R.color.outline, null))
-                    binding.btnTabFree.setBackgroundColor(resources.getColor(android.R.color.transparent, null))
-                    binding.etMessageInput.setHint("Ask PK AI anything...")
-                }
-            }
+            viewModel.isFreeMode.collect { updateProviderChip() }
+        }
+        lifecycleScope.launch {
+            viewModel.selectedProvider.collect { updateProviderChip() }
+        }
+        lifecycleScope.launch {
+            viewModel.selectedFreeModel.collect { updateProviderChip() }
+        }
+        lifecycleScope.launch {
+            viewModel.webSearchMode.collect { updateProviderChip() }
         }
 
-        // 3b. Observe Web Search Mode to update the PK AI label
-        lifecycleScope.launch {
-            viewModel.webSearchMode.collect { web ->
-                if (!viewModel.isFreeMode.value) {
-                    binding.btnModelSelector.text = if (web) "🌐 Web AI" else "PK AI"
-                }
-            }
-        }
-
-        // 3c. Tab Mode Toggle Click Listeners
         binding.btnTabPremium.setOnClickListener { viewModel.setFreeMode(false) }
         binding.btnTabFree.setOnClickListener { viewModel.setFreeMode(true) }
 
-        // 3d. Free AI tab model selector — one chip per key-less model
         setupFreeModelChips()
 
-        // 4. Observe Messages StateFlow
         lifecycleScope.launch {
             viewModel.chatMessages.collect { messages ->
                 chatAdapter.submitList(messages) {
@@ -129,49 +124,80 @@ class HomeFragment : Fragment() {
             }
         }
 
-        // 5. Observe Typing StateFlow
         lifecycleScope.launch {
             viewModel.isGenerating.collect { isGenerating ->
                 binding.layoutTyping.visibility = if (isGenerating) View.VISIBLE else View.GONE
                 binding.btnSend.isEnabled = !isGenerating
-                binding.btnTools.isEnabled = !isGenerating
+                binding.btnAttach.isEnabled = !isGenerating
             }
         }
 
-        // 6. Tools / Attachment button opens the tools bottom sheet
-        binding.btnTools.setOnClickListener { openToolsBottomSheet() }
+        // Attachment button opens the attach / generate menu (Issue 4).
+        binding.btnAttach.setOnClickListener { openAttachMenu() }
 
-        // 7. Send Button Click Action (with guest limit enforcement)
-        binding.btnSend.setOnClickListener {
-            val content = binding.etMessageInput.text?.toString().orEmpty()
-            if (content.isNotBlank()) {
-                if (isGuest && guestMessageCount >= 10) {
-                    showGuestLimitDialog()
-                    return@setOnClickListener
-                }
-                viewModel.sendMessage(content)
-                if (isGuest) {
-                    lifecycleScope.launch { preferencesManager.incrementGuestMessageCount() }
-                }
-                binding.etMessageInput.text?.clear()
-            }
-        }
+        binding.btnSend.setOnClickListener { onSendClicked() }
 
-        // 8. Premium Header Toolbar Actions
         binding.btnMenu.setOnClickListener {
             (activity as? MainActivity)?.openDrawer()
         }
-
         binding.btnNotifications.setOnClickListener {
             Toast.makeText(requireContext(), "🔔 Notifications clicked!", Toast.LENGTH_SHORT).show()
         }
-
         binding.btnSettings.setOnClickListener {
             findNavController().navigate(R.id.settingsFragment)
         }
     }
 
-    private fun openToolsBottomSheet() {
+    /** Reflects the active provider/model in the persistent chip + input hint. */
+    private fun updateProviderChip() {
+        val isFree = viewModel.isFreeMode.value
+        if (isFree) {
+            val fm = viewModel.selectedFreeModel.value
+            binding.chipActiveProvider.text = "${fm.logoEmoji} ${fm.displayName}"
+            binding.etMessageInput.setHint("Ask ${fm.displayName}…")
+        } else {
+            val p = viewModel.selectedProvider.value
+            val label = if (viewModel.webSearchMode.value) "🌐 ${p.displayName}" else "${p.logoEmoji} ${p.displayName}"
+            binding.chipActiveProvider.text = label
+            binding.etMessageInput.setHint("Ask ${p.displayName}…")
+        }
+    }
+
+    private fun onSendClicked() {
+        val content = binding.etMessageInput.text?.toString().orEmpty()
+        if (content.isBlank() && pendingAttachment == null) return
+
+        if (isGuest && guestMessageCount >= 10) {
+            showGuestLimitDialog()
+            return
+        }
+
+        val att = pendingAttachment
+        // For an image on a vision-capable provider, read the bytes and forward them as a
+        // base64 data URI so the model can actually see the picture.
+        val imageDataUri = if (att?.type == "image") uriToDataUri(att.uri) else null
+
+        viewModel.sendMessage(
+            content = content,
+            attachmentType = att?.type,
+            attachmentUri = att?.uri,
+            attachmentName = att?.name,
+            imageDataUri = imageDataUri
+        )
+
+        if (isGuest) {
+            lifecycleScope.launch { preferencesManager.incrementGuestMessageCount() }
+        }
+
+        binding.etMessageInput.text?.clear()
+        clearAttachment()
+    }
+
+    /* ─────────────────────────────────────────────────────────────────────────
+     * File attachment flow
+     * ───────────────────────────────────────────────────────────────────────── */
+
+    private fun openAttachMenu() {
         val context = requireContext()
         val dialog = BottomSheetDialog(context)
         val scroll = ScrollView(context)
@@ -180,61 +206,130 @@ class HomeFragment : Fragment() {
             setPadding(32, 28, 32, 28)
         }
 
-        val tools = listOf(
-            "🌐 Web Search (AI Mode)" to true,
-            "💬 Chat" to false,
-            "🖼 Image" to false,
-            "🎥 Video" to false,
-            "🎵 Music" to false,
-            "📄 PDF" to false,
-            "💻 Code" to false
+        val isFree = viewModel.isFreeMode.value
+        val options = listOf(
+            "📷 Photo" to "image/*",
+            "🎥 Video" to "video/*",
+            "📄 PDF" to "application/pdf",
+            "🎵 Audio" to "audio/*"
         )
 
-        tools.forEach { (label, isWeb) ->
-            val btn = MaterialButton(context).apply {
-                text = label
-                setTextColor(resources.getColor(R.color.white, null))
-                setBackgroundColor(resources.getColor(R.color.glass_surface, null))
-                cornerRadius = 24
-                setPadding(24, 20, 24, 20)
-                val lp = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply { bottomMargin = 12 }
-                layoutParams = lp
-            }
-            btn.setOnClickListener {
-                if (isWeb) {
-                    viewModel.setWebSearchMode(true)
-                    Toast.makeText(context, "🌐 Web AI Mode enabled", Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(context, "$label is part of PK AI Premium", Toast.LENGTH_SHORT).show()
-                }
+        options.forEach { (label, mime) ->
+            layout.addView(menuButton(label) {
                 dialog.dismiss()
-            }
-            layout.addView(btn)
+                pickMedia.launch(mime)
+            })
         }
+
+        // Image generation only works from the key-less Free AI tab (Pollinations).
+        layout.addView(menuButton("🖼 Generate Image (Free AI)") {
+            dialog.dismiss()
+            if (isFree) {
+                val prompt = binding.etMessageInput.text?.toString().orEmpty()
+                if (prompt.isBlank()) {
+                    Toast.makeText(context, "Type a description first, then tap Generate Image.", Toast.LENGTH_SHORT).show()
+                    return@menuButton
+                }
+                viewModel.generateImage(prompt)
+                binding.etMessageInput.text?.clear()
+            } else {
+                Toast.makeText(
+                    context,
+                    "Image generation lives in the Free AI tab. The selected chat provider is text-only.",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        })
 
         scroll.addView(layout)
         dialog.setContentView(scroll)
         dialog.show()
     }
 
-    private fun showGuestLimitDialog() {
-        AlertDialog.Builder(requireContext())
-            .setTitle("Guest limit reached")
-            .setMessage("You've used all 10 free messages. Sign in with Google to continue using PK AI.")
-            .setPositiveButton("Sign in with Google") { _, _ ->
-                findNavController().navigate(R.id.loginFragment)
-            }
-            .setNegativeButton("Maybe later", null)
-            .show()
+    private fun menuButton(label: String, onClick: () -> Unit): MaterialButton {
+        return MaterialButton(requireContext()).apply {
+            text = label
+            setTextColor(resources.getColor(R.color.white, null))
+            setBackgroundColor(resources.getColor(R.color.glass_surface, null))
+            cornerRadius = 24
+            setPadding(24, 20, 24, 20)
+            val lp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { bottomMargin = 12 }
+            layoutParams = lp
+            setOnClickListener { onClick() }
+        }
     }
 
-    /**
-     * Builds one selectable chip per key-less [FreeAiModel] and keeps it in sync with the
-     * persisted selection, so the Free AI tab offers a real choice of free models.
-     */
+    private fun handlePicked(uri: Uri) {
+        val cr = requireContext().contentResolver
+        val mime = cr.getType(uri) ?: "application/octet-stream"
+        val type = when {
+            mime.startsWith("image/") -> "image"
+            mime.startsWith("video/") -> "video"
+            mime.startsWith("audio/") -> "audio"
+            mime == "application/pdf" -> "pdf"
+            else -> "file"
+        }
+        val name = runCatching {
+            cr.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)
+                ?.use { cursor ->
+                    if (cursor.moveToFirst()) cursor.getString(0) else null
+                }
+        }.getOrNull() ?: "attachment"
+
+        pendingAttachment = PendingAttachment(type, uri.toString(), name, mime)
+        showAttachmentPreview()
+    }
+
+    private fun showAttachmentPreview() {
+        val att = pendingAttachment ?: return
+        binding.containerAttachmentPreview.removeAllViews()
+
+        val emoji = when (att.type) {
+            "image" -> "🖼"
+            "video" -> "🎥"
+            "audio" -> "🎵"
+            "pdf" -> "📄"
+            else -> "📎"
+        }
+
+        val chip = Chip(requireContext()).apply {
+            text = "$emoji ${att.name}"
+            isCloseIconVisible = true
+            setOnCloseIconClickListener { clearAttachment() }
+            chipBackgroundColor = ColorStateList.valueOf(
+                resources.getColor(R.color.glass_background, null)
+            )
+            setTextColor(resources.getColor(R.color.white, null))
+            chipStrokeColor = ColorStateList.valueOf(
+                resources.getColor(R.color.glass_stroke, null)
+            )
+            chipStrokeWidth = 1f
+        }
+        binding.containerAttachmentPreview.addView(chip)
+        binding.layoutAttachmentPreview.visibility = View.VISIBLE
+    }
+
+    private fun clearAttachment() {
+        pendingAttachment = null
+        binding.containerAttachmentPreview.removeAllViews()
+        binding.layoutAttachmentPreview.visibility = View.GONE
+    }
+
+    /** Reads a content URI and returns a `data:image/…;base64,…` payload for vision requests. */
+    private fun uriToDataUri(uriString: String): String? = runCatching {
+        val uri = Uri.parse(uriString)
+        val cr = requireContext().contentResolver
+        val mime = cr.getType(uri) ?: "image/*"
+        val fmt = mime.substringAfter("/").replace("jpeg", "jpg").replace("+xml", "")
+        cr.openInputStream(uri)?.use { stream ->
+            val bytes = stream.readBytes()
+            "data:image/$fmt;base64,${Base64.encodeToString(bytes, Base64.NO_WRAP)}"
+        }
+    }.getOrNull()
+
     private fun setupFreeModelChips() {
         val chipGroup = binding.chipGroupFreeModel
         chipGroup.removeAllViews()
@@ -259,7 +354,6 @@ class HomeFragment : Fragment() {
             chipGroup.addView(chip)
         }
 
-        // Reflect the persisted selection (and update the header label + input hint).
         lifecycleScope.launch {
             viewModel.selectedFreeModel.collect { selected ->
                 chipGroup.children.filterIsInstance<Chip>().forEach { chip ->
@@ -272,12 +366,19 @@ class HomeFragment : Fragment() {
                         )
                     )
                 }
-                if (viewModel.isFreeMode.value) {
-                    binding.btnModelSelector.text = "${selected.logoEmoji} ${selected.displayName}"
-                    binding.etMessageInput.setHint("Ask ${selected.displayName} anything...")
-                }
             }
         }
+    }
+
+    private fun showGuestLimitDialog() {
+        AlertDialog.Builder(requireContext())
+            .setTitle("Guest limit reached")
+            .setMessage("You've used all 10 free messages. Sign in with Google to continue using PK AI.")
+            .setPositiveButton("Sign in with Google") { _, _ ->
+                findNavController().navigate(R.id.loginFragment)
+            }
+            .setNegativeButton("Maybe later", null)
+            .show()
     }
 
     override fun onDestroyView() {

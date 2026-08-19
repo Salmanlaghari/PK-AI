@@ -102,10 +102,12 @@ data class LlmProvider(
                 logoEmoji = "🚀",
                 format = ProviderFormat.OPENAI,
                 baseUrl = "https://api.cerebras.ai/v1/",
-                // `llama3.1-70b` is no longer served by Cerebras (404). `llama3.1-8b` is the
-                // production model available on Cerebras' free tier (`gpt-oss-120b` returned
-                // HTTP 402 payment_required on a free-tier key).
-                defaultModel = "llama3.1-8b",
+                // `llama3.1-70b` (404) and `llama3.1-8b` ("Model does not exist or you do not
+                // have access to it") are not reachable with the current key. `gpt-oss-120b`
+                // is a current production model and demonstrably exists — it returns HTTP 402
+                // payment_required, i.e. the Cerebras account itself has no inference quota.
+                // Keeping it here surfaces that accurate billing error instead of a misleading 404.
+                defaultModel = "gpt-oss-120b",
                 apiKeyBuildConfig = "CEREBRAS_API_KEY"
             ),
             LlmProvider(

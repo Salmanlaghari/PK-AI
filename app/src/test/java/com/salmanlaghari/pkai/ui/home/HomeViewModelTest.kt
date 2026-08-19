@@ -217,6 +217,9 @@ class HomeViewModelTest {
 
     @Test
     fun `selecting a different provider in Settings propagates to the ViewModel`() {
+        // The UI subscribes to effectiveProvider; mirror that so the StateFlow is active.
+        val sub = CoroutineScope(testDispatcher).launch { viewModel.effectiveProvider.collect {} }
+
         // Given the default is Groq
         testDispatcher.scheduler.advanceUntilIdle()
         assertEquals("groq", viewModel.selectedProvider.value.id)
@@ -230,6 +233,8 @@ class HomeViewModelTest {
         assertEquals("mistral", viewModel.selectedProvider.value.id)
         assertEquals("Mistral AI", viewModel.effectiveProvider.value.displayName)
         assertEquals("mistral", viewModel.effectiveProvider.value.id)
+
+        sub.cancel()
     }
 
     @Test

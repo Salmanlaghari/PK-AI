@@ -73,61 +73,6 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideOpenRouterApiService(okHttpClient: OkHttpClient): com.salmanlaghari.pkai.data.remote.OpenRouterApiService {
-        return Retrofit.Builder()
-            .baseUrl("https://openrouter.ai/api/v1/")
-            .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-            .create(com.salmanlaghari.pkai.data.remote.OpenRouterApiService::class.java)
-    }
-
-    @Provides
-    @Singleton
-    fun provideTogetherApiService(okHttpClient: OkHttpClient): com.salmanlaghari.pkai.data.remote.TogetherApiService {
-        return Retrofit.Builder()
-            .baseUrl("https://api.together.xyz/v1/")
-            .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-            .create(com.salmanlaghari.pkai.data.remote.TogetherApiService::class.java)
-    }
-
-    @Provides
-    @Singleton
-    fun provideCerebrasApiService(okHttpClient: OkHttpClient): com.salmanlaghari.pkai.data.remote.CerebrasApiService {
-        return Retrofit.Builder()
-            .baseUrl("https://api.cerebras.ai/v1/")
-            .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-            .create(com.salmanlaghari.pkai.data.remote.CerebrasApiService::class.java)
-    }
-
-    @Provides
-    @Singleton
-    fun provideSambaNovaApiService(okHttpClient: OkHttpClient): com.salmanlaghari.pkai.data.remote.SambaNovaApiService {
-        return Retrofit.Builder()
-            .baseUrl("https://api.sambanova.ai/v1/")
-            .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-            .create(com.salmanlaghari.pkai.data.remote.SambaNovaApiService::class.java)
-    }
-
-    @Provides
-    @Singleton
-    fun provideAnthropicApiService(okHttpClient: OkHttpClient): com.salmanlaghari.pkai.data.remote.AnthropicApiService {
-        return Retrofit.Builder()
-            .baseUrl("https://api.anthropic.com/")
-            .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-            .create(com.salmanlaghari.pkai.data.remote.AnthropicApiService::class.java)
-    }
-
-    @Provides
-    @Singleton
     fun providePublicFreeApiService(okHttpClient: OkHttpClient): com.salmanlaghari.pkai.data.remote.PublicFreeApiService {
         return Retrofit.Builder()
             .baseUrl("https://api.adviceslip.com/")

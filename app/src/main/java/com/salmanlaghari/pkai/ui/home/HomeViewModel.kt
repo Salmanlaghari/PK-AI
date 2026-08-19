@@ -22,10 +22,10 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import okhttp3.MediaType
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import javax.inject.Inject
 import android.util.Base64
 import kotlinx.coroutines.delay
@@ -455,10 +455,8 @@ class HomeViewModel @Inject constructor(
         while (attempt < maxAttempts) {
             attempt++
             try {
-                val body = RequestBody.create(
-                    MediaType.parse("application/json"),
-                    JSONObject().put("inputs", prompt).toString()
-                )
+                val body = JSONObject().put("inputs", prompt).toString()
+                    .toRequestBody("application/json".toMediaType())
                 val request = Request.Builder()
                     .url("https://api-inference.huggingface.co/models/$IMAGE_MODEL")
                     .addHeader("Authorization", "Bearer $key")
@@ -468,7 +466,7 @@ class HomeViewModel @Inject constructor(
                 val response = okHttpClient.newCall(request).execute()
                 if (response.isSuccessful) {
                     val bytes = response.body?.bytes()
-                    if (!bytes.isNullOrEmpty()) return bytes
+                    if (bytes != null && bytes.isNotEmpty()) return bytes
                     lastError = "Hugging Face returned an empty image."
                 } else {
                     lastError = "Hugging Face image request failed (HTTP ${response.code})."

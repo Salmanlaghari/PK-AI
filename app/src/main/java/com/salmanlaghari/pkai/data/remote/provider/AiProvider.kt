@@ -1,240 +1,212 @@
 package com.salmanlaghari.pkai.data.remote.provider
 
-import com.salmanlaghari.pkai.data.model.AiModel
-import com.salmanlaghari.pkai.data.remote.ApiService
-import com.salmanlaghari.pkai.data.remote.ChatCompletionRequest
+import com.salmanlaghari.pkai.data.model.ChatMessage
+import com.salmanlaghari.pkai.data.model.LlmProvider
 import com.salmanlaghari.pkai.data.remote.ChatMessageDto
+import com.salmanlaghari.pkai.data.remote.ChatCompletionRequest
+import com.salmanlaghari.pkai.data.remote.PublicFreeApiService
+import com.google.gson.JsonElement
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import retrofit2.HttpException
+import java.io.IOException
 
+/**
+ * Common contract every LLM backend implements.
+ *
+ * [sendMessage] is intentionally a cold [Flow] so call sites can stream partial
+ * progress / a single terminal result and always receive a structured [AiResponse]
+ * (success or a user-friendly error) instead of throwing.
+ */
 interface AiProvider {
-    suspend fun generateResponse(prompt: String): String
+    fun sendMessage(prompt: String, history: List<ChatMessage>): Flow<AiResponse>
 }
 
-class PlaceholderAiProvider(private val model: AiModel) : AiProvider {
-    override suspend fun generateResponse(prompt: String): String {
-        // Simulate premium AI thoughts/processing
-        kotlinx.coroutines.delay(1500)
-        return when (model) {
-            AiModel.CLAUDE -> "Welcome! I am Claude, an advanced model created by Anthropic. I specialize in safe, deeply structured, and exceptionally detailed text reasoning."
-            AiModel.DEEPSEEK -> "Greetings from DeepSeek! I am highly optimized for mathematical reasoning, science, coding, and complex problem solving."
-            AiModel.QWEN -> "Hello! I am Qwen, Alibaba's top-tier language model. I am excellent at multilingual synthesis and logical calculations."
-            AiModel.LLAMA -> "Hi there! I am Llama, Meta's open-weights model. I provide high-performance text comprehension and logical output."
-            AiModel.MISTRAL -> "Welcome! I am Mistral, a highly optimized, high-efficiency model crafted in France. Let's solve things quickly and elegantly!"
-            AiModel.PERPLEXITY -> "Hello! I am Perplexity. I specialize in contextual search, research summarization, and citation-based logical thinking."
-            AiModel.WEB -> "Hi! I am PK AI Web — your real-time web search assistant, powered by PK AI."
+sealed interface AiResponse {
+    val text: String
+    data class Success(override val text: String) : AiResponse
+    data class Error(override val text: String) : AiResponse
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * Shared helpers
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+private fun roleOf(message: ChatMessage): String = if (message.isUser) "user" else "assistant"
+
+/** Maps an HTTP status code to a clear, actionable in-app message. */
+fun mapHttpError(providerName: String, code: Int, message: String?): String = when (code) {
+    401, 403 -> "$providerName: Authentication failed (HTTP $code). Verify your API key."
+    429 -> "$providerName: Rate limit exceeded (HTTP 429). Please wait and try again."
+    in 500..599 -> "$providerName: The provider's servers are unavailable (HTTP $code). Try again later."
+    else -> "$providerName: Request failed (HTTP $code)${message?.let { " — $it" } ?: ""}"
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * OpenAI-compatible provider (Groq, LLM7.io, Mistral, Cerebras, Hugging Face)
+ * All five providers share this single adapter, configured per instance.
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+open class OpenAiCompatibleProvider(
+    protected val provider: LlmProvider,
+    private val apiKey: String,
+    private val service: OpenAiCompatibleApiService
+) : AiProvider {
+
+    override fun sendMessage(prompt: String, history: List<ChatMessage>): Flow<AiResponse> = flow {
+        if (apiKey.isBlank()) {
+            emit(AiResponse.Error(missingKeyMessage()))
+            return@flow
+        }
+        val messages = history.map { ChatMessageDto(roleOf(it), it.content) } +
+            listOf(ChatMessageDto("user", prompt))
+        val request = ChatCompletionRequest(model = provider.defaultModel, messages = messages)
+        try {
+            val response = service.generateChatResponse("Bearer $apiKey", request)
+            val text = response.choices.firstOrNull()?.message?.content
+            if (text.isNullOrBlank()) {
+                emit(AiResponse.Error("${provider.displayName} returned an empty response. Please try again."))
+            } else {
+                emit(AiResponse.Success(text))
+            }
+        } catch (e: HttpException) {
+            emit(AiResponse.Error(mapHttpError(provider.displayName, e.code(), e.message())))
+        } catch (e: IOException) {
+            emit(AiResponse.Error("${provider.displayName}: Network error. Check your internet connection."))
+        } catch (e: Exception) {
+            emit(AiResponse.Error("${provider.displayName}: ${e.localizedMessage ?: "Unknown error"}"))
+        }
+    }
+
+    protected fun missingKeyMessage(): String =
+        "${provider.displayName} API key not configured. Add ${provider.apiKeyBuildConfig} to local.properties."
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * Cloudflare Workers AI — custom request/response adapter
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+class CloudflareWorkersAiProvider(
+    private val provider: LlmProvider,
+    private val apiToken: String,
+    private val accountId: String,
+    private val service: CloudflareWorkersApiService
+) : AiProvider {
+
+    override fun sendMessage(prompt: String, history: List<ChatMessage>): Flow<AiResponse> = flow {
+        if (apiToken.isBlank() || accountId.isBlank()) {
+            emit(AiResponse.Error("Cloudflare API token or account id not configured. Add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID to local.properties."))
+            return@flow
+        }
+        val messages = history.map { CloudflareMessage(roleOf(it), it.content) } +
+            listOf(CloudflareMessage("user", prompt))
+        try {
+            val response = service.run(
+                accountId = accountId,
+                modelPath = provider.defaultModel,
+                authorization = "Bearer $apiToken",
+                request = CloudflareRequest(messages)
+            )
+            val text = response.result?.response
+            if (text.isNullOrBlank()) {
+                emit(AiResponse.Error("Cloudflare Workers AI returned an empty response. Please try again."))
+            } else {
+                emit(AiResponse.Success(text))
+            }
+        } catch (e: HttpException) {
+            emit(AiResponse.Error(mapHttpError("Cloudflare Workers AI", e.code(), e.message())))
+        } catch (e: IOException) {
+            emit(AiResponse.Error("Cloudflare Workers AI: Network error. Check your internet connection."))
+        } catch (e: Exception) {
+            emit(AiResponse.Error("Cloudflare Workers AI: ${e.localizedMessage ?: "Unknown error"}"))
         }
     }
 }
 
-class PublicFreeAiProvider(
-    private val apiService: com.salmanlaghari.pkai.data.remote.PublicFreeApiService
+/* ─────────────────────────────────────────────────────────────────────────────
+ * Cohere — v2 chat API custom adapter
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+class CohereAiProvider(
+    private val provider: LlmProvider,
+    private val apiKey: String,
+    private val service: CohereApiService
 ) : AiProvider {
-    override suspend fun generateResponse(prompt: String): String {
-        kotlinx.coroutines.delay(1000) // Beautiful premium conversational delay
-        val lowerPrompt = prompt.lowercase()
+
+    override fun sendMessage(prompt: String, history: List<ChatMessage>): Flow<AiResponse> = flow {
+        if (apiKey.isBlank()) {
+            emit(AiResponse.Error("Cohere API key not configured. Add COHERE_API_KEY to local.properties."))
+            return@flow
+        }
+        val messages = history.map { CohereMessage(roleOf(it), it.content) } +
+            listOf(CohereMessage("user", prompt))
+        try {
+            val response = service.chat(
+                authorization = "Bearer $apiKey",
+                request = CohereRequest(model = provider.defaultModel, messages = messages)
+            )
+            val text = extractCohereText(response)
+            if (text.isNullOrBlank()) {
+                emit(AiResponse.Error("Cohere returned an empty response. Please try again."))
+            } else {
+                emit(AiResponse.Success(text))
+            }
+        } catch (e: HttpException) {
+            emit(AiResponse.Error(mapHttpError("Cohere", e.code(), e.message())))
+        } catch (e: IOException) {
+            emit(AiResponse.Error("Cohere: Network error. Check your internet connection."))
+        } catch (e: Exception) {
+            emit(AiResponse.Error("Cohere: ${e.localizedMessage ?: "Unknown error"}"))
+        }
+    }
+
+    private fun extractCohereText(response: CohereResponse): String? {
+        val content: JsonElement = response.message?.content ?: return null
         return try {
-            if (lowerPrompt.contains("fact") || lowerPrompt.contains("know") || lowerPrompt.contains("something")) {
+            if (content.isJsonArray) {
+                content.asJsonArray.joinToString("") { el ->
+                    el.asJsonObject.get("text")?.asString ?: ""
+                }
+            } else {
+                content.asString
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * Public Free provider — no API key required (kept for the Free AI tab)
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+class PublicFreeAiProvider(
+    private val apiService: PublicFreeApiService
+) : AiProvider {
+    override fun sendMessage(prompt: String, history: List<ChatMessage>): Flow<AiResponse> = flow {
+        delay(1000) // Premium conversational pacing
+        val lowerPrompt = prompt.lowercase()
+        try {
+            val reply = if (lowerPrompt.contains("fact") || lowerPrompt.contains("know") || lowerPrompt.contains("something")) {
                 val response = apiService.getFreeFact()
                 "Here is an interesting public fact for you:\n\n${response["fact"] ?: "AI is the future!"}"
             } else if (lowerPrompt.contains("advice") || lowerPrompt.contains("help") || lowerPrompt.contains("suggest")) {
                 val response = apiService.getFreeAdvice()
                 val slip = response["slip"] as? Map<*, *>
-                val advice = slip?.get("advice") as? String
-                advice ?: "Stay positive and keep coding!"
+                slip?.get("advice") as? String ?: "Stay positive and keep coding!"
             } else {
                 val words = prompt.trim().split("\\s+".toRegex()).size
-                "I am PK AI's **Free Public Chatbot** (No API Key required)!\n\nI processed your query (\"$prompt\") containing $words words using unauthenticated public endpoints. To experience ultra-fast reasoning with PK AI, please use the **Premium Chat** tab!"
+                "I am PK AI's **Free Public Chatbot** (No API Key required)!\n\nI processed your query (\"$prompt\") containing $words words using unauthenticated public endpoints. To experience ultra-fast reasoning with PK AI, please pick a provider in **Settings → AI**!"
             }
+            emit(AiResponse.Success(reply))
         } catch (e: Exception) {
-            "I am PK AI's **Free Public Chatbot**!\n\nYour query: \"$prompt\"\n\nI am currently operating in smart offline mode. Switch to the **Premium Chat** tab at any time to utilize PK AI!"
-        }
-    }
-}
-
-class NetworkAiProvider(
-    private val model: AiModel,
-    private val apiService: ApiService
-) : AiProvider {
-    override suspend fun generateResponse(prompt: String): String {
-        val request = ChatCompletionRequest(
-            model = model.name.lowercase(),
-            messages = listOf(ChatMessageDto(role = "user", content = prompt))
-        )
-        return try {
-            val response = apiService.generateChatResponse(request)
-            response.choices.firstOrNull()?.message?.content ?: "Empty response from server"
-        } catch (e: Exception) {
-            "Error: ${e.localizedMessage ?: "Unknown network error"}"
-        }
-    }
-}
-
-// --- Real Providers (OpenRouter-backed, working since PR #28) ---
-
-class OpenRouterAiProvider(
-    private val model: AiModel,
-    private val apiService: com.salmanlaghari.pkai.data.remote.OpenRouterApiService
-) : AiProvider {
-    override suspend fun generateResponse(prompt: String): String {
-        val apiKey = com.salmanlaghari.pkai.BuildConfig.OPENROUTER_API_KEY
-        if (apiKey.isBlank()) {
-            return "OpenRouter API Key not configured. Please supply an API key."
-        }
-        val modelId = when (model) {
-            AiModel.QWEN -> "qwen/qwen-2.5-72b-instruct"
-            AiModel.DEEPSEEK -> "deepseek/deepseek-chat"
-            AiModel.LLAMA -> "meta-llama/llama-3.1-8b-instruct"
-            AiModel.MISTRAL -> "mistralai/mistral-7b-instruct"
-            AiModel.CLAUDE -> "anthropic/claude-3-haiku"
-            AiModel.PERPLEXITY -> "perplexity/sonar"
-            AiModel.WEB -> "perplexity/sonar"
-            else -> "google/gemma-2-9b-it"
-        }
-        val request = ChatCompletionRequest(
-            model = modelId,
-            messages = listOf(ChatMessageDto(role = "user", content = prompt))
-        )
-        return try {
-            val response = apiService.generateChatResponse(
-                authorization = "Bearer $apiKey",
-                referer = "https://pkai.salmanlaghari.com",
-                title = "PK AI",
-                request = request
-            )
-            val result = response.choices.firstOrNull()?.message?.content
-            if (result.isNullOrBlank()) {
-                "Error: Received empty response from OpenRouter ($modelId). Please retry."
-            } else {
-                result
-            }
-        } catch (e: retrofit2.HttpException) {
-            val code = e.code()
-            if (code == 401 || code == 403) {
-                "Error: OpenRouter Authentication failed (HTTP $code). Verify your API Key."
-            } else if (code == 429) {
-                "Error: OpenRouter rate limit exceeded (HTTP 429). Please wait and try again."
-            } else {
-                "Error: OpenRouter error (HTTP $code). Server responded with: ${e.message()}"
-            }
-        } catch (e: java.io.IOException) {
-            "Error: Timeout/Network connection failed. Check your internet connection."
-        } catch (e: Exception) {
-            "Error: ${e.localizedMessage ?: "Unknown OpenRouter connection issue."}"
-        }
-    }
-}
-
-class TogetherAiProvider(
-    private val model: AiModel,
-    private val apiService: com.salmanlaghari.pkai.data.remote.TogetherApiService
-) : AiProvider {
-    override suspend fun generateResponse(prompt: String): String {
-        val apiKey = com.salmanlaghari.pkai.BuildConfig.TOGETHER_API_KEY
-        if (apiKey.isBlank()) {
-            return "API key not configured."
-        }
-        val modelId = when (model) {
-            AiModel.MISTRAL -> "mistralai/Mistral-7B-Instruct-v0.1"
-            AiModel.LLAMA -> "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo"
-            else -> "meta-llama/Meta-Llama-3-8B-Instruct-Lite"
-        }
-        val request = ChatCompletionRequest(
-            model = modelId,
-            messages = listOf(ChatMessageDto(role = "user", content = prompt))
-        )
-        return try {
-            val response = apiService.generateChatResponse("Bearer $apiKey", request)
-            response.choices.firstOrNull()?.message?.content ?: "Empty response from Together AI server."
-        } catch (e: Exception) {
-            "Error: ${e.localizedMessage ?: "Unknown network error"}"
-        }
-    }
-}
-
-class CerebrasAiProvider(
-    private val model: AiModel,
-    private val apiService: com.salmanlaghari.pkai.data.remote.CerebrasApiService
-) : AiProvider {
-    override suspend fun generateResponse(prompt: String): String {
-        val apiKey = com.salmanlaghari.pkai.BuildConfig.CEREBRAS_API_KEY
-        if (apiKey.isBlank()) {
-            return "API key not configured."
-        }
-        val modelId = "llama3.1-8b"
-        val request = ChatCompletionRequest(
-            model = modelId,
-            messages = listOf(ChatMessageDto(role = "user", content = prompt))
-        )
-        return try {
-            val response = apiService.generateChatResponse("Bearer $apiKey", request)
-            response.choices.firstOrNull()?.message?.content ?: "Empty response from Cerebras server."
-        } catch (e: Exception) {
-            "Error: ${e.localizedMessage ?: "Unknown network error"}"
-        }
-    }
-}
-
-class SambaNovaAiProvider(
-    private val model: AiModel,
-    private val apiService: com.salmanlaghari.pkai.data.remote.SambaNovaApiService
-) : AiProvider {
-    override suspend fun generateResponse(prompt: String): String {
-        val apiKey = com.salmanlaghari.pkai.BuildConfig.SAMBANOVA_API_KEY
-        if (apiKey.isBlank()) {
-            return "API key not configured."
-        }
-        val modelId = "Meta-Llama-3.1-8B-Instruct"
-        val request = ChatCompletionRequest(
-            model = modelId,
-            messages = listOf(ChatMessageDto(role = "user", content = prompt))
-        )
-        return try {
-            val response = apiService.generateChatResponse("Bearer $apiKey", request)
-            response.choices.firstOrNull()?.message?.content ?: "Empty response from SambaNova server."
-        } catch (e: Exception) {
-            "Error: ${e.localizedMessage ?: "Unknown network error"}"
-        }
-    }
-}
-
-// --- Native Anthropic (Claude) Provider ---
-
-class AnthropicAiProvider(
-    private val apiService: com.salmanlaghari.pkai.data.remote.AnthropicApiService
-) : AiProvider {
-    override suspend fun generateResponse(prompt: String): String {
-        val apiKey = com.salmanlaghari.pkai.BuildConfig.ANTHROPIC_API_KEY
-        if (apiKey.isBlank()) {
-            return "Anthropic API Key not configured. Please supply an API key."
-        }
-        val request = com.salmanlaghari.pkai.data.remote.AnthropicRequest(
-            messages = listOf(
-                com.salmanlaghari.pkai.data.remote.AnthropicMessage(
-                    role = "user",
-                    content = prompt
+            emit(
+                AiResponse.Success(
+                    "I am PK AI's **Free Public Chatbot**!\n\nYour query: \"$prompt\"\n\n" +
+                        "I am currently operating in smart offline mode. Switch to the **Premium Chat** tab and choose a provider in Settings to utilize PK AI!"
                 )
             )
-        )
-        return try {
-            val response = apiService.createMessage(apiKey, request = request)
-            val text = response.content
-                ?.firstOrNull { it.type == "text" }
-                ?.text
-            if (text.isNullOrBlank()) {
-                "Error: Received empty response from Anthropic. Please retry."
-            } else {
-                text
-            }
-        } catch (e: retrofit2.HttpException) {
-            val code = e.code()
-            when {
-                code == 401 || code == 403 -> "Error: Anthropic Authentication failed (HTTP $code). Verify your API Key."
-                code == 429 -> "Error: Anthropic rate limit exceeded (HTTP 429). Please wait and try again."
-                else -> "Error: Anthropic error (HTTP $code). Server responded with: ${e.message()}"
-            }
-        } catch (e: java.io.IOException) {
-            "Error: Timeout/Network connection failed. Check your internet connection."
-        } catch (e: Exception) {
-            "Error: ${e.localizedMessage ?: "Unknown Anthropic connection issue."}"
         }
     }
 }

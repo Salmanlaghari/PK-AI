@@ -9,7 +9,9 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.salmanlaghari.pkai.R
 import com.salmanlaghari.pkai.databinding.FragmentSettingsBinding
@@ -107,6 +109,19 @@ class SettingsFragment : Fragment() {
         // Navigate to About Screen
         binding.rowAbout.setOnClickListener {
             findNavController().navigate(R.id.action_settingsFragment_to_aboutFragment)
+        }
+
+        // AI provider selector (premium cards)
+        val providerAdapter = ProviderSelectorAdapter { provider ->
+            viewModel.selectProvider(provider.id)
+            Toast.makeText(requireContext(), "AI provider set to ${provider.displayName}", Toast.LENGTH_SHORT).show()
+        }
+        binding.rvProviderSelector.layoutManager = LinearLayoutManager(requireContext())
+        binding.rvProviderSelector.adapter = providerAdapter
+        providerAdapter.submitList(viewModel.providers)
+
+        viewModel.selectedProviderId.observe(viewLifecycleOwner) { selectedId ->
+            providerAdapter.setSelected(selectedId ?: "")
         }
     }
 

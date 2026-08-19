@@ -1,5 +1,6 @@
 package com.salmanlaghari.pkai.data.remote.provider
 
+import com.salmanlaghari.pkai.data.model.FreeAiModel
 import com.salmanlaghari.pkai.data.model.LlmProvider
 import com.salmanlaghari.pkai.data.remote.PublicFreeApiService
 import kotlinx.coroutines.test.runTest
@@ -54,5 +55,33 @@ class AiProviderFactoryTest {
     @Test
     fun `unknown provider id falls back to default`() = runTest {
         assertTrue(factory.getProvider("does-not-exist") is OpenAiCompatibleProvider)
+    }
+
+    @Test
+    fun `free AI tab resolves both key-less models`() = runTest {
+        assertTrue(factory.getFreeProvider(FreeAiModel.PUBLIC_CHATBOT.id) is PublicFreeAiProvider)
+        assertTrue(factory.getFreeProvider(FreeAiModel.FREE_LLM.id) is KeylessLlmAiProvider)
+    }
+
+    @Test
+    fun `unknown free model id falls back to the default free model`() = runTest {
+        // FreeAiModel.DEFAULT is the key-less LLM, so an unknown id must resolve to it.
+        assertTrue(factory.getFreeProvider("does-not-exist") is KeylessLlmAiProvider)
+    }
+
+    @Test
+    fun `every provider declares a non-blank model id`() = runTest {
+        // Guards against regressions where a model id is left empty or a provider is added
+        // without one — the root cause of the earlier HTTP 404 failures.
+        LlmProvider.ALL.forEach { provider ->
+            assertTrue(
+                "${provider.displayName} must declare a default model",
+                provider.defaultModel.isNotBlank()
+            )
+            assertTrue(
+                "${provider.displayName} baseUrl must end with '/' for Retrofit",
+                provider.baseUrl.endsWith("/")
+            )
+        }
     }
 }

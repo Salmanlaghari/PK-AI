@@ -4,9 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.salmanlaghari.pkai.data.local.datastore.PreferencesManager
 import com.salmanlaghari.pkai.data.local.room.ChatMessageDao
-import com.salmanlaghari.pkai.data.model.AiModel
 import com.salmanlaghari.pkai.data.model.ChatMessage
+import com.salmanlaghari.pkai.data.model.LlmProvider
+import com.salmanlaghari.pkai.data.remote.provider.AiProvider
 import com.salmanlaghari.pkai.data.remote.provider.AiProviderFactory
+import com.salmanlaghari.pkai.data.remote.provider.AiResponse
 import com.salmanlaghari.pkai.data.repository.AppRepository
 import com.salmanlaghari.pkai.data.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -15,6 +17,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -45,14 +48,27 @@ class HomeViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
-    private val _selectedModel = MutableStateFlow(AiModel.DEEPSEEK)
-    val selectedModel: StateFlow<AiModel> = _selectedModel.asStateFlow()
+    /** The provider id the user selected in Settings (defaults to Groq). */
+    private val _selectedProviderId = MutableStateFlow(LlmProvider.DEFAULT.id)
+    val selectedProvider: StateFlow<LlmProvider> = _selectedProviderId
+        .map { LlmProvider.fromId(it) }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = LlmProvider.DEFAULT
+        )
 
     private val _webSearchMode = MutableStateFlow(false)
     val webSearchMode: StateFlow<Boolean> = _webSearchMode.asStateFlow()
 
     private val _isGenerating = MutableStateFlow(false)
     val isGenerating: StateFlow<Boolean> = _isGenerating.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            preferencesManager.selectedProviderId.collect { _selectedProviderId.value = it }
+        }
+    }
 
     fun setFreeMode(free: Boolean) {
         _isFreeMode.value = free
@@ -62,45 +78,52 @@ class HomeViewModel @Inject constructor(
         _webSearchMode.value = enabled
     }
 
-    fun selectModel(model: AiModel) {
-        _selectedModel.value = model
-    }
-
     fun sendMessage(content: String) {
         if (content.trim().isEmpty()) return
 
         viewModelScope.launch {
             val isFree = _isFreeMode.value
-            val webSearch = _webSearchMode.value
+            val providerLabel = if (isFree) "Free Public AI" else selectedProvider.value.displayName
 
-            // 1. Insert user message (tag with "Free Public AI" if in free mode)
             val userMessage = ChatMessage(
                 content = content.trim(),
                 isUser = true,
-                modelUsed = if (isFree) "Free Public AI" else "PK AI"
+                modelUsed = if (isFree) "Free Public AI" else null
             )
             chatMessageDao.insertMessage(userMessage)
 
-            // 2. Trigger AI generating response
             _isGenerating.value = true
             try {
-                val provider = when {
-                    isFree -> aiProviderFactory.getPublicFreeProvider()
-                    webSearch -> aiProviderFactory.getProvider(AiModel.WEB)
-                    else -> aiProviderFactory.getPkAiProvider()
+                val provider: AiProvider = if (isFree) {
+                    aiProviderFactory.getPublicFreeProvider()
+                } else {
+                    aiProviderFactory.getProvider(selectedProvider.value.id)
                 }
-                val responseText = provider.generateResponse(content)
-                val aiMessage = ChatMessage(
-                    content = responseText,
-                    isUser = false,
-                    modelUsed = if (isFree) "Free Public AI" else "PK AI"
+
+                val history = chatMessageDao.getAllMessages()
+                    .filter { it.modelUsed != "Free Public AI" }
+                    .takeLast(20)
+
+                val builder = StringBuilder()
+                provider.sendMessage(content, history).collect { response ->
+                    when (response) {
+                        is AiResponse.Success -> builder.append(response.text)
+                        is AiResponse.Error -> builder.clear().append(response.text)
+                    }
+                }
+
+                chatMessageDao.insertMessage(
+                    ChatMessage(
+                        content = builder.toString(),
+                        isUser = false,
+                        modelUsed = providerLabel
+                    )
                 )
-                chatMessageDao.insertMessage(aiMessage)
             } catch (e: Exception) {
                 val errorMessage = ChatMessage(
                     content = "Unable to fetch response. Please try again. (${e.localizedMessage ?: "Unknown Error"})",
                     isUser = false,
-                    modelUsed = if (isFree) "Free Public AI" else "PK AI"
+                    modelUsed = providerLabel
                 )
                 chatMessageDao.insertMessage(errorMessage)
             } finally {

@@ -52,8 +52,11 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(ChatDiffCa
         RecyclerView.ViewHolder(binding.root) {
         fun bind(message: ChatMessage) {
             binding.tvAiMessage.text = message.content
-            if (!message.modelUsed.isNullOrEmpty()) {
-                binding.tvAiModelTag.text = message.modelUsed
+            val label = message.modelUsed
+            if (!label.isNullOrEmpty()) {
+                // Surface the active provider: "Powered by <Provider>" for real providers,
+                // plain label for the key-less free chatbot.
+                binding.tvAiModelTag.text = if (label == "Free Public AI") label else "Powered by $label"
                 binding.tvAiModelTag.visibility = View.VISIBLE
             } else {
                 binding.tvAiModelTag.visibility = View.GONE

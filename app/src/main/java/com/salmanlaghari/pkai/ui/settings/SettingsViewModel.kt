@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.asLiveData
 import androidx.lifecycle.viewModelScope
 import com.salmanlaghari.pkai.data.local.datastore.PreferencesManager
+import com.salmanlaghari.pkai.data.model.LlmProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -17,6 +18,18 @@ class SettingsViewModel @Inject constructor(
     val appLanguage = preferencesManager.appLanguage.asLiveData()
     val isNotificationsEnabled = preferencesManager.isNotificationsEnabled.asLiveData()
     val appTheme = preferencesManager.appTheme.asLiveData()
+
+    /** The catalogue of free LLM providers shown in the Settings → AI section. */
+    val providers: List<LlmProvider> = LlmProvider.ALL
+
+    /** Currently selected provider id (defaults to the first provider). */
+    val selectedProviderId = preferencesManager.selectedProviderId.asLiveData()
+
+    fun selectProvider(providerId: String) {
+        viewModelScope.launch {
+            preferencesManager.setSelectedProviderId(providerId)
+        }
+    }
 
     fun setDarkMode(enabled: Boolean) {
         viewModelScope.launch {

@@ -1,12 +1,11 @@
 package com.salmanlaghari.pkai.data.remote.provider
 
-import com.salmanlaghari.pkai.data.remote.*
+import com.salmanlaghari.pkai.data.model.LlmProvider
+import com.salmanlaghari.pkai.data.remote.PublicFreeApiService
 import kotlinx.coroutines.runBlocking
-import org.junit.Test
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
+import org.mockito.Mockito.mock
 import java.util.concurrent.TimeUnit
 
 class RealProviderIntegrationTest {
@@ -23,167 +22,31 @@ class RealProviderIntegrationTest {
 
     @Test
     fun verifyAllProviders() = runBlocking {
+        val factory = AiProviderFactory(okHttpClient, mock(PublicFreeApiService::class.java))
+
         val report = StringBuilder()
         report.append("\n==================================================\n")
         report.append("          REAL AI PROVIDER VERIFICATION REPORT     \n")
         report.append("==================================================\n")
 
-        // 2. OpenRouter (multiple models: Claude, DeepSeek, Qwen, Web)
-        val openrouterKey = System.getenv("OPENROUTER_API_KEY") ?: ""
-        if (openrouterKey.isNotBlank()) {
-            val openRouterModels = listOf(
-                "anthropic/claude-3-haiku" to "Claude",
-                "deepseek/deepseek-chat" to "DeepSeek",
-                "qwen/qwen-2.5-72b-instruct" to "Qwen",
-                "perplexity/sonar" to "Web"
-            )
+        for (provider in LlmProvider.ALL) {
             try {
-                val service = Retrofit.Builder()
-                    .baseUrl("https://openrouter.ai/api/v1/")
-                    .client(okHttpClient)
-                    .addConverterFactory(GsonConverterFactory.create())
-                    .build()
-                    .create(OpenRouterApiService::class.java)
-
-                for ((modelId, label) in openRouterModels) {
-                    try {
-                        val request = ChatCompletionRequest(
-                            model = modelId,
-                            messages = listOf(ChatMessageDto(role = "user", content = prompt))
-                        )
-                        val response = service.generateChatResponse("Bearer $openrouterKey", request = request)
-                        val text = response.choices.firstOrNull()?.message?.content
-                        if (text != null) {
-                            report.append("✓ OpenRouter ($label): Succeeded. Response:\n   \"${text.trim()}\"\n")
-                        } else {
-                            report.append("✗ OpenRouter ($label): Failed. Reason: Empty response structure.\n")
-                        }
-                    } catch (e: Exception) {
-                        report.append("✗ OpenRouter ($label): Failed. Reason: ${e.localizedMessage}\n")
+                var text: String? = null
+                var error: String? = null
+                factory.getProvider(provider.id).sendMessage(prompt, emptyList()).collect { response ->
+                    when (response) {
+                        is AiResponse.Success -> text = response.text
+                        is AiResponse.Error -> error = response.text
                     }
                 }
-            } catch (e: Exception) {
-                report.append("✗ OpenRouter: Failed to initialise. Reason: ${e.localizedMessage}\n")
-            }
-        } else {
-            report.append("✗ OpenRouter: Skipped. Reason: OPENROUTER_API_KEY not configured.\n")
-        }
-
-        // 4. Together AI
-        val togetherKey = System.getenv("TOGETHER_API_KEY") ?: ""
-        if (togetherKey.isNotBlank()) {
-            try {
-                val service = Retrofit.Builder()
-                    .baseUrl("https://api.together.xyz/v1/")
-                    .client(okHttpClient)
-                    .addConverterFactory(GsonConverterFactory.create())
-                    .build()
-                    .create(TogetherApiService::class.java)
-
-                val request = ChatCompletionRequest(
-                    model = "meta-llama/Meta-Llama-3-8B-Instruct-Lite",
-                    messages = listOf(ChatMessageDto(role = "user", content = prompt))
-                )
-                val response = service.generateChatResponse("Bearer $togetherKey", request)
-                val text = response.choices.firstOrNull()?.message?.content
-                if (text != null) {
-                    report.append("✓ Together AI: Succeeded. Response:\n   \"${text.trim()}\"\n")
+                if (!text.isNullOrBlank()) {
+                    report.append("✓ ${provider.displayName}: Succeeded. Response:\n   \"${text!!.trim()}\"\n")
                 } else {
-                    report.append("✗ Together AI: Failed. Reason: Empty response structure.\n")
+                    report.append("✗ ${provider.displayName}: ${error ?: "Empty response"}\n")
                 }
             } catch (e: Exception) {
-                report.append("✗ Together AI: Failed. Reason: ${e.localizedMessage}\n")
+                report.append("✗ ${provider.displayName}: Failed. Reason: ${e.localizedMessage}\n")
             }
-        } else {
-            report.append("✗ Together AI: Skipped. Reason: TOGETHER_API_KEY not configured.\n")
-        }
-
-        // 6. Cerebras
-        val cerebrasKey = System.getenv("CEREBRAS_API_KEY") ?: ""
-        if (cerebrasKey.isNotBlank()) {
-            try {
-                val service = Retrofit.Builder()
-                    .baseUrl("https://api.cerebras.ai/v1/")
-                    .client(okHttpClient)
-                    .addConverterFactory(GsonConverterFactory.create())
-                    .build()
-                    .create(CerebrasApiService::class.java)
-
-                val request = ChatCompletionRequest(
-                    model = "llama3.1-8b",
-                    messages = listOf(ChatMessageDto(role = "user", content = prompt))
-                )
-                val response = service.generateChatResponse("Bearer $cerebrasKey", request)
-                val text = response.choices.firstOrNull()?.message?.content
-                if (text != null) {
-                    report.append("✓ Cerebras: Succeeded. Response:\n   \"${text.trim()}\"\n")
-                } else {
-                    report.append("✗ Cerebras: Failed. Reason: Empty response structure.\n")
-                }
-            } catch (e: Exception) {
-                report.append("✗ Cerebras: Failed. Reason: ${e.localizedMessage}\n")
-            }
-        } else {
-            report.append("✗ Cerebras: Skipped. Reason: CEREBRAS_API_KEY not configured.\n")
-        }
-
-        // 7. SambaNova
-        val sambanovaKey = System.getenv("SAMBANOVA_API_KEY") ?: ""
-        if (sambanovaKey.isNotBlank()) {
-            try {
-                val service = Retrofit.Builder()
-                    .baseUrl("https://api.sambanova.ai/v1/")
-                    .client(okHttpClient)
-                    .addConverterFactory(GsonConverterFactory.create())
-                    .build()
-                    .create(SambaNovaApiService::class.java)
-
-                val request = ChatCompletionRequest(
-                    model = "Meta-Llama-3.1-8B-Instruct",
-                    messages = listOf(ChatMessageDto(role = "user", content = prompt))
-                )
-                val response = service.generateChatResponse("Bearer $sambanovaKey", request)
-                val text = response.choices.firstOrNull()?.message?.content
-                if (text != null) {
-                    report.append("✓ SambaNova: Succeeded. Response:\n   \"${text.trim()}\"\n")
-                } else {
-                    report.append("✗ SambaNova: Failed. Reason: Empty response structure.\n")
-                }
-            } catch (e: Exception) {
-                report.append("✗ SambaNova: Failed. Reason: ${e.localizedMessage}\n")
-            }
-        } else {
-            report.append("✗ SambaNova: Skipped. Reason: SAMBANOVA_API_KEY not configured.\n")
-        }
-
-        // 9. Anthropic (Claude) — native Anthropic API, falls back to OpenRouter if no key
-        val anthropicKey = System.getenv("ANTHROPIC_API_KEY") ?: ""
-        if (anthropicKey.isNotBlank()) {
-            try {
-                val service = Retrofit.Builder()
-                    .baseUrl("https://api.anthropic.com/")
-                    .client(okHttpClient)
-                    .addConverterFactory(GsonConverterFactory.create())
-                    .build()
-                    .create(AnthropicApiService::class.java)
-
-                val request = AnthropicRequest(
-                    messages = listOf(AnthropicMessage(role = "user", content = prompt))
-                )
-                val response = service.createMessage(anthropicKey, request = request)
-                val text = response.content?.firstOrNull { it.type == "text" }?.text
-                if (text != null) {
-                    report.append("✓ Anthropic Claude (native): Succeeded. Response:\n   \"${text.trim()}\"\n")
-                } else {
-                    report.append("✗ Anthropic Claude (native): Failed. Reason: Empty response structure.\n")
-                }
-            } catch (e: Exception) {
-                report.append("✗ Anthropic Claude (native): Failed. Reason: ${e.localizedMessage}\n")
-            }
-        } else if (openrouterKey.isNotBlank()) {
-            report.append("ℹ Anthropic Claude: Using OpenRouter fallback (no ANTHROPIC_API_KEY set).\n")
-        } else {
-            report.append("✗ Anthropic Claude: Skipped. Reason: ANTHROPIC_API_KEY (and OPENROUTER_API_KEY) not configured.\n")
         }
 
         report.append("==================================================\n")

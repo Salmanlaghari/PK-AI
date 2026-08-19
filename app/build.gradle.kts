@@ -29,17 +29,23 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        val openrouterApiKey = System.getenv("OPENROUTER_API_KEY") ?: localProperties.getProperty("OPENROUTER_API_KEY") ?: ""
-        val togetherApiKey = System.getenv("TOGETHER_API_KEY") ?: localProperties.getProperty("TOGETHER_API_KEY") ?: ""
+        val groqApiKey = System.getenv("GROQ_API_KEY") ?: localProperties.getProperty("GROQ_API_KEY") ?: ""
+        val cloudflareApiToken = System.getenv("CLOUDFLARE_API_TOKEN") ?: localProperties.getProperty("CLOUDFLARE_API_TOKEN") ?: ""
+        val cloudflareAccountId = System.getenv("CLOUDFLARE_ACCOUNT_ID") ?: localProperties.getProperty("CLOUDFLARE_ACCOUNT_ID") ?: ""
+        val llm7ApiKey = System.getenv("LLM7_API_KEY") ?: localProperties.getProperty("LLM7_API_KEY") ?: ""
+        val mistralApiKey = System.getenv("MISTRAL_API_KEY") ?: localProperties.getProperty("MISTRAL_API_KEY") ?: ""
+        val cohereApiKey = System.getenv("COHERE_API_KEY") ?: localProperties.getProperty("COHERE_API_KEY") ?: ""
         val cerebrasApiKey = System.getenv("CEREBRAS_API_KEY") ?: localProperties.getProperty("CEREBRAS_API_KEY") ?: ""
-        val sambanovaApiKey = System.getenv("SAMBANOVA_API_KEY") ?: localProperties.getProperty("SAMBANOVA_API_KEY") ?: ""
-        val anthropicApiKey = System.getenv("ANTHROPIC_API_KEY") ?: localProperties.getProperty("ANTHROPIC_API_KEY") ?: ""
+        val huggingfaceApiKey = System.getenv("HUGGINGFACE_API_KEY") ?: localProperties.getProperty("HUGGINGFACE_API_KEY") ?: ""
 
-        buildConfigField("String", "OPENROUTER_API_KEY", "\"$openrouterApiKey\"")
-        buildConfigField("String", "TOGETHER_API_KEY", "\"$togetherApiKey\"")
+        buildConfigField("String", "GROQ_API_KEY", "\"$groqApiKey\"")
+        buildConfigField("String", "CLOUDFLARE_API_TOKEN", "\"$cloudflareApiToken\"")
+        buildConfigField("String", "CLOUDFLARE_ACCOUNT_ID", "\"$cloudflareAccountId\"")
+        buildConfigField("String", "LLM7_API_KEY", "\"$llm7ApiKey\"")
+        buildConfigField("String", "MISTRAL_API_KEY", "\"$mistralApiKey\"")
+        buildConfigField("String", "COHERE_API_KEY", "\"$cohereApiKey\"")
         buildConfigField("String", "CEREBRAS_API_KEY", "\"$cerebrasApiKey\"")
-        buildConfigField("String", "SAMBANOVA_API_KEY", "\"$sambanovaApiKey\"")
-        buildConfigField("String", "ANTHROPIC_API_KEY", "\"$anthropicApiKey\"")
+        buildConfigField("String", "HUGGINGFACE_API_KEY", "\"$huggingfaceApiKey\"")
     }
 
     signingConfigs {

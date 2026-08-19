@@ -27,8 +27,9 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.salmanlaghari.pkai.R
-import com.salmanlaghari.pkai.data.model.AiModel
+import com.salmanlaghari.pkai.data.model.LlmProvider
 import com.salmanlaghari.pkai.data.remote.provider.AiProviderFactory
+import com.salmanlaghari.pkai.data.remote.provider.AiResponse
 import com.salmanlaghari.pkai.databinding.ActivityVoiceAssistantBinding
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
@@ -56,7 +57,7 @@ class VoiceAssistantActivity : AppCompatActivity() {
     private var currentState = AssistantState.IDLE
 
     // Active components
-    private var selectedModel: AiModel = AiModel.DEEPSEEK
+    private var selectedProviderId: String = LlmProvider.DEFAULT.id
     private var ttsActiveJob: Job? = null
     private var simulatedSpeechVisualizerAnimator: ValueAnimator? = null
 
@@ -86,17 +87,11 @@ class VoiceAssistantActivity : AppCompatActivity() {
         )
         window.statusBarColor = Color.TRANSPARENT
 
-        // Parse selected model
+        // Parse selected provider (falls back to default if absent/invalid)
         val modelName = intent.getStringExtra("selected_model")
-        if (modelName != null) {
-            try {
-                selectedModel = AiModel.valueOf(modelName)
-            } catch (e: Exception) {
-                selectedModel = AiModel.DEEPSEEK
-            }
-        }
+        selectedProviderId = if (modelName != null) LlmProvider.fromId(modelName).id else LlmProvider.DEFAULT.id
 
-        binding.tvActiveModelStatus.text = "● Connected to ${selectedModel.displayName}"
+        binding.tvActiveModelStatus.text = "● Connected to ${LlmProvider.fromId(selectedProviderId).displayName}"
 
         // Create tone generator for physical-feedback beeps
         try {
@@ -355,12 +350,19 @@ class VoiceAssistantActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val provider = withContext(Dispatchers.IO) {
-                    providerFactory.getProvider(selectedModel)
+                    providerFactory.getProvider(selectedProviderId)
                 }
-                // Generate completion safely
-                val aiResponse = withContext(Dispatchers.IO) {
-                    provider.generateResponse(prompt)
+                // Generate completion safely, collecting the streaming response flow.
+                val result = StringBuilder()
+                withContext(Dispatchers.IO) {
+                    provider.sendMessage(prompt, emptyList()).collect { response ->
+                        when (response) {
+                            is AiResponse.Success -> result.append(response.text)
+                            is AiResponse.Error -> result.clear().append(response.text)
+                        }
+                    }
                 }
+                val aiResponse = result.toString()
 
                 if (aiResponse.isNotBlank()) {
                     appendTranscriptBubble(aiResponse, isUser = false)

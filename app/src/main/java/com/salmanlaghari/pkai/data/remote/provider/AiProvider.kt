@@ -143,7 +143,8 @@ open class OpenAiCompatibleProvider(
         val request = ChatCompletionRequest(model = model, messages = messages)
         try {
             val response = service.generateChatResponse("Bearer $apiKey", request)
-            val text = response.choices.firstOrNull()?.message?.content
+            val raw = response.choices.firstOrNull()?.message?.content
+            val text = if (raw is String) raw else raw?.toString()
             if (text.isNullOrBlank()) {
                 emit(AiResponse.Error("${provider.displayName} returned an empty response. Please try again."))
             } else {

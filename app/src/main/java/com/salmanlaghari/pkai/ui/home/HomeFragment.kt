@@ -1,6 +1,9 @@
 package com.salmanlaghari.pkai.ui.home
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.content.res.ColorStateList
+import android.graphics.PorterDuff
 import android.net.Uri
 import android.os.Bundle
 import android.util.Base64
@@ -12,6 +15,7 @@ import android.widget.ScrollView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
+import androidx.core.content.ContextCompat
 import androidx.core.view.children
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
@@ -24,6 +28,7 @@ import com.salmanlaghari.pkai.MainActivity
 import com.salmanlaghari.pkai.R
 import com.salmanlaghari.pkai.data.local.datastore.PreferencesManager
 import com.salmanlaghari.pkai.databinding.FragmentHomeBinding
+import com.salmanlaghari.pkai.ui.voice.VoiceRecognitionHelper
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -51,6 +56,17 @@ class HomeFragment : Fragment() {
     )
 
     private var pendingAttachment: PendingAttachment? = null
+
+    /** Speech-to-text helper for the inline voice button. */
+    private var voiceHelper: VoiceRecognitionHelper? = null
+    private var isVoiceListening = false
+
+    private val requestAudioPermission = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) startVoiceInput()
+        else Toast.makeText(requireContext(), "Microphone permission is needed for voice input.", Toast.LENGTH_SHORT).show()
+    }
 
     private val pickMedia =
         registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -85,14 +101,18 @@ class HomeFragment : Fragment() {
 
         // Active provider chip — persistent indicator (Issue 1) and web-search toggle.
         binding.chipActiveProvider.setOnClickListener {
-            if (viewModel.isFreeMode.value) {
-                Toast.makeText(
+            when {
+                viewModel.isImageMode.value -> Toast.makeText(
+                    requireContext(),
+                    "Image generation uses Hugging Face's SDXL model.",
+                    Toast.LENGTH_SHORT
+                ).show()
+                viewModel.isFreeMode.value -> Toast.makeText(
                     requireContext(),
                     "Web AI is a Premium feature — switch to Premium to enable.",
                     Toast.LENGTH_SHORT
                 ).show()
-            } else {
-                viewModel.setWebSearchMode(!viewModel.webSearchMode.value)
+                else -> viewModel.setWebSearchMode(!viewModel.webSearchMode.value)
             }
         }
 
@@ -100,7 +120,10 @@ class HomeFragment : Fragment() {
             viewModel.isFreeMode.collect { updateProviderChip() }
         }
         lifecycleScope.launch {
-            viewModel.selectedProvider.collect { updateProviderChip() }
+            viewModel.isImageMode.collect { updateProviderChip() }
+        }
+        lifecycleScope.launch {
+            viewModel.effectiveProvider.collect { updateProviderChip() }
         }
         lifecycleScope.launch {
             viewModel.selectedFreeModel.collect { updateProviderChip() }
@@ -108,9 +131,13 @@ class HomeFragment : Fragment() {
         lifecycleScope.launch {
             viewModel.webSearchMode.collect { updateProviderChip() }
         }
+        lifecycleScope.launch {
+            viewModel.generatingLabel.collect { binding.tvTyping.text = it }
+        }
 
         binding.btnTabPremium.setOnClickListener { viewModel.setFreeMode(false) }
         binding.btnTabFree.setOnClickListener { viewModel.setFreeMode(true) }
+        binding.btnTabImage.setOnClickListener { viewModel.setImageMode(true) }
 
         setupFreeModelChips()
 
@@ -137,6 +164,9 @@ class HomeFragment : Fragment() {
 
         binding.btnSend.setOnClickListener { onSendClicked() }
 
+        // Compact inline voice (mic) button → speech-to-text into the input box.
+        binding.btnVoice.setOnClickListener { onVoiceClicked() }
+
         binding.btnMenu.setOnClickListener {
             (activity as? MainActivity)?.openDrawer()
         }
@@ -150,17 +180,46 @@ class HomeFragment : Fragment() {
 
     /** Reflects the active provider/model in the persistent chip + input hint. */
     private fun updateProviderChip() {
+        updateTabSelection()
         val isFree = viewModel.isFreeMode.value
-        if (isFree) {
-            val fm = viewModel.selectedFreeModel.value
-            binding.chipActiveProvider.text = "${fm.logoEmoji} ${fm.displayName}"
-            binding.etMessageInput.setHint("Ask ${fm.displayName}…")
-        } else {
-            val p = viewModel.selectedProvider.value
-            val label = if (viewModel.webSearchMode.value) "🌐 ${p.displayName}" else "${p.logoEmoji} ${p.displayName}"
-            binding.chipActiveProvider.text = label
-            binding.etMessageInput.setHint("Ask ${p.displayName}…")
+        val isImage = viewModel.isImageMode.value
+        when {
+            isImage -> {
+                binding.chipActiveProvider.text = "🤗 Hugging Face · Image"
+                binding.etMessageInput.setHint("Describe an image to generate…")
+            }
+            isFree -> {
+                val fm = viewModel.selectedFreeModel.value
+                binding.chipActiveProvider.text = "${fm.logoEmoji} ${fm.displayName}"
+                binding.etMessageInput.setHint("Ask ${fm.displayName}…")
+            }
+            else -> {
+                val p = viewModel.effectiveProvider.value
+                val label = if (viewModel.webSearchMode.value) "🌐 ${p.displayName}" else "${p.logoEmoji} ${p.displayName}"
+                binding.chipActiveProvider.text = label
+                binding.etMessageInput.setHint("Ask ${p.displayName}…")
+            }
         }
+    }
+
+    /** Highlights the active chat-mode tab (Premium / Free / Image). */
+    private fun updateTabSelection() {
+        val selectedBg = R.drawable.bg_pill_chip_selected
+        val transparent = android.R.color.transparent
+        val activeText = R.color.white
+        val idleText = R.color.outline
+
+        val isFree = viewModel.isFreeMode.value
+        val isImage = viewModel.isImageMode.value
+
+        binding.btnTabPremium.setBackgroundResource(if (!isFree && !isImage) selectedBg else transparent)
+        binding.btnTabPremium.setTextColor(resources.getColor(if (!isFree && !isImage) activeText else idleText, null))
+
+        binding.btnTabFree.setBackgroundResource(if (isFree) selectedBg else transparent)
+        binding.btnTabFree.setTextColor(resources.getColor(if (isFree) activeText else idleText, null))
+
+        binding.btnTabImage.setBackgroundResource(if (isImage) selectedBg else transparent)
+        binding.btnTabImage.setTextColor(resources.getColor(if (isImage) activeText else idleText, null))
     }
 
     private fun onSendClicked() {
@@ -191,6 +250,68 @@ class HomeFragment : Fragment() {
 
         binding.etMessageInput.text?.clear()
         clearAttachment()
+    }
+
+    /* ─────────────────────────────────────────────────────────────────────────
+     * Inline voice input (compact mic button)
+     * ───────────────────────────────────────────────────────────────────────── */
+
+    private fun onVoiceClicked() {
+        if (isVoiceListening) {
+            voiceHelper?.stopListening()
+            return
+        }
+        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.RECORD_AUDIO)
+            == PackageManager.PERMISSION_GRANTED
+        ) {
+            startVoiceInput()
+        } else {
+            requestAudioPermission.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
+
+    private fun startVoiceInput() {
+        if (voiceHelper == null) {
+            voiceHelper = VoiceRecognitionHelper(requireContext(), object : VoiceRecognitionHelper.Callback {
+                override fun onReadyForSpeech() {}
+                override fun onBeginningOfSpeech() {}
+                override fun onRmsChanged(rmsdB: Float) {}
+                override fun onPartialResults(text: String) { appendVoiceText(text) }
+                override fun onResults(text: String) {
+                    appendVoiceText(text)
+                    stopVoiceVisual()
+                }
+                override fun onError(error: String) {
+                    stopVoiceVisual()
+                    Toast.makeText(requireContext(), error, Toast.LENGTH_SHORT).show()
+                }
+            })
+        }
+        voiceHelper?.startListening()
+        isVoiceListening = true
+        binding.btnVoice.setColorFilter(
+            ContextCompat.getColor(requireContext(), R.color.electric_blue_glow),
+            PorterDuff.Mode.SRC_IN
+        )
+        binding.btnVoice.alpha = 0.7f
+    }
+
+    private fun stopVoiceVisual() {
+        isVoiceListening = false
+        binding.btnVoice.setColorFilter(
+            ContextCompat.getColor(requireContext(), R.color.html_cyan),
+            PorterDuff.Mode.SRC_IN
+        )
+        binding.btnVoice.alpha = 1f
+    }
+
+    /** Inserts recognised speech into the message box without destroying what's already there. */
+    private fun appendVoiceText(text: String) {
+        if (text.isBlank()) return
+        val current = binding.etMessageInput.text?.toString().orEmpty()
+        val merged = if (current.isBlank()) text else "$current $text".trim()
+        binding.etMessageInput.setText(merged)
+        binding.etMessageInput.setSelection(binding.etMessageInput.text?.length ?: 0)
     }
 
     /* ─────────────────────────────────────────────────────────────────────────
@@ -235,7 +356,7 @@ class HomeFragment : Fragment() {
             } else {
                 Toast.makeText(
                     context,
-                    "Image generation lives in the Free AI tab. The selected chat provider is text-only.",
+                    "Image generation lives in the 🖼 Image tab (Hugging Face). The selected chat provider is text-only.",
                     Toast.LENGTH_LONG
                 ).show()
             }
@@ -382,6 +503,8 @@ class HomeFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        voiceHelper?.destroy()
+        voiceHelper = null
         super.onDestroyView()
         _binding = null
     }

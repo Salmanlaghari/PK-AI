@@ -21,6 +21,17 @@ import javax.inject.Singleton
  * API keys are read from BuildConfig (injected at build time from local.properties /
  * CI secrets) — never hardcoded in source.
  */
+/**
+ * The free-tier fallback order used when the user's active provider is rate-limited
+ * (HTTP 429) or hits its quota (HTTP 402). When a request fails for one of those
+ * reasons, PK AI retries against the next provider that has an API key configured.
+ *
+ * This is a single editable constant so the order can be tweaked in one place.
+ */
+val FALLBACK_ORDER: List<String> = listOf(
+    "groq", "cerebras", "llm7", "mistral", "huggingface", "cohere", "cloudflare"
+)
+
 @Singleton
 class AiProviderFactory @Inject constructor(
     private val okHttpClient: OkHttpClient,
@@ -100,6 +111,32 @@ class AiProviderFactory @Inject constructor(
 
     /** Returns the user's default provider (Groq). */
     fun getDefaultProvider(): AiProvider = getProvider(LlmProvider.DEFAULT.id)
+
+    /**
+     * True when the provider can actually be called right now — i.e. its API key (and, for
+     * Cloudflare, the account id) is configured. Used to prune the fallback chain so we never
+     * waste a request on a provider the user hasn't set up.
+     */
+    fun hasConfiguredKey(provider: LlmProvider): Boolean {
+        if (keyFor(provider).isBlank()) return false
+        if (provider.needsAccountId && BuildConfig.CLOUDFLARE_ACCOUNT_ID.isBlank()) return false
+        return true
+    }
+
+    /**
+     * Builds the ordered list of providers to try for a given starting provider.
+     *
+     * The selected provider is always first; the remaining slots follow [FALLBACK_ORDER]
+     * (with the selected provider de-duplicated). Providers without a configured key are
+     * dropped, so the chain only ever contains providers PK AI can actually call.
+     */
+    fun fallbackChain(selectedId: String): List<LlmProvider> {
+        val orderedIds = listOf(selectedId) + FALLBACK_ORDER.filter { it != selectedId }
+        return orderedIds
+            .mapNotNull { id -> LlmProvider.ALL.firstOrNull { it.id == id } }
+            .distinctBy { it.id }
+            .filter { hasConfiguredKey(it) }
+    }
 
     private fun keyFor(provider: LlmProvider): String = when (provider.apiKeyBuildConfig) {
         "GROQ_API_KEY" -> BuildConfig.GROQ_API_KEY

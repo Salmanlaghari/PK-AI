@@ -2,6 +2,8 @@ package com.salmanlaghari.pkai.data.remote.provider
 
 import com.salmanlaghari.pkai.data.model.ChatMessage
 import com.salmanlaghari.pkai.data.model.LlmProvider
+import com.salmanlaghari.pkai.BuildConfig
+import android.util.Log
 import com.salmanlaghari.pkai.data.remote.ChatMessageDto
 import com.salmanlaghari.pkai.data.remote.ChatCompletionRequest
 import com.salmanlaghari.pkai.data.remote.PublicFreeApiService
@@ -35,12 +37,56 @@ sealed interface AiResponse {
 
 private fun roleOf(message: ChatMessage): String = if (message.isUser) "user" else "assistant"
 
+private const val LOG_TAG = "PkAiProvider"
+
+/**
+ * Reads the error body of a failed call exactly once.
+ *
+ * [okhttp3.ResponseBody.string] may only be consumed a single time, so the result is
+ * threaded through both the Logcat output and the user-facing message.
+ */
+fun errorBodyOf(e: HttpException): String? = try {
+    e.response()?.errorBody()?.string()?.takeIf { it.isNotBlank() }
+} catch (t: Throwable) {
+    null
+}
+
+/**
+ * Debug-build diagnostics: prints the exact failing URL, status code and raw response body
+ * for any non-2xx response so provider issues (deprecated model ids, wrong paths, bad
+ * tokens) can be diagnosed straight from Logcat.
+ *
+ * Wrapped in a try/catch because `android.util.Log` is not available on the plain JVM used
+ * by unit tests.
+ */
+fun logHttpFailure(providerName: String, e: HttpException, errorBody: String?) {
+    if (!BuildConfig.DEBUG) return
+    val url = e.response()?.raw()?.request?.url?.toString() ?: "<unknown url>"
+    val message = buildString {
+        append("✗ $providerName failed\n")
+        append("   HTTP  : ${e.code()} ${e.message()}\n")
+        append("   URL   : $url\n")
+        append("   BODY  : ${errorBody ?: "<empty>"}")
+    }
+    try {
+        Log.e(LOG_TAG, message)
+    } catch (t: Throwable) {
+        println(message)
+    }
+}
+
+/** Trims a provider error body down to something short enough to show in a chat bubble. */
+private fun shortDetail(errorBody: String?): String =
+    errorBody?.replace(Regex("\\s+"), " ")?.trim()?.take(300)?.let { " — $it" } ?: ""
+
 /** Maps an HTTP status code to a clear, actionable in-app message. */
-fun mapHttpError(providerName: String, code: Int, message: String?): String = when (code) {
-    401, 403 -> "$providerName: Authentication failed (HTTP $code). Verify your API key."
-    429 -> "$providerName: Rate limit exceeded (HTTP 429). Please wait and try again."
+fun mapHttpError(providerName: String, code: Int, message: String?, errorBody: String? = null): String = when (code) {
+    401, 403 -> "$providerName: Authentication failed (HTTP $code). Verify your API key.${shortDetail(errorBody)}"
+    404 -> "$providerName: Model or endpoint not found (HTTP 404). The configured model id is most likely " +
+        "deprecated or renamed by the provider.${shortDetail(errorBody)}"
+    429 -> "$providerName: Rate limit exceeded (HTTP 429). Please wait and try again.${shortDetail(errorBody)}"
     in 500..599 -> "$providerName: The provider's servers are unavailable (HTTP $code). Try again later."
-    else -> "$providerName: Request failed (HTTP $code)${message?.let { " — $it" } ?: ""}"
+    else -> "$providerName: Request failed (HTTP $code)${message?.let { " — $it" } ?: ""}${shortDetail(errorBody)}"
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -71,7 +117,9 @@ open class OpenAiCompatibleProvider(
                 emit(AiResponse.Success(text))
             }
         } catch (e: HttpException) {
-            emit(AiResponse.Error(mapHttpError(provider.displayName, e.code(), e.message())))
+            val body = errorBodyOf(e)
+            logHttpFailure(provider.displayName, e, body)
+            emit(AiResponse.Error(mapHttpError(provider.displayName, e.code(), e.message(), body)))
         } catch (e: IOException) {
             emit(AiResponse.Error("${provider.displayName}: Network error. Check your internet connection."))
         } catch (e: Exception) {
@@ -115,7 +163,9 @@ class CloudflareWorkersAiProvider(
                 emit(AiResponse.Success(text))
             }
         } catch (e: HttpException) {
-            emit(AiResponse.Error(mapHttpError("Cloudflare Workers AI", e.code(), e.message())))
+            val body = errorBodyOf(e)
+            logHttpFailure("Cloudflare Workers AI", e, body)
+            emit(AiResponse.Error(mapHttpError("Cloudflare Workers AI", e.code(), e.message(), body)))
         } catch (e: IOException) {
             emit(AiResponse.Error("Cloudflare Workers AI: Network error. Check your internet connection."))
         } catch (e: Exception) {
@@ -153,7 +203,9 @@ class CohereAiProvider(
                 emit(AiResponse.Success(text))
             }
         } catch (e: HttpException) {
-            emit(AiResponse.Error(mapHttpError("Cohere", e.code(), e.message())))
+            val body = errorBodyOf(e)
+            logHttpFailure("Cohere", e, body)
+            emit(AiResponse.Error(mapHttpError("Cohere", e.code(), e.message(), body)))
         } catch (e: IOException) {
             emit(AiResponse.Error("Cohere: Network error. Check your internet connection."))
         } catch (e: Exception) {
@@ -174,6 +226,72 @@ class CohereAiProvider(
         } catch (e: Exception) {
             null
         }
+    }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * Pollinations AI — key-less free LLM for the Home "Free AI" tab
+ *
+ * This is the second Free-tier model (alongside [PublicFreeAiProvider]) and, unlike the
+ * public fact/advice chatbot, it is a genuine LLM conversation that still needs no API key,
+ * no account and no billing details.
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+class PollinationsAiProvider(
+    private val service: PollinationsApiService
+) : AiProvider {
+
+    private companion object {
+        const val DISPLAY_NAME = "Pollinations AI"
+        /** Keep the prompt well inside the practical URL length limit. */
+        const val MAX_PROMPT_CHARS = 1800
+        const val HISTORY_TURNS = 6
+        /** Pollinations' default key-less text model. */
+        const val MODEL = "openai"
+    }
+
+    override fun sendMessage(prompt: String, history: List<ChatMessage>): Flow<AiResponse> = flow {
+        try {
+            val body = service.generate(
+                prompt = buildPrompt(prompt, history),
+                model = MODEL,
+                isPrivate = true
+            )
+            val text = body.string().trim()
+            if (text.isBlank()) {
+                emit(AiResponse.Error("$DISPLAY_NAME returned an empty response. Please try again."))
+            } else {
+                emit(AiResponse.Success(text))
+            }
+        } catch (e: HttpException) {
+            val errorBody = errorBodyOf(e)
+            logHttpFailure(DISPLAY_NAME, e, errorBody)
+            emit(AiResponse.Error(mapHttpError(DISPLAY_NAME, e.code(), e.message(), errorBody)))
+        } catch (e: IOException) {
+            emit(AiResponse.Error("$DISPLAY_NAME: Network error. Check your internet connection."))
+        } catch (e: Exception) {
+            emit(AiResponse.Error("$DISPLAY_NAME: ${e.localizedMessage ?: "Unknown error"}"))
+        }
+    }
+
+    /**
+     * Pollinations' key-less endpoint takes a single prompt string, so recent turns are
+     * folded into the prompt to preserve conversational context.
+     */
+    private fun buildPrompt(prompt: String, history: List<ChatMessage>): String {
+        val recent = history.takeLast(HISTORY_TURNS)
+        val conversation = buildString {
+            append("You are PK AI, a helpful assistant. Reply conversationally in plain text.\n\n")
+            recent.forEach { message ->
+                append(if (message.isUser) "User: " else "Assistant: ")
+                append(message.content.trim())
+                append("\n")
+            }
+            append("User: ")
+            append(prompt.trim())
+            append("\nAssistant:")
+        }
+        return conversation.takeLast(MAX_PROMPT_CHARS)
     }
 }
 

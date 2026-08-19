@@ -39,7 +39,9 @@ data class LlmProvider(
                 logoEmoji = "⚡",
                 format = ProviderFormat.OPENAI,
                 baseUrl = "https://api.groq.com/openai/v1/",
-                defaultModel = "llama-3.3-70b-versatile",
+                // `llama-3.3-70b-versatile` was shut down by Groq on 2026-08-16 and now
+                // returns HTTP 404. Groq's documented replacement is `openai/gpt-oss-120b`.
+                defaultModel = "openai/gpt-oss-120b",
                 apiKeyBuildConfig = "GROQ_API_KEY"
             ),
             LlmProvider(
@@ -60,7 +62,9 @@ data class LlmProvider(
                 logoEmoji = "🔗",
                 format = ProviderFormat.OPENAI,
                 baseUrl = "https://api.llm7.io/v1/",
-                defaultModel = "deepseek-v3-0324",
+                // `deepseek-v3-0324` is no longer listed by LLM7; `DeepSeek-V4-Flash-0731`
+                // is a currently-available free-tier ("turbo") chat model.
+                defaultModel = "DeepSeek-V4-Flash-0731",
                 apiKeyBuildConfig = "LLM7_API_KEY"
             ),
             LlmProvider(
@@ -70,7 +74,9 @@ data class LlmProvider(
                 logoEmoji = "🌪️",
                 format = ProviderFormat.OPENAI,
                 baseUrl = "https://api.mistral.ai/v1/",
-                defaultModel = "mistral-medium-3-5-128b",
+                // `mistral-medium-3-5-128b` is not a valid Mistral model id (404).
+                // `mistral-small-latest` is a stable, free-tier friendly alias.
+                defaultModel = "mistral-small-latest",
                 apiKeyBuildConfig = "MISTRAL_API_KEY"
             ),
             LlmProvider(
@@ -80,7 +86,9 @@ data class LlmProvider(
                 logoEmoji = "🧩",
                 format = ProviderFormat.COHERE,
                 baseUrl = "https://api.cohere.com/v2/",
-                defaultModel = "command-r",
+                // The `command-r` alias was removed by Cohere on 2025-09-15 and returns
+                // HTTP 404. `command-a-03-2025` is the recommended active replacement.
+                defaultModel = "command-a-03-2025",
                 apiKeyBuildConfig = "COHERE_API_KEY"
             ),
             LlmProvider(
@@ -90,7 +98,9 @@ data class LlmProvider(
                 logoEmoji = "🚀",
                 format = ProviderFormat.OPENAI,
                 baseUrl = "https://api.cerebras.ai/v1/",
-                defaultModel = "llama3.1-70b",
+                // `llama3.1-70b` is no longer served by Cerebras (404). `gpt-oss-120b`
+                // is a current production model with no announced deprecation date.
+                defaultModel = "gpt-oss-120b",
                 apiKeyBuildConfig = "CEREBRAS_API_KEY"
             ),
             LlmProvider(
@@ -100,7 +110,9 @@ data class LlmProvider(
                 logoEmoji = "🤗",
                 format = ProviderFormat.OPENAI,
                 baseUrl = "https://router.huggingface.co/v1/",
-                defaultModel = "meta-llama-3-1-8b-instruct",
+                // The HF router expects the fully-qualified repo id, not a slugified name.
+                // `meta-llama-3-1-8b-instruct` is not a valid router model id (404).
+                defaultModel = "meta-llama/Llama-3.1-8B-Instruct",
                 apiKeyBuildConfig = "HUGGINGFACE_API_KEY"
             )
         )

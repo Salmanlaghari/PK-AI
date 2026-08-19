@@ -7,6 +7,7 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.salmanlaghari.pkai.data.model.ChatMessage
+import com.salmanlaghari.pkai.data.model.FreeAiModel
 import com.salmanlaghari.pkai.databinding.ItemChatAiBinding
 import com.salmanlaghari.pkai.databinding.ItemChatUserBinding
 
@@ -54,9 +55,12 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(ChatDiffCa
             binding.tvAiMessage.text = message.content
             val label = message.modelUsed
             if (!label.isNullOrEmpty()) {
-                // Surface the active provider: "Powered by <Provider>" for real providers,
-                // plain label for the key-less free chatbot.
-                binding.tvAiModelTag.text = if (label == "Free Public AI") label else "Powered by $label"
+                // Surface the active provider as "Powered by <Provider>". Free-tier labels are
+                // stored as "Free · <model>", so strip the prefix before displaying, and keep
+                // the legacy "Free Public AI" label rendering as-is.
+                val displayName = label.removePrefix(FreeAiModel.LABEL_PREFIX)
+                binding.tvAiModelTag.text =
+                    if (label == "Free Public AI") label else "Powered by $displayName"
                 binding.tvAiModelTag.visibility = View.VISIBLE
             } else {
                 binding.tvAiModelTag.visibility = View.GONE

@@ -273,20 +273,42 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
 
-        <!-- Tools / Attachment Button (left side) -->
+        <!-- Attachment preview (above the input row) -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/layout_attachment_preview"
+            style="@style/PkAi.GlassCard"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:visibility="gone"
+            app:cardCornerRadius="14dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:visibility="visible">
+
+            <LinearLayout
+                android:id="@+id/container_attachment_preview"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:padding="10dp" />
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Attachment FAB (left) -->
         <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/btn_tools"
+            android:id="@+id/btn_attach"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginEnd="8dp"
-            android:contentDescription="Open Tools"
+            android:contentDescription="Attach file"
             app:backgroundTint="@color/glass_surface"
             app:fabSize="mini"
             app:layout_constraintBottom_toBottomOf="@id/input_message_layout"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="@id/input_message_layout"
             app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.App.Circular"
-            app:srcCompat="@drawable/ic_tools"
+            app:srcCompat="@android:drawable/ic_menu_attachment"
             app:tint="@color/html_cyan" />
 
         <!-- Input Field -->
@@ -304,10 +326,10 @@
             app:boxStrokeWidth="1dp"
             app:boxStrokeWidthFocused="1.5dp"
             app:hintTextColor="@color/electric_blue_glow"
-            app:layout_constraintBottom_toTopOf="@id/btn_model_selector"
+            app:layout_constraintBottom_toTopOf="@id/chip_active_provider"
             app:layout_constraintEnd_toStartOf="@id/btn_send"
-            app:layout_constraintStart_toEndOf="@id/btn_tools"
-            app:layout_constraintTop_toTopOf="parent">
+            app:layout_constraintStart_toEndOf="@id/btn_attach"
+            app:layout_constraintTop_toBottomOf="@id/layout_attachment_preview">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/et_message_input"
@@ -336,23 +358,23 @@
             app:srcCompat="@drawable/ic_send"
             app:tint="@color/white" />
 
-        <!-- PK AI Mode Label -->
+        <!-- Active provider chip (persistent indicator, also toggles web search) -->
         <TextView
-            android:id="@+id/btn_model_selector"
+            android:id="@+id/chip_active_provider"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
             android:layout_marginBottom="2dp"
-            android:background="?attr/selectableItemBackground"
+            android:background="@drawable/bg_pill_chip_selected"
             android:clickable="true"
             android:focusable="true"
             android:fontFamily="@font/poppins"
             android:gravity="center"
-            android:paddingHorizontal="10dp"
-            android:paddingVertical="4dp"
-            android:text="PK AI"
-            android:textColor="@color/electric_blue_glow"
-            android:textSize="13sp"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="5dp"
+            android:text="⚡ Groq"
+            android:textColor="@color/on_primary"
+            android:textSize="12sp"
             android:textStyle="bold"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"

@@ -36,6 +36,10 @@
     <string name="lbl_app_version">App Version</string>
     <string name="app_version_value" translatable="false">1.0.0 (Release Skeleton)</string>
 
+    <!-- AI Providers (Settings → AI) -->
+    <string name="section_ai">AI PROVIDER</string>
+    <string name="lbl_ai_provider">Choose your AI engine</string>
+
     <!-- Theme picker -->
     <string name="title_theme_picker">Select Theme</string>
     <string name="theme_aurora">Aurora (Purple)</string>

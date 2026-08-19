@@ -5,12 +5,16 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import com.salmanlaghari.pkai.data.model.AiModel
+import com.salmanlaghari.pkai.data.model.LlmProvider
 import com.salmanlaghari.pkai.databinding.ItemActiveChatBinding
 
+/**
+ * Browses the catalogue of available free LLM providers (the same list shown in
+ * Settings → AI). Tapping a row opens a chat and persists the selection.
+ */
 class ActiveChatsAdapter(
-    private val onClick: (AiModel) -> Unit
-) : ListAdapter<AiModel, ActiveChatsAdapter.ViewHolder>(AiModelDiffCallback()) {
+    private val onClick: (LlmProvider) -> Unit
+) : ListAdapter<LlmProvider, ActiveChatsAdapter.ViewHolder>(LlmProviderDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val binding = ItemActiveChatBinding.inflate(LayoutInflater.from(parent.context), parent, false)
@@ -24,37 +28,25 @@ class ActiveChatsAdapter(
     inner class ViewHolder(private val binding: ItemActiveChatBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(model: AiModel) {
-            binding.tvAvatar.text = getEmoji(model)
-            binding.tvName.text = model.displayName
-            binding.tvProvider.text = "by ${model.providerName}"
+        fun bind(provider: LlmProvider) {
+            binding.tvAvatar.text = provider.logoEmoji
+            binding.tvName.text = provider.displayName
+            binding.tvProvider.text = provider.tagline
 
             // Status Badge is set statically to "● Online"
             binding.tvStatusBadge.text = "● Online"
 
-            binding.root.setOnClickListener { onClick(model) }
-            binding.btnOpenChat.setOnClickListener { onClick(model) }
-        }
-
-        private fun getEmoji(model: AiModel): String {
-            return when (model) {
-                AiModel.CLAUDE -> "🧠"
-                AiModel.DEEPSEEK -> "🌊"
-                AiModel.QWEN -> "🐪"
-                AiModel.LLAMA -> "🦙"
-                AiModel.MISTRAL -> "🌪️"
-                AiModel.PERPLEXITY -> "🔍"
-                AiModel.WEB -> "🌐"
-            }
+            binding.root.setOnClickListener { onClick(provider) }
+            binding.btnOpenChat.setOnClickListener { onClick(provider) }
         }
     }
 
-    private class AiModelDiffCallback : DiffUtil.ItemCallback<AiModel>() {
-        override fun areItemsTheSame(oldItem: AiModel, newItem: AiModel): Boolean {
-            return oldItem == newItem
+    private class LlmProviderDiffCallback : DiffUtil.ItemCallback<LlmProvider>() {
+        override fun areItemsTheSame(oldItem: LlmProvider, newItem: LlmProvider): Boolean {
+            return oldItem.id == newItem.id
         }
 
-        override fun areContentsTheSame(oldItem: AiModel, newItem: AiModel): Boolean {
+        override fun areContentsTheSame(oldItem: LlmProvider, newItem: LlmProvider): Boolean {
             return oldItem == newItem
         }
     }

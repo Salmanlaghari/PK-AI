@@ -4,6 +4,7 @@ import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import com.salmanlaghari.pkai.data.local.datastore.PreferencesManager
 import com.salmanlaghari.pkai.data.local.room.ChatMessageDao
 import com.salmanlaghari.pkai.data.model.ChatMessage
+import com.salmanlaghari.pkai.data.model.FreeAiModel
 import com.salmanlaghari.pkai.data.model.LlmProvider
 import com.salmanlaghari.pkai.data.remote.provider.AiProvider
 import com.salmanlaghari.pkai.data.remote.provider.AiProviderFactory
@@ -82,6 +83,7 @@ class HomeViewModelTest {
 
         // Selected provider defaults to Groq
         whenever(mockPreferencesManager.selectedProviderId).thenReturn(flowOf(LlmProvider.DEFAULT.id))
+        whenever(mockPreferencesManager.selectedFreeModelId).thenReturn(flowOf(FreeAiModel.DEFAULT.id))
 
         // Premium provider returns a predictable response via the new Flow API
         val mockAiProvider = object : AiProvider {
@@ -97,7 +99,7 @@ class HomeViewModelTest {
                 emit(AiResponse.Success("Free response for prompt: $prompt"))
             }
         }
-        whenever(mockAiProviderFactory.getPublicFreeProvider()).thenReturn(mockFreeAiProvider)
+        whenever(mockAiProviderFactory.getFreeProvider(anyString())).thenReturn(mockFreeAiProvider)
 
         viewModel = HomeViewModel(
             appRepository = fakeAppRepository,
@@ -190,7 +192,7 @@ class HomeViewModelTest {
         assertEquals(2, freeMessages.size)
         assertEquals("Free Query", freeMessages[0].content)
         assertEquals("Free response for prompt: Free Query", freeMessages[1].content)
-        assertEquals("Free Public AI", freeMessages[1].modelUsed)
+        assertEquals(FreeAiModel.DEFAULT.chatLabel, freeMessages[1].modelUsed)
 
         // Switch back to premium
         viewModel.setFreeMode(false)

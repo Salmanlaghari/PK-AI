@@ -2,6 +2,7 @@ package com.salmanlaghari.pkai.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.salmanlaghari.pkai.BuildConfig
 import com.salmanlaghari.pkai.data.local.datastore.PreferencesManager
 import com.salmanlaghari.pkai.data.local.room.ChatMessageDao
 import com.salmanlaghari.pkai.data.model.ChatMessage
@@ -21,9 +22,14 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import javax.inject.Inject
+import android.util.Base64
+import kotlinx.coroutines.delay
+import org.json.JSONObject
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -35,8 +41,17 @@ class HomeViewModel @Inject constructor(
     private val okHttpClient: OkHttpClient
 ) : ViewModel() {
 
+    /** Hugging Face text-to-image model used by the dedicated Image Generation tab. */
+    private companion object {
+        const val IMAGE_MODEL = "stabilityai/stable-diffusion-xl-base-1.0"
+        const val IMAGE_PROVIDER_LABEL = "Hugging Face Image"
+    }
+
     private val _isFreeMode = MutableStateFlow(false)
     val isFreeMode: StateFlow<Boolean> = _isFreeMode.asStateFlow()
+
+    private val _isImageMode = MutableStateFlow(false)
+    val isImageMode: StateFlow<Boolean> = _isImageMode.asStateFlow()
 
     val chatMessages: StateFlow<List<ChatMessage>> = chatMessageDao.getAllMessagesFlow()
         .combine(_isFreeMode) { messages, freeMode ->
@@ -47,6 +62,13 @@ class HomeViewModel @Inject constructor(
             } else {
                 messages.filter { !FreeAiModel.isFreeLabel(it.modelUsed) }
             }
+        }
+        .combine(_isImageMode) { messages, imageMode ->
+            if (imageMode) {
+                // Image tab keeps its own thread: any message labelled with the image
+                // provider (prompts + generated pictures) belongs here.
+                messages.filter { it.modelUsed == IMAGE_PROVIDER_LABEL || it.content.startsWith("🖼 Generate image:") }
+            } else messages
         }
         .stateIn(
             scope = viewModelScope,
@@ -63,6 +85,20 @@ class HomeViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = LlmProvider.DEFAULT
         )
+
+    /**
+     * The provider the UI should *display* as active. Normally this is the user's selected
+     * provider, but after a rate-limit fallback it is temporarily overridden to the provider
+     * that actually answered, so the chip / "Powered by" tag reflect reality.
+     */
+    private val _activeProviderOverride = MutableStateFlow<LlmProvider?>(null)
+    val effectiveProvider: StateFlow<LlmProvider> = combine(selectedProvider, _activeProviderOverride) { selected, override ->
+        override ?: selected
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = LlmProvider.DEFAULT
+    )
 
     /** The key-less model the user picked in the Free AI tab (defaults to the free LLM). */
     private val _selectedFreeModelId = MutableStateFlow(FreeAiModel.DEFAULT.id)
@@ -83,9 +119,17 @@ class HomeViewModel @Inject constructor(
     private val _isGenerating = MutableStateFlow(false)
     val isGenerating: StateFlow<Boolean> = _isGenerating.asStateFlow()
 
+    /** Text shown in the typing indicator — switches to an image-specific message. */
+    private val _generatingLabel = MutableStateFlow("AI is thinking…")
+    val generatingLabel: StateFlow<String> = _generatingLabel.asStateFlow()
+
     init {
         viewModelScope.launch {
-            preferencesManager.selectedProviderId.collect { _selectedProviderId.value = it }
+            preferencesManager.selectedProviderId.collect { id ->
+                _selectedProviderId.value = id
+                // A fresh selection clears any transient fallback override.
+                _activeProviderOverride.value = null
+            }
         }
         viewModelScope.launch {
             preferencesManager.selectedFreeModelId.collect { _selectedFreeModelId.value = it }
@@ -101,6 +145,18 @@ class HomeViewModel @Inject constructor(
 
     fun setFreeMode(free: Boolean) {
         _isFreeMode.value = free
+        if (free) {
+            _isImageMode.value = false
+            _activeProviderOverride.value = null
+        }
+    }
+
+    fun setImageMode(image: Boolean) {
+        _isImageMode.value = image
+        if (image) {
+            _isFreeMode.value = false
+            _activeProviderOverride.value = null
+        }
     }
 
     fun setWebSearchMode(enabled: Boolean) {
@@ -112,6 +168,9 @@ class HomeViewModel @Inject constructor(
      * file reference and, for image attachments on a vision-capable premium provider, the
      * picture is forwarded so the model can actually see it. For unsupported attachments the
      * user is told clearly rather than failing silently.
+     *
+     * In Image mode the text is treated as a text-to-image prompt and routed to the Hugging
+     * Face image model instead of a chat provider.
      *
      * @param imageDataUri a base64 `data:image/…` payload (already read from the file by the
      * UI) used for vision requests; null when there is no image to send.
@@ -125,12 +184,16 @@ class HomeViewModel @Inject constructor(
     ) {
         if (content.trim().isEmpty() && attachmentUri.isNullOrBlank()) return
 
+        // Image Generation tab handles the text as a picture prompt.
+        if (_isImageMode.value) {
+            generateHuggingFaceImage(content.trim())
+            return
+        }
+
         viewModelScope.launch {
             val isFree = _isFreeMode.value
             val freeModel = selectedFreeModel.value
             val provider = selectedProvider.value
-            // Free replies are labelled "Free · <model>" so the Free tab can filter its own
-            // history and the chat bubble can still show "Powered by <model>".
             val providerLabel = if (isFree) freeModel.chatLabel else provider.displayName
 
             val userMessage = ChatMessage(
@@ -142,6 +205,20 @@ class HomeViewModel @Inject constructor(
                 attachmentName = attachmentName
             )
             chatMessageDao.insertMessage(userMessage)
+
+            // Text-only chat providers cannot generate images — decline such requests
+            // honestly instead of fabricating fake image markdown.
+            if (!isFree && attachmentType != "image" && looksLikeImageRequest(content)) {
+                chatMessageDao.insertMessage(
+                    ChatMessage(
+                        content = "🎨 ${provider.displayName} is a text-only chat model and can't generate images. " +
+                            "Switch to the 🖼 Image tab to create pictures with Hugging Face.",
+                        isUser = false,
+                        modelUsed = providerLabel
+                    )
+                )
+                return@launch
+            }
 
             val visionProvider = !isFree && attachmentType == "image" &&
                 imageDataUri != null && provider.supportsVision
@@ -169,41 +246,156 @@ class HomeViewModel @Inject constructor(
 
             _isGenerating.value = true
             try {
-                val aiProvider: AiProvider = if (isFree) {
-                    aiProviderFactory.getFreeProvider(freeModel.id)
-                } else {
-                    aiProviderFactory.getProvider(provider.id)
-                }
-
                 val history = chatMessageDao.getAllMessages()
                     .filter { FreeAiModel.isFreeLabel(it.modelUsed) == isFree }
                     .takeLast(20)
 
                 val builder = StringBuilder()
-                aiProvider.sendMessage(content, history, if (visionProvider) imageDataUri else null)
-                    .collect { response ->
-                        when (response) {
-                            is AiResponse.Success -> builder.append(response.text)
-                            is AiResponse.Error -> builder.clear().append(response.text)
-                        }
-                    }
+                var answeredBy: LlmProvider? = null
+                var firstFailureReason: String? = null
+                var lastError: String? = null
 
-                chatMessageDao.insertMessage(
-                    ChatMessage(
-                        content = builder.toString(),
-                        isUser = false,
-                        modelUsed = providerLabel
+                if (isFree) {
+                    val instance = aiProviderFactory.getFreeProvider(freeModel.id)
+                    var text: String? = null
+                    var err: String? = null
+                    instance.sendMessage(content, history, if (visionProvider) imageDataUri else null)
+                        .collect { response ->
+                            when (response) {
+                                is AiResponse.Success -> text = response.text
+                                is AiResponse.Error -> err = response.text
+                            }
+                        }
+                    if (!text.isNullOrBlank()) builder.append(text)
+                    else builder.clear().append(err ?: "Unknown error")
+                } else {
+                    // Premium path: try the selected provider, then fall back through the
+                    // ordered chain when it is rate-limited / out of quota.
+                    val chain = aiProviderFactory.fallbackChain(provider.id).ifEmpty { listOf(provider) }
+                    for (candidate in chain) {
+                        val instance = aiProviderFactory.getProvider(candidate.id)
+                        var text: String? = null
+                        var err: String? = null
+                        instance.sendMessage(content, history, if (visionProvider) imageDataUri else null)
+                            .collect { response ->
+                                when (response) {
+                                    is AiResponse.Success -> text = response.text
+                                    is AiResponse.Error -> err = response.text
+                                }
+                            }
+
+                        if (!text.isNullOrBlank()) {
+                            builder.append(text)
+                            answeredBy = candidate
+                            break
+                        }
+
+                        if (firstFailureReason == null) firstFailureReason = err
+                        lastError = err
+
+                        // Only a rate-limit / quota error justifies burning another provider.
+                        if (isRateLimitOrQuota(err)) continue
+                        builder.clear().append(err ?: "Unknown error")
+                        break
+                    }
+                }
+
+                val finalLabel = if (isFree) freeModel.chatLabel else (answeredBy ?: provider).displayName
+
+                // After a successful fallback, surface which provider actually answered and
+                // nudge the active-provider indicator to match.
+                if (!isFree && answeredBy != null && answeredBy.id != provider.id) {
+                    val reason = if (isRateLimitOrQuota(firstFailureReason)) {
+                        "${provider.displayName} limit reached"
+                    } else {
+                        "${provider.displayName} unavailable"
+                    }
+                    chatMessageDao.insertMessage(
+                        ChatMessage(
+                            content = "↪ Switched to ${answeredBy.displayName} ($reason)",
+                            isUser = false,
+                            modelUsed = null
+                        )
                     )
-                )
+                    _activeProviderOverride.value = answeredBy
+                }
+
+                if (builder.isBlank()) {
+                    // Reached only when every candidate errored — show one clear message.
+                    chatMessageDao.insertMessage(
+                        ChatMessage(
+                            content = lastError ?: "All providers failed to respond. Please try again.",
+                            isUser = false,
+                            modelUsed = finalLabel
+                        )
+                    )
+                } else {
+                    chatMessageDao.insertMessage(
+                        ChatMessage(
+                            content = builder.toString(),
+                            isUser = false,
+                            modelUsed = finalLabel
+                        )
+                    )
+                }
             } catch (e: Exception) {
                 val errorMessage = ChatMessage(
                     content = "Unable to fetch response. Please try again. (${e.localizedMessage ?: "Unknown Error"})",
                     isUser = false,
-                    modelUsed = providerLabel
+                    modelUsed = if (isFree) freeModel.chatLabel else provider.displayName
                 )
                 chatMessageDao.insertMessage(errorMessage)
             } finally {
                 _isGenerating.value = false
+            }
+        }
+    }
+
+    /**
+     * Generates a real image via Hugging Face's Inference API (SDXL), rendered inline as a
+     * Bitmap in the chat. Uses the configured HUGGINGFACE_API_KEY but a different endpoint
+     * that returns raw image bytes (not chat-completion JSON).
+     *
+     * Hugging Face's free tier cold-starts models, returning HTTP 503 "model loading"; we
+     * retry with exponential backoff and keep the UI in a "Generating image, please wait…"
+     * state until it succeeds or gives up.
+     */
+    fun generateHuggingFaceImage(prompt: String) {
+        if (prompt.isBlank()) return
+        viewModelScope.launch {
+            chatMessageDao.insertMessage(
+                ChatMessage(
+                    content = "🖼 Generate image: $prompt",
+                    isUser = true,
+                    modelUsed = IMAGE_PROVIDER_LABEL
+                )
+            )
+
+            _isGenerating.value = true
+            _generatingLabel.value = "Generating image, please wait…"
+            try {
+                val key = BuildConfig.HUGGINGFACE_API_KEY
+                if (key.isBlank()) throw IllegalStateException(
+                    "Hugging Face API key not configured. Add HUGGINGFACE_API_KEY to local.properties."
+                )
+                val bytes = generateImageWithRetry(key, prompt)
+                val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                val markdown = "![Generated image](data:image/png;base64,$base64)"
+                chatMessageDao.insertMessage(
+                    ChatMessage(content = markdown, isUser = false, modelUsed = IMAGE_PROVIDER_LABEL)
+                )
+            } catch (e: Exception) {
+                chatMessageDao.insertMessage(
+                    ChatMessage(
+                        content = "🖼 I couldn't generate that image (${e.localizedMessage ?: "unknown error"}). " +
+                            "The Hugging Face model may still be loading — please try again shortly.",
+                        isUser = false,
+                        modelUsed = IMAGE_PROVIDER_LABEL
+                    )
+                )
+            } finally {
+                _isGenerating.value = false
+                _generatingLabel.value = "AI is thinking…"
             }
         }
     }
@@ -235,7 +427,7 @@ class HomeViewModel @Inject constructor(
                     if (!resp.isSuccessful) throw IllegalStateException("HTTP ${resp.code}")
                     resp.body?.bytes() ?: throw IllegalStateException("Empty image body")
                 }
-                val base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+                val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
                 val markdown = "![Generated image](data:image/png;base64,$base64)"
                 chatMessageDao.insertMessage(
                     ChatMessage(content = markdown, isUser = false, modelUsed = providerLabel)
@@ -253,6 +445,64 @@ class HomeViewModel @Inject constructor(
                 _isGenerating.value = false
             }
         }
+    }
+
+    /** Calls the HF image endpoint, retrying on the 503 "model loading" cold-start response. */
+    private suspend fun generateImageWithRetry(key: String, prompt: String, maxAttempts: Int = 4): ByteArray {
+        var attempt = 0
+        var backoffMs = 2000L
+        var lastError: String? = null
+        while (attempt < maxAttempts) {
+            attempt++
+            try {
+                val body = JSONObject().put("inputs", prompt).toString()
+                    .toRequestBody("application/json".toMediaType())
+                val request = Request.Builder()
+                    .url("https://api-inference.huggingface.co/models/$IMAGE_MODEL")
+                    .addHeader("Authorization", "Bearer $key")
+                    .addHeader("Accept", "image/png")
+                    .post(body)
+                    .build()
+                val response = okHttpClient.newCall(request).execute()
+                if (response.isSuccessful) {
+                    val bytes = response.body?.bytes()
+                    if (bytes != null && bytes.isNotEmpty()) return bytes
+                    lastError = "Hugging Face returned an empty image."
+                } else {
+                    lastError = "Hugging Face image request failed (HTTP ${response.code})."
+                    if (response.code != 503) throw IllegalStateException(lastError)
+                }
+            } catch (e: Exception) {
+                // A fatal HTTP status (re-thrown just above) must not be retried; only
+                // transient network failures are swallowed and retried.
+                if (e is IllegalStateException) throw e
+                lastError = e.localizedMessage ?: "Network error"
+            }
+            if (attempt < maxAttempts) delay(backoffMs).also { backoffMs *= 2 }
+        }
+        throw IllegalStateException("Hugging Face image model didn't load after $maxAttempts tries ($lastError)")
+    }
+
+    /**
+     * True when [error] is a free-tier rate-limit / quota problem that justifies retrying on
+     * another provider. Detects HTTP 429 (rate limit) and HTTP 402 / "quota" (quota exceeded).
+     */
+    private fun isRateLimitOrQuota(error: String?): Boolean {
+        if (error == null) return false
+        val e = error.lowercase()
+        return e.contains("429") || e.contains("rate limit") || e.contains("quota") || e.contains("402")
+    }
+
+    /** Conservative heuristic: does the user seem to be asking for an image to be drawn? */
+    private fun looksLikeImageRequest(prompt: String): Boolean {
+        val p = prompt.lowercase()
+        return p.contains("generate an image") || p.contains("generate image") ||
+            p.contains("generate a picture") || p.contains("create an image") ||
+            p.contains("create a picture") || p.contains("make an image") ||
+            p.contains("text to image") || p.contains("text-to-image") ||
+            p.contains("image of") || p.contains("picture of") ||
+            p.startsWith("image:") || p.startsWith("draw ") || p.startsWith("draw me") ||
+            p.contains("paint a") || p.contains("render a")
     }
 
     fun clearConversation() {

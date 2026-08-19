@@ -47,6 +47,7 @@ class HomeViewModelTest {
     private lateinit var fakeChatMessageDao: ChatMessageDao
     private lateinit var mockAiProviderFactory: AiProviderFactory
     private lateinit var mockPreferencesManager: PreferencesManager
+    private lateinit var selectedProviderFlow: MutableStateFlow<String>
 
     private lateinit var viewModel: HomeViewModel
     private lateinit var collectJob: Job
@@ -83,7 +84,8 @@ class HomeViewModelTest {
         }
 
         // Selected provider defaults to Groq
-        whenever(mockPreferencesManager.selectedProviderId).thenReturn(flowOf(LlmProvider.DEFAULT.id))
+        selectedProviderFlow = MutableStateFlow(LlmProvider.DEFAULT.id)
+        whenever(mockPreferencesManager.selectedProviderId).thenReturn(selectedProviderFlow)
         whenever(mockPreferencesManager.selectedFreeModelId).thenReturn(flowOf(FreeAiModel.DEFAULT.id))
 
         // Premium provider returns a predictable response via the new Flow API
@@ -211,5 +213,70 @@ class HomeViewModelTest {
         val premiumMessages = viewModel.chatMessages.value
         assertEquals(2, premiumMessages.size)
         assertEquals("Premium Query", premiumMessages[0].content)
+    }
+
+    @Test
+    fun `selecting a different provider in Settings propagates to the ViewModel`() {
+        // The UI subscribes to effectiveProvider; mirror that so the StateFlow is active.
+        val sub = CoroutineScope(testDispatcher).launch { viewModel.effectiveProvider.collect {} }
+
+        // Given the default is Groq
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals("groq", viewModel.selectedProvider.value.id)
+        assertEquals("groq", viewModel.effectiveProvider.value.id)
+
+        // When the user picks Mistral in Settings
+        selectedProviderFlow.value = "mistral"
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Then the active provider (and UI-facing effectiveProvider) updates
+        assertEquals("mistral", viewModel.selectedProvider.value.id)
+        assertEquals("Mistral AI", viewModel.effectiveProvider.value.displayName)
+        assertEquals("mistral", viewModel.effectiveProvider.value.id)
+
+        sub.cancel()
+    }
+
+    @Test
+    fun `rate-limited provider falls back to the next provider and notes the switch`() {
+        // Given the selected provider (Groq) returns HTTP 429 and Cerebras succeeds.
+        val groqRateLimited = object : AiProvider {
+            override fun sendMessage(
+                prompt: String,
+                history: List<ChatMessage>,
+                imageDataUri: String?
+            ): Flow<AiResponse> = flow {
+                emit(AiResponse.Error("Groq: Rate limit exceeded (HTTP 429). Please wait and try again."))
+            }
+        }
+        val cerebrasOk = object : AiProvider {
+            override fun sendMessage(
+                prompt: String,
+                history: List<ChatMessage>,
+                imageDataUri: String?
+            ): Flow<AiResponse> = flow {
+                emit(AiResponse.Success("Cerebras handled it"))
+            }
+        }
+        whenever(mockAiProviderFactory.fallbackChain(anyString()))
+            .thenReturn(listOf(LlmProvider.fromId("groq"), LlmProvider.fromId("cerebras")))
+        whenever(mockAiProviderFactory.getProvider("groq")).thenReturn(groqRateLimited)
+        whenever(mockAiProviderFactory.getProvider("cerebras")).thenReturn(cerebrasOk)
+
+        // When
+        testDispatcher.scheduler.advanceUntilIdle()
+        viewModel.sendMessage("Hello")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Then the answer comes from Cerebras and a switch note is shown
+        val messages = viewModel.chatMessages.value
+        val aiMessage = messages.last()
+        assertEquals("Cerebras handled it", aiMessage.content)
+        assertEquals("Cerebras", aiMessage.modelUsed)
+
+        val switchNote = messages.find { it.content.startsWith("↪ Switched to") }
+        assertTrue(switchNote != null)
+        assertTrue(switchNote!!.content.contains("Cerebras"))
+        assertTrue(switchNote.content.contains("Groq limit reached"))
     }
 }

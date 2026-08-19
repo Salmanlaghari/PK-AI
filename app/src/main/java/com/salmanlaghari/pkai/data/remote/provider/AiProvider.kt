@@ -348,10 +348,13 @@ class KeylessLlmAiProvider(
         val messages = history.takeLast(HISTORY_TURNS)
             .map { ChatMessageDto(roleOf(it), it.content) } +
             listOf(ChatMessageDto("user", prompt))
-        llm7.generateChatResponse(
+        val llm7Response = llm7.generateChatResponse(
             "Bearer unused",
             ChatCompletionRequest(model = LLM7_MODEL, messages = messages)
-        ).choices.firstOrNull()?.message?.content?.trim()?.takeIf { it.isNotBlank() }
+        )
+        val llm7Raw = llm7Response.choices.firstOrNull()?.message?.content
+        val llm7Text = if (llm7Raw is String) llm7Raw else llm7Raw?.toString()
+        llm7Text?.trim()?.takeIf { it.isNotBlank() }
     } catch (e: HttpException) {
         logHttpFailure("$DISPLAY_NAME → LLM7", e, errorBodyOf(e))
         null

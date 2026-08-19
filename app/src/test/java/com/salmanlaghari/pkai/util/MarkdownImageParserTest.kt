@@ -12,7 +12,7 @@ class MarkdownImageParserTest {
         val parsed = MarkdownImageParser.parse(content)
         assertEquals(1, parsed.images.size)
         assertTrue(parsed.images[0].source.startsWith("data:image/"))
-        assertEquals("Here is the picture:\ndone.", parsed.text)
+        assertEquals("Here is the picture:\n done.", parsed.text)
     }
 
     @Test

@@ -81,7 +81,10 @@ private fun shortDetail(errorBody: String?): String =
 
 /** Maps an HTTP status code to a clear, actionable in-app message. */
 fun mapHttpError(providerName: String, code: Int, message: String?, errorBody: String? = null): String = when (code) {
-    401, 403 -> "$providerName: Authentication failed (HTTP $code). Verify your API key.${shortDetail(errorBody)}"
+    401, 403 -> "$providerName: Authentication failed (HTTP $code). Your API key or token is invalid, " +
+        "or lacks the permission needed for inference.${shortDetail(errorBody)}"
+    402 -> "$providerName: Payment or quota required (HTTP 402). This account has no remaining " +
+        "inference quota.${shortDetail(errorBody)}"
     404 -> "$providerName: Model or endpoint not found (HTTP 404). The configured model id is most likely " +
         "deprecated or renamed by the provider.${shortDetail(errorBody)}"
     429 -> "$providerName: Rate limit exceeded (HTTP 429). Please wait and try again.${shortDetail(errorBody)}"

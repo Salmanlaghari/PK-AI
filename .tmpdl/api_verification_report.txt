@@ -3,23 +3,23 @@
           REAL AI PROVIDER VERIFICATION REPORT     
 ==================================================
 ✓ Groq  [model: openai/gpt-oss-120b]
-   Succeeded. Response: "I’m ChatGPT, an AI language model created by OpenAI."
+   Succeeded. Response: "I am ChatGPT, an AI language model created by OpenAI."
 ✗ Cloudflare Workers AI  [model: @cf/meta/llama-3.3-70b-instruct-fp8-fast]
-   Cloudflare Workers AI: Model or endpoint not found (HTTP 404). The configured model id is most likely deprecated or renamed by the provider. — {"result":null,"success":false,"errors":[{"code":7003,"message":"Could not route to /client/v4/accounts/accounts/e41f481d6e18a735c95dd51cf6f12fe8/ai/run/@cf/
-✗ LLM7.io  [model: DeepSeek-V4-Flash-0731]
-   LLM7.io: The provider's servers are unavailable (HTTP 503). Try again later.
+   Cloudflare Workers AI: Authentication failed (HTTP 401). Verify your API key. — {"result":null,"success":false,"errors":[{"code":10000,"message":"Authentication error"}],"messages":[]}
+✓ LLM7.io  [model: mistral-Nemo-Instruct-2407]
+   Succeeded. Response: "I'm an AI assistant. I'm here to help."
 ✓ Mistral AI  [model: mistral-small-latest]
-   Succeeded. Response: "I'm an AI designed to assist and provide information."
+   Succeeded. Response: "I'm an AI assistant here to help with information and tasks!"
 ✓ Cohere  [model: command-a-03-2025]
    Succeeded. Response: "I am Command, a large language model built by Cohere."
-✗ Cerebras  [model: gpt-oss-120b]
-   Cerebras: Request failed (HTTP 402) —  — {"message":"Payment required to access this resource. Visit your billing tab.","type":"payment_required_error","param":"quota","code":"payment_required"}
+✗ Cerebras  [model: llama3.1-8b]
+   Cerebras: Model or endpoint not found (HTTP 404). The configured model id is most likely deprecated or renamed by the provider. — {"message":"Model does not exist or you do not have access to it.","type":"not_found_error","param":"model","code":"model_not_found"}
 ✗ Hugging Face  [model: meta-llama/Llama-3.1-8B-Instruct]
    Hugging Face: Authentication failed (HTTP 403). Verify your API key. — {"error":"This authentication method does not have sufficient permissions to call Inference Providers on behalf of user PrinceLaghari"}
 ✓ PK AI Public Chatbot (Free AI tab)  [model: key-less]
    Succeeded. Response: "I am PK AI's **Free Public Chatbot** (No API Key required)!  I processed your query ("Reply in one short sentence: who are you?") containing 8 words using unaut"
-✗ Pollinations AI (Free AI tab)  [model: key-less]
-   Pollinations AI: Request failed (HTTP 402) —  — {"error":"402 Payment Required","status":402,"deprecation_notice":"NOTE: The Pollinations legacy text API is being deprecated for authenticated users. Please migrate to https://enter.pollinations.ai for better performance and access to all the latest m
+✓ PK AI Free LLM (Free AI tab)  [model: key-less]
+   Succeeded. Response: "I'm an AI assistant. I'm here to help."
 --------------------------------------------------
-PASSED: 4 / 9
+PASSED: 6 / 9
 ==================================================

@@ -149,7 +149,10 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(ChatDiffCa
                         context = binding.root.context,
                         source = image.source,
                         imageView = imageView
-                    ) { anyError = true }
+                    ) {
+                        anyError = true
+                        imageView.visibility = View.GONE
+                    }
                 }
                 if (anyError) binding.tvAiImageError.visibility = View.VISIBLE
             }

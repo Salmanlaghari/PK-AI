@@ -2,6 +2,8 @@ package com.salmanlaghari.pkai.data.remote.provider
 
 import com.salmanlaghari.pkai.data.model.ChatMessage
 import com.salmanlaghari.pkai.data.model.LlmProvider
+import com.salmanlaghari.pkai.BuildConfig
+import android.util.Log
 import com.salmanlaghari.pkai.data.remote.ChatMessageDto
 import com.salmanlaghari.pkai.data.remote.ChatCompletionRequest
 import com.salmanlaghari.pkai.data.remote.PublicFreeApiService
@@ -35,12 +37,59 @@ sealed interface AiResponse {
 
 private fun roleOf(message: ChatMessage): String = if (message.isUser) "user" else "assistant"
 
+private const val LOG_TAG = "PkAiProvider"
+
+/**
+ * Reads the error body of a failed call exactly once.
+ *
+ * [okhttp3.ResponseBody.string] may only be consumed a single time, so the result is
+ * threaded through both the Logcat output and the user-facing message.
+ */
+fun errorBodyOf(e: HttpException): String? = try {
+    e.response()?.errorBody()?.string()?.takeIf { it.isNotBlank() }
+} catch (t: Throwable) {
+    null
+}
+
+/**
+ * Debug-build diagnostics: prints the exact failing URL, status code and raw response body
+ * for any non-2xx response so provider issues (deprecated model ids, wrong paths, bad
+ * tokens) can be diagnosed straight from Logcat.
+ *
+ * Wrapped in a try/catch because `android.util.Log` is not available on the plain JVM used
+ * by unit tests.
+ */
+fun logHttpFailure(providerName: String, e: HttpException, errorBody: String?) {
+    if (!BuildConfig.DEBUG) return
+    val url = e.response()?.raw()?.request?.url?.toString() ?: "<unknown url>"
+    val message = buildString {
+        append("✗ $providerName failed\n")
+        append("   HTTP  : ${e.code()} ${e.message()}\n")
+        append("   URL   : $url\n")
+        append("   BODY  : ${errorBody ?: "<empty>"}")
+    }
+    try {
+        Log.e(LOG_TAG, message)
+    } catch (t: Throwable) {
+        println(message)
+    }
+}
+
+/** Trims a provider error body down to something short enough to show in a chat bubble. */
+private fun shortDetail(errorBody: String?): String =
+    errorBody?.replace(Regex("\\s+"), " ")?.trim()?.take(300)?.let { " — $it" } ?: ""
+
 /** Maps an HTTP status code to a clear, actionable in-app message. */
-fun mapHttpError(providerName: String, code: Int, message: String?): String = when (code) {
-    401, 403 -> "$providerName: Authentication failed (HTTP $code). Verify your API key."
-    429 -> "$providerName: Rate limit exceeded (HTTP 429). Please wait and try again."
+fun mapHttpError(providerName: String, code: Int, message: String?, errorBody: String? = null): String = when (code) {
+    401, 403 -> "$providerName: Authentication failed (HTTP $code). Your API key or token is invalid, " +
+        "or lacks the permission needed for inference.${shortDetail(errorBody)}"
+    402 -> "$providerName: Payment or quota required (HTTP 402). This account has no remaining " +
+        "inference quota.${shortDetail(errorBody)}"
+    404 -> "$providerName: Model or endpoint not found (HTTP 404). The configured model id is most likely " +
+        "deprecated or renamed by the provider.${shortDetail(errorBody)}"
+    429 -> "$providerName: Rate limit exceeded (HTTP 429). Please wait and try again.${shortDetail(errorBody)}"
     in 500..599 -> "$providerName: The provider's servers are unavailable (HTTP $code). Try again later."
-    else -> "$providerName: Request failed (HTTP $code)${message?.let { " — $it" } ?: ""}"
+    else -> "$providerName: Request failed (HTTP $code)${message?.let { " — $it" } ?: ""}${shortDetail(errorBody)}"
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -71,7 +120,9 @@ open class OpenAiCompatibleProvider(
                 emit(AiResponse.Success(text))
             }
         } catch (e: HttpException) {
-            emit(AiResponse.Error(mapHttpError(provider.displayName, e.code(), e.message())))
+            val body = errorBodyOf(e)
+            logHttpFailure(provider.displayName, e, body)
+            emit(AiResponse.Error(mapHttpError(provider.displayName, e.code(), e.message(), body)))
         } catch (e: IOException) {
             emit(AiResponse.Error("${provider.displayName}: Network error. Check your internet connection."))
         } catch (e: Exception) {
@@ -115,7 +166,9 @@ class CloudflareWorkersAiProvider(
                 emit(AiResponse.Success(text))
             }
         } catch (e: HttpException) {
-            emit(AiResponse.Error(mapHttpError("Cloudflare Workers AI", e.code(), e.message())))
+            val body = errorBodyOf(e)
+            logHttpFailure("Cloudflare Workers AI", e, body)
+            emit(AiResponse.Error(mapHttpError("Cloudflare Workers AI", e.code(), e.message(), body)))
         } catch (e: IOException) {
             emit(AiResponse.Error("Cloudflare Workers AI: Network error. Check your internet connection."))
         } catch (e: Exception) {
@@ -153,7 +206,9 @@ class CohereAiProvider(
                 emit(AiResponse.Success(text))
             }
         } catch (e: HttpException) {
-            emit(AiResponse.Error(mapHttpError("Cohere", e.code(), e.message())))
+            val body = errorBodyOf(e)
+            logHttpFailure("Cohere", e, body)
+            emit(AiResponse.Error(mapHttpError("Cohere", e.code(), e.message(), body)))
         } catch (e: IOException) {
             emit(AiResponse.Error("Cohere: Network error. Check your internet connection."))
         } catch (e: Exception) {
@@ -174,6 +229,111 @@ class CohereAiProvider(
         } catch (e: Exception) {
             null
         }
+    }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * Key-less free LLM for the Home "Free AI" tab
+ *
+ * This is the second Free-tier model (alongside [PublicFreeAiProvider]) and, unlike the
+ * public fact/advice chatbot, it is a genuine LLM conversation that still needs no API key,
+ * no account and no billing details.
+ *
+ * Two independent key-less upstreams are tried in order because each throttles or bills
+ * certain source IP ranges (Pollinations charges datacenter IPs; LLM7 rate-limits bursts).
+ * Chaining them keeps the free tier usable from any network.
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+class KeylessLlmAiProvider(
+    private val pollinations: PollinationsApiService,
+    private val llm7: OpenAiCompatibleApiService
+) : AiProvider {
+
+    private companion object {
+        const val DISPLAY_NAME = "PK AI Free LLM"
+        /** Keep the prompt well inside the practical URL length limit. */
+        const val MAX_PROMPT_CHARS = 1800
+        const val HISTORY_TURNS = 6
+        /** Pollinations' default key-less text model. */
+        const val POLLINATIONS_MODEL = "openai"
+        /** A free-tier LLM7 model that accepts anonymous requests. */
+        const val LLM7_MODEL = "mistral-Nemo-Instruct-2407"
+    }
+
+    override fun sendMessage(prompt: String, history: List<ChatMessage>): Flow<AiResponse> = flow {
+        val attempted = mutableListOf<String>()
+
+        val pollinationsText = tryPollinations(prompt, history)
+        if (pollinationsText != null) {
+            emit(AiResponse.Success(pollinationsText))
+            return@flow
+        }
+        attempted.add("Pollinations")
+
+        val llm7Text = tryLlm7(prompt, history)
+        if (llm7Text != null) {
+            emit(AiResponse.Success(llm7Text))
+            return@flow
+        }
+        attempted.add("LLM7 (anonymous)")
+
+        emit(
+            AiResponse.Error(
+                "$DISPLAY_NAME: every key-less endpoint is currently unavailable " +
+                    "(tried ${attempted.joinToString(", ")}). Please try again, or pick a " +
+                    "provider in Settings → AI."
+            )
+        )
+    }
+
+    /** Pollinations' anonymous plain-text completion endpoint. */
+    private suspend fun tryPollinations(prompt: String, history: List<ChatMessage>): String? = try {
+        pollinations.generate(
+            prompt = buildPrompt(prompt, history),
+            model = POLLINATIONS_MODEL,
+            isPrivate = true
+        ).string().trim().takeIf { it.isNotBlank() }
+    } catch (e: HttpException) {
+        logHttpFailure("$DISPLAY_NAME → Pollinations", e, errorBodyOf(e))
+        null
+    } catch (e: Exception) {
+        null
+    }
+
+    /** LLM7.io accepts anonymous OpenAI-compatible requests, so no key is needed. */
+    private suspend fun tryLlm7(prompt: String, history: List<ChatMessage>): String? = try {
+        val messages = history.takeLast(HISTORY_TURNS)
+            .map { ChatMessageDto(roleOf(it), it.content) } +
+            listOf(ChatMessageDto("user", prompt))
+        llm7.generateChatResponse(
+            "Bearer unused",
+            ChatCompletionRequest(model = LLM7_MODEL, messages = messages)
+        ).choices.firstOrNull()?.message?.content?.trim()?.takeIf { it.isNotBlank() }
+    } catch (e: HttpException) {
+        logHttpFailure("$DISPLAY_NAME → LLM7", e, errorBodyOf(e))
+        null
+    } catch (e: Exception) {
+        null
+    }
+
+    /**
+     * Pollinations' key-less endpoint takes a single prompt string, so recent turns are
+     * folded into the prompt to preserve conversational context.
+     */
+    private fun buildPrompt(prompt: String, history: List<ChatMessage>): String {
+        val recent = history.takeLast(HISTORY_TURNS)
+        val conversation = buildString {
+            append("You are PK AI, a helpful assistant. Reply conversationally in plain text.\n\n")
+            recent.forEach { message ->
+                append(if (message.isUser) "User: " else "Assistant: ")
+                append(message.content.trim())
+                append("\n")
+            }
+            append("User: ")
+            append(prompt.trim())
+            append("\nAssistant:")
+        }
+        return conversation.takeLast(MAX_PROMPT_CHARS)
     }
 }
 

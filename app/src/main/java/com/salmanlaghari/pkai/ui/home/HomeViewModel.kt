@@ -61,7 +61,7 @@ class HomeViewModel @Inject constructor(
             initialValue = LlmProvider.DEFAULT
         )
 
-    /** The key-less model the user picked in the Free AI tab (defaults to Pollinations). */
+    /** The key-less model the user picked in the Free AI tab (defaults to the free LLM). */
     private val _selectedFreeModelId = MutableStateFlow(FreeAiModel.DEFAULT.id)
     val selectedFreeModel: StateFlow<FreeAiModel> = _selectedFreeModelId
         .map { FreeAiModel.fromId(it) }

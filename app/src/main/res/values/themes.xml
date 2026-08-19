@@ -236,14 +236,14 @@
     <!-- Chat Bubble Styles -->
     <style name="PkAi.Bubble.User" parent="Widget.Material3.CardView.Filled">
         <item name="cardCornerRadius">20dp</item>
-        <item name="cardElevation">0dp</item>
+        <item name="cardElevation">3dp</item>
         <item name="strokeWidth">0dp</item>
     </style>
 
     <style name="PkAi.Bubble.AI" parent="Widget.Material3.CardView.Filled">
         <item name="cardBackgroundColor">@color/ai_bubble_bg</item>
         <item name="cardCornerRadius">20dp</item>
-        <item name="cardElevation">0dp</item>
+        <item name="cardElevation">3dp</item>
         <item name="strokeColor">@color/ai_bubble_border</item>
         <item name="strokeWidth">1dp</item>
     </style>

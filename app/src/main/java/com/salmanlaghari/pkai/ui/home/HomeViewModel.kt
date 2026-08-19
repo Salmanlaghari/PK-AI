@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.salmanlaghari.pkai.data.local.datastore.PreferencesManager
 import com.salmanlaghari.pkai.data.local.room.ChatMessageDao
 import com.salmanlaghari.pkai.data.model.ChatMessage
+import com.salmanlaghari.pkai.data.model.FreeAiModel
 import com.salmanlaghari.pkai.data.model.LlmProvider
 import com.salmanlaghari.pkai.data.remote.provider.AiProvider
 import com.salmanlaghari.pkai.data.remote.provider.AiProviderFactory
@@ -36,10 +37,12 @@ class HomeViewModel @Inject constructor(
 
     val chatMessages: StateFlow<List<ChatMessage>> = chatMessageDao.getAllMessagesFlow()
         .combine(_isFreeMode) { messages, freeMode ->
+            // Free-tier messages are tagged with a "Free…" label so the two tabs keep
+            // separate conversations (legacy "Free Public AI" history still matches).
             if (freeMode) {
-                messages.filter { it.modelUsed == "Free Public AI" }
+                messages.filter { FreeAiModel.isFreeLabel(it.modelUsed) }
             } else {
-                messages.filter { it.modelUsed != "Free Public AI" }
+                messages.filter { !FreeAiModel.isFreeLabel(it.modelUsed) }
             }
         }
         .stateIn(
@@ -58,6 +61,19 @@ class HomeViewModel @Inject constructor(
             initialValue = LlmProvider.DEFAULT
         )
 
+    /** The key-less model the user picked in the Free AI tab (defaults to Pollinations). */
+    private val _selectedFreeModelId = MutableStateFlow(FreeAiModel.DEFAULT.id)
+    val selectedFreeModel: StateFlow<FreeAiModel> = _selectedFreeModelId
+        .map { FreeAiModel.fromId(it) }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = FreeAiModel.DEFAULT
+        )
+
+    /** The catalogue rendered by the Free AI tab's model selector. */
+    val freeModels: List<FreeAiModel> = FreeAiModel.ALL
+
     private val _webSearchMode = MutableStateFlow(false)
     val webSearchMode: StateFlow<Boolean> = _webSearchMode.asStateFlow()
 
@@ -67,6 +83,16 @@ class HomeViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             preferencesManager.selectedProviderId.collect { _selectedProviderId.value = it }
+        }
+        viewModelScope.launch {
+            preferencesManager.selectedFreeModelId.collect { _selectedFreeModelId.value = it }
+        }
+    }
+
+    /** Persists the Free AI tab model choice. */
+    fun selectFreeModel(freeModelId: String) {
+        viewModelScope.launch {
+            preferencesManager.setSelectedFreeModelId(freeModelId)
         }
     }
 
@@ -83,25 +109,28 @@ class HomeViewModel @Inject constructor(
 
         viewModelScope.launch {
             val isFree = _isFreeMode.value
-            val providerLabel = if (isFree) "Free Public AI" else selectedProvider.value.displayName
+            val freeModel = selectedFreeModel.value
+            // Free replies are labelled "Free · <model>" so the Free tab can filter its own
+            // history and the chat bubble can still show "Powered by <model>".
+            val providerLabel = if (isFree) freeModel.chatLabel else selectedProvider.value.displayName
 
             val userMessage = ChatMessage(
                 content = content.trim(),
                 isUser = true,
-                modelUsed = if (isFree) "Free Public AI" else null
+                modelUsed = if (isFree) freeModel.chatLabel else null
             )
             chatMessageDao.insertMessage(userMessage)
 
             _isGenerating.value = true
             try {
                 val provider: AiProvider = if (isFree) {
-                    aiProviderFactory.getPublicFreeProvider()
+                    aiProviderFactory.getFreeProvider(freeModel.id)
                 } else {
                     aiProviderFactory.getProvider(selectedProvider.value.id)
                 }
 
                 val history = chatMessageDao.getAllMessages()
-                    .filter { it.modelUsed != "Free Public AI" }
+                    .filter { FreeAiModel.isFreeLabel(it.modelUsed) == isFree }
                     .takeLast(20)
 
                 val builder = StringBuilder()

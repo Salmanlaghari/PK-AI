@@ -3,10 +3,11 @@ package com.salmanlaghari.pkai.ui.home
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import com.salmanlaghari.pkai.data.local.datastore.PreferencesManager
 import com.salmanlaghari.pkai.data.local.room.ChatMessageDao
-import com.salmanlaghari.pkai.data.model.AiModel
 import com.salmanlaghari.pkai.data.model.ChatMessage
+import com.salmanlaghari.pkai.data.model.LlmProvider
 import com.salmanlaghari.pkai.data.remote.provider.AiProvider
 import com.salmanlaghari.pkai.data.remote.provider.AiProviderFactory
+import com.salmanlaghari.pkai.data.remote.provider.AiResponse
 import com.salmanlaghari.pkai.data.repository.AppRepository
 import com.salmanlaghari.pkai.data.repository.AuthRepository
 import kotlinx.coroutines.CoroutineScope
@@ -15,6 +16,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -27,6 +30,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.`when` as whenever
+import org.mockito.ArgumentMatchers.anyString
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModelTest {
@@ -76,23 +80,21 @@ class HomeViewModelTest {
             }
         }
 
-        // Mock AiProviderFactory to return a custom AiProvider based on input
+        // Selected provider defaults to Groq
+        whenever(mockPreferencesManager.selectedProviderId).thenReturn(flowOf(LlmProvider.DEFAULT.id))
+
+        // Premium provider returns a predictable response via the new Flow API
         val mockAiProvider = object : AiProvider {
-            override suspend fun generateResponse(prompt: String): String {
-                val currentModel = viewModel.selectedModel.value
-                return "Response from ${currentModel.displayName} for prompt: $prompt"
+            override fun sendMessage(prompt: String, history: List<ChatMessage>): Flow<AiResponse> = flow {
+                emit(AiResponse.Success("Response for prompt: $prompt"))
             }
         }
+        whenever(mockAiProviderFactory.getProvider(anyString())).thenReturn(mockAiProvider)
 
-        // Bypassing NullPointerException by stubbing for all Enum values explicitly
-        for (model in AiModel.values()) {
-            whenever(mockAiProviderFactory.getProvider(model)).thenReturn(mockAiProvider)
-        }
-        whenever(mockAiProviderFactory.getPkAiProvider()).thenReturn(mockAiProvider)
-
+        // Free provider
         val mockFreeAiProvider = object : AiProvider {
-            override suspend fun generateResponse(prompt: String): String {
-                return "Free response for prompt: $prompt"
+            override fun sendMessage(prompt: String, history: List<ChatMessage>): Flow<AiResponse> = flow {
+                emit(AiResponse.Success("Free response for prompt: $prompt"))
             }
         }
         whenever(mockAiProviderFactory.getPublicFreeProvider()).thenReturn(mockFreeAiProvider)
@@ -120,23 +122,15 @@ class HomeViewModelTest {
     @Test
     fun `initial states are correctly setup`() {
         testDispatcher.scheduler.advanceUntilIdle()
-        assertEquals(AiModel.DEEPSEEK, viewModel.selectedModel.value)
+        assertEquals(LlmProvider.DEFAULT.id, viewModel.selectedProvider.value.id)
         assertEquals(false, viewModel.isGenerating.value)
         assertTrue(viewModel.chatMessages.value.isEmpty())
-    }
-
-    @Test
-    fun `selectModel updates selected model state`() {
-        viewModel.selectModel(AiModel.DEEPSEEK)
-        testDispatcher.scheduler.advanceUntilIdle()
-        assertEquals(AiModel.DEEPSEEK, viewModel.selectedModel.value)
     }
 
     @Test
     fun `sendMessage inserts prompt and generates AI response successfully`() {
         // Given
         val prompt = "Hello PK AI"
-        viewModel.selectModel(AiModel.DEEPSEEK)
         testDispatcher.scheduler.advanceUntilIdle()
 
         // When
@@ -152,11 +146,11 @@ class HomeViewModelTest {
         assertEquals(prompt, firstMsg.content)
         assertTrue(firstMsg.isUser)
 
-        // Second is AI response
+        // Second is AI response labelled with the active provider
         val secondMsg = currentMessages[1]
-        assertEquals("Response from DeepSeek for prompt: Hello PK AI", secondMsg.content)
+        assertEquals("Response for prompt: Hello PK AI", secondMsg.content)
         assertEquals(false, secondMsg.isUser)
-        assertEquals("PK AI", secondMsg.modelUsed)
+        assertEquals("Groq", secondMsg.modelUsed)
     }
 
     @Test

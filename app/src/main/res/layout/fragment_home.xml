@@ -168,6 +168,20 @@
                 android:text="🌍 Free AI"
                 android:textColor="@color/outline"
                 android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/btn_tab_image"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="@android:color/transparent"
+                android:clickable="true"
+                android:focusable="true"
+                android:fontFamily="@font/poppins"
+                android:gravity="center"
+                android:text="🖼 Image"
+                android:textColor="@color/outline"
+                android:textSize="12sp" />
         </LinearLayout>
     </LinearLayout>
 
@@ -327,7 +341,7 @@
             app:boxStrokeWidthFocused="1.5dp"
             app:hintTextColor="@color/electric_blue_glow"
             app:layout_constraintBottom_toTopOf="@id/chip_active_provider"
-            app:layout_constraintEnd_toStartOf="@id/btn_send"
+            app:layout_constraintEnd_toStartOf="@id/btn_voice"
             app:layout_constraintStart_toEndOf="@id/btn_attach"
             app:layout_constraintTop_toBottomOf="@id/layout_attachment_preview">
 
@@ -342,6 +356,23 @@
                 android:textColor="@color/white"
                 android:textColorHint="@color/outline" />
         </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Voice input button (compact, inline beside the input) -->
+        <ImageButton
+            android:id="@+id/btn_voice"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginEnd="6dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Voice input"
+            android:padding="13dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_mic"
+            app:layout_constraintBottom_toBottomOf="@id/input_message_layout"
+            app:layout_constraintEnd_toStartOf="@id/btn_send"
+            app:layout_constraintStart_toEndOf="@id/input_message_layout"
+            app:layout_constraintTop_toTopOf="@id/input_message_layout"
+            app:tint="@color/html_cyan" />
 
         <!-- Send FAB -->
         <com.google.android.material.floatingactionbutton.FloatingActionButton

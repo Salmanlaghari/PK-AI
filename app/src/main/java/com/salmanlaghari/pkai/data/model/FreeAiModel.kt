@@ -37,23 +37,25 @@ data class FreeAiModel(
         )
 
         /**
-         * Pollinations AI — a genuinely key-less hosted LLM.
+         * A real LLM that needs no API key.
          *
-         * Anonymous requests to `text.pollinations.ai` require no token and are explicitly
-         * excluded from Pollinations' authenticated-user deprecation, so this gives the Free
-         * tab a real large-language-model conversation instead of canned public-API replies.
+         * Backed by a key-less fallback chain (Pollinations' anonymous text endpoint, then
+         * LLM7.io's anonymous chat endpoint). Both accept requests with no token, but each
+         * one rate-limits or bills certain source IPs, so chaining them is what makes the
+         * free tier dependable from any network. The name is deliberately provider-neutral
+         * because the upstream that answers can vary.
          */
-        val POLLINATIONS = FreeAiModel(
-            id = "pollinations",
-            displayName = "Pollinations AI",
-            tagline = "Real LLM chat, no API key",
-            logoEmoji = "🌸"
+        val FREE_LLM = FreeAiModel(
+            id = "free_llm",
+            displayName = "PK AI Free LLM",
+            tagline = "Real LLM chat · no API key",
+            logoEmoji = "⚡"
         )
 
-        val ALL: List<FreeAiModel> = listOf(PUBLIC_CHATBOT, POLLINATIONS)
+        val ALL: List<FreeAiModel> = listOf(PUBLIC_CHATBOT, FREE_LLM)
 
-        /** Pollinations is the default so the Free tab feels like a real assistant. */
-        val DEFAULT: FreeAiModel = POLLINATIONS
+        /** The real LLM is the default so the Free tab feels like a proper assistant. */
+        val DEFAULT: FreeAiModel = FREE_LLM
 
         fun fromId(id: String): FreeAiModel = ALL.firstOrNull { it.id == id } ?: DEFAULT
 

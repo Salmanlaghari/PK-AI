@@ -60,13 +60,13 @@ class AiProviderFactoryTest {
     @Test
     fun `free AI tab resolves both key-less models`() = runTest {
         assertTrue(factory.getFreeProvider(FreeAiModel.PUBLIC_CHATBOT.id) is PublicFreeAiProvider)
-        assertTrue(factory.getFreeProvider(FreeAiModel.POLLINATIONS.id) is PollinationsAiProvider)
+        assertTrue(factory.getFreeProvider(FreeAiModel.FREE_LLM.id) is KeylessLlmAiProvider)
     }
 
     @Test
     fun `unknown free model id falls back to the default free model`() = runTest {
-        // FreeAiModel.DEFAULT is Pollinations, so an unknown id must resolve to it.
-        assertTrue(factory.getFreeProvider("does-not-exist") is PollinationsAiProvider)
+        // FreeAiModel.DEFAULT is the key-less LLM, so an unknown id must resolve to it.
+        assertTrue(factory.getFreeProvider("does-not-exist") is KeylessLlmAiProvider)
     }
 
     @Test

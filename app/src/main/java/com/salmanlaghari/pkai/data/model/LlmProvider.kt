@@ -50,7 +50,10 @@ data class LlmProvider(
                 tagline = "Edge serverless inference",
                 logoEmoji = "☁️",
                 format = ProviderFormat.CLOUDFLARE,
-                baseUrl = "https://api.cloudflare.com/client/v4/accounts/",
+                // The service declares the full path `accounts/{accountId}/ai/run/...`, so the
+                // base url must stop at /v4/ — including `accounts/` here produced
+                // `/client/v4/accounts/accounts/<id>/ai/run/...` and a 7003 routing error.
+                baseUrl = "https://api.cloudflare.com/client/v4/",
                 defaultModel = "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
                 apiKeyBuildConfig = "CLOUDFLARE_API_TOKEN",
                 needsAccountId = true
@@ -62,9 +65,10 @@ data class LlmProvider(
                 logoEmoji = "🔗",
                 format = ProviderFormat.OPENAI,
                 baseUrl = "https://api.llm7.io/v1/",
-                // `deepseek-v3-0324` is no longer listed by LLM7; `DeepSeek-V4-Flash-0731`
-                // is a currently-available free-tier ("turbo") chat model.
-                defaultModel = "DeepSeek-V4-Flash-0731",
+                // `deepseek-v3-0324` is no longer listed by LLM7, and `DeepSeek-V4-Flash-0731`
+                // returns 503 "model temporarily busy". `mistral-Nemo-Instruct-2407` is a
+                // free-tier ("turbo") model reporting 100% availability.
+                defaultModel = "mistral-Nemo-Instruct-2407",
                 apiKeyBuildConfig = "LLM7_API_KEY"
             ),
             LlmProvider(
@@ -98,9 +102,10 @@ data class LlmProvider(
                 logoEmoji = "🚀",
                 format = ProviderFormat.OPENAI,
                 baseUrl = "https://api.cerebras.ai/v1/",
-                // `llama3.1-70b` is no longer served by Cerebras (404). `gpt-oss-120b`
-                // is a current production model with no announced deprecation date.
-                defaultModel = "gpt-oss-120b",
+                // `llama3.1-70b` is no longer served by Cerebras (404). `llama3.1-8b` is the
+                // production model available on Cerebras' free tier (`gpt-oss-120b` returned
+                // HTTP 402 payment_required on a free-tier key).
+                defaultModel = "llama3.1-8b",
                 apiKeyBuildConfig = "CEREBRAS_API_KEY"
             ),
             LlmProvider(

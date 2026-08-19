@@ -230,48 +230,87 @@ class CohereAiProvider(
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
- * Pollinations AI — key-less free LLM for the Home "Free AI" tab
+ * Key-less free LLM for the Home "Free AI" tab
  *
  * This is the second Free-tier model (alongside [PublicFreeAiProvider]) and, unlike the
  * public fact/advice chatbot, it is a genuine LLM conversation that still needs no API key,
  * no account and no billing details.
+ *
+ * Two independent key-less upstreams are tried in order because each throttles or bills
+ * certain source IP ranges (Pollinations charges datacenter IPs; LLM7 rate-limits bursts).
+ * Chaining them keeps the free tier usable from any network.
  * ───────────────────────────────────────────────────────────────────────────── */
 
-class PollinationsAiProvider(
-    private val service: PollinationsApiService
+class KeylessLlmAiProvider(
+    private val pollinations: PollinationsApiService,
+    private val llm7: OpenAiCompatibleApiService
 ) : AiProvider {
 
     private companion object {
-        const val DISPLAY_NAME = "Pollinations AI"
+        const val DISPLAY_NAME = "PK AI Free LLM"
         /** Keep the prompt well inside the practical URL length limit. */
         const val MAX_PROMPT_CHARS = 1800
         const val HISTORY_TURNS = 6
         /** Pollinations' default key-less text model. */
-        const val MODEL = "openai"
+        const val POLLINATIONS_MODEL = "openai"
+        /** A free-tier LLM7 model that accepts anonymous requests. */
+        const val LLM7_MODEL = "mistral-Nemo-Instruct-2407"
     }
 
     override fun sendMessage(prompt: String, history: List<ChatMessage>): Flow<AiResponse> = flow {
-        try {
-            val body = service.generate(
-                prompt = buildPrompt(prompt, history),
-                model = MODEL,
-                isPrivate = true
-            )
-            val text = body.string().trim()
-            if (text.isBlank()) {
-                emit(AiResponse.Error("$DISPLAY_NAME returned an empty response. Please try again."))
-            } else {
-                emit(AiResponse.Success(text))
-            }
-        } catch (e: HttpException) {
-            val errorBody = errorBodyOf(e)
-            logHttpFailure(DISPLAY_NAME, e, errorBody)
-            emit(AiResponse.Error(mapHttpError(DISPLAY_NAME, e.code(), e.message(), errorBody)))
-        } catch (e: IOException) {
-            emit(AiResponse.Error("$DISPLAY_NAME: Network error. Check your internet connection."))
-        } catch (e: Exception) {
-            emit(AiResponse.Error("$DISPLAY_NAME: ${e.localizedMessage ?: "Unknown error"}"))
+        val attempted = mutableListOf<String>()
+
+        val pollinationsText = tryPollinations(prompt, history)
+        if (pollinationsText != null) {
+            emit(AiResponse.Success(pollinationsText))
+            return@flow
         }
+        attempted.add("Pollinations")
+
+        val llm7Text = tryLlm7(prompt, history)
+        if (llm7Text != null) {
+            emit(AiResponse.Success(llm7Text))
+            return@flow
+        }
+        attempted.add("LLM7 (anonymous)")
+
+        emit(
+            AiResponse.Error(
+                "$DISPLAY_NAME: every key-less endpoint is currently unavailable " +
+                    "(tried ${attempted.joinToString(", ")}). Please try again, or pick a " +
+                    "provider in Settings → AI."
+            )
+        )
+    }
+
+    /** Pollinations' anonymous plain-text completion endpoint. */
+    private suspend fun tryPollinations(prompt: String, history: List<ChatMessage>): String? = try {
+        pollinations.generate(
+            prompt = buildPrompt(prompt, history),
+            model = POLLINATIONS_MODEL,
+            isPrivate = true
+        ).string().trim().takeIf { it.isNotBlank() }
+    } catch (e: HttpException) {
+        logHttpFailure("$DISPLAY_NAME → Pollinations", e, errorBodyOf(e))
+        null
+    } catch (e: Exception) {
+        null
+    }
+
+    /** LLM7.io accepts anonymous OpenAI-compatible requests, so no key is needed. */
+    private suspend fun tryLlm7(prompt: String, history: List<ChatMessage>): String? = try {
+        val messages = history.takeLast(HISTORY_TURNS)
+            .map { ChatMessageDto(roleOf(it), it.content) } +
+            listOf(ChatMessageDto("user", prompt))
+        llm7.generateChatResponse(
+            "Bearer unused",
+            ChatCompletionRequest(model = LLM7_MODEL, messages = messages)
+        ).choices.firstOrNull()?.message?.content?.trim()?.takeIf { it.isNotBlank() }
+    } catch (e: HttpException) {
+        logHttpFailure("$DISPLAY_NAME → LLM7", e, errorBodyOf(e))
+        null
+    } catch (e: Exception) {
+        null
     }
 
     /**

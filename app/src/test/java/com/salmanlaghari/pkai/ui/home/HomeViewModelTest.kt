@@ -23,6 +23,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
+import okhttp3.OkHttpClient
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -87,7 +88,11 @@ class HomeViewModelTest {
 
         // Premium provider returns a predictable response via the new Flow API
         val mockAiProvider = object : AiProvider {
-            override fun sendMessage(prompt: String, history: List<ChatMessage>): Flow<AiResponse> = flow {
+            override fun sendMessage(
+                prompt: String,
+                history: List<ChatMessage>,
+                imageDataUri: String?
+            ): Flow<AiResponse> = flow {
                 emit(AiResponse.Success("Response for prompt: $prompt"))
             }
         }
@@ -95,7 +100,11 @@ class HomeViewModelTest {
 
         // Free provider
         val mockFreeAiProvider = object : AiProvider {
-            override fun sendMessage(prompt: String, history: List<ChatMessage>): Flow<AiResponse> = flow {
+            override fun sendMessage(
+                prompt: String,
+                history: List<ChatMessage>,
+                imageDataUri: String?
+            ): Flow<AiResponse> = flow {
                 emit(AiResponse.Success("Free response for prompt: $prompt"))
             }
         }
@@ -106,7 +115,8 @@ class HomeViewModelTest {
             authRepository = fakeAuthRepository,
             chatMessageDao = fakeChatMessageDao,
             aiProviderFactory = mockAiProviderFactory,
-            preferencesManager = mockPreferencesManager
+            preferencesManager = mockPreferencesManager,
+            okHttpClient = mock(OkHttpClient::class.java)
         )
 
         // Start collecting chatMessages Flow to activate WhileSubscribed collection

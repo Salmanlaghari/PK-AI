@@ -10,5 +10,14 @@ data class ChatMessage(
     val content: String,
     val isUser: Boolean,
     val timestamp: Long = System.currentTimeMillis(),
-    val modelUsed: String? = null
+    val modelUsed: String? = null,
+    /**
+     * Optional local attachment (set on the message that carries a user-uploaded file).
+     * [attachmentType] is one of "image" | "video" | "pdf" | "audio".
+     * [attachmentUri] is an Android content URI string persisted for the user's reference.
+     * [attachmentName] is the original display name of the file.
+     */
+    val attachmentType: String? = null,
+    val attachmentUri: String? = null,
+    val attachmentName: String? = null
 )

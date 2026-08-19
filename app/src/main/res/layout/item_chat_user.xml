@@ -26,6 +26,53 @@
             android:paddingHorizontal="16dp"
             android:paddingVertical="12dp">
 
+            <!-- Attachment preview (image/video thumbnail or a file chip) -->
+            <FrameLayout
+                android:id="@+id/layout_user_attachment"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:visibility="gone">
+
+                <ImageView
+                    android:id="@+id/iv_user_attachment"
+                    android:layout_width="200dp"
+                    android:layout_height="160dp"
+                    android:scaleType="centerCrop"
+                    android:background="@color/surfaceContainerHigh"
+                    android:visibility="gone" />
+
+                <LinearLayout
+                    android:id="@+id/layout_user_file_chip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_pill_chip"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="8dp"
+                    android:visibility="gone">
+
+                    <ImageView
+                        android:id="@+id/iv_user_file_icon"
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:layout_marginEnd="8dp"
+                        android:src="@drawable/ic_tools" />
+
+                    <TextView
+                        android:id="@+id/tv_user_file_name"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/poppins"
+                        android:maxWidth="180dp"
+                        android:ellipsize="end"
+                        android:singleLine="true"
+                        android:textColor="@color/white"
+                        android:textSize="12sp" />
+                </LinearLayout>
+            </FrameLayout>
+
             <TextView
                 android:id="@+id/tv_user_message"
                 android:layout_width="wrap_content"

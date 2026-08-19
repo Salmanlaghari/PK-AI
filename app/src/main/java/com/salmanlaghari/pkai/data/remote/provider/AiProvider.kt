@@ -22,7 +22,16 @@ import java.io.IOException
  * (success or a user-friendly error) instead of throwing.
  */
 interface AiProvider {
-    fun sendMessage(prompt: String, history: List<ChatMessage>): Flow<AiResponse>
+    /**
+     * @param imageDataUri optional `data:image/…;base64,…` payload the user attached.
+     * Only providers with [com.salmanlaghari.pkai.data.model.LlmProvider.supportsVision]
+     * will actually inspect it; others treat the call as a normal text request.
+     */
+    fun sendMessage(
+        prompt: String,
+        history: List<ChatMessage>,
+        imageDataUri: String? = null
+    ): Flow<AiResponse>
 }
 
 sealed interface AiResponse {
@@ -103,14 +112,35 @@ open class OpenAiCompatibleProvider(
     private val service: OpenAiCompatibleApiService
 ) : AiProvider {
 
-    override fun sendMessage(prompt: String, history: List<ChatMessage>): Flow<AiResponse> = flow {
+    override fun sendMessage(
+        prompt: String,
+        history: List<ChatMessage>,
+        imageDataUri: String?
+    ): Flow<AiResponse> = flow {
         if (apiKey.isBlank()) {
             emit(AiResponse.Error(missingKeyMessage()))
             return@flow
         }
-        val messages = history.map { ChatMessageDto(roleOf(it), it.content) } +
-            listOf(ChatMessageDto("user", prompt))
-        val request = ChatCompletionRequest(model = provider.defaultModel, messages = messages)
+
+        // When the user attached an image and this provider can see, switch to its
+        // vision model and send the picture as a multimodal content part.
+        val useVision = imageDataUri != null && provider.supportsVision
+        val model = if (useVision) provider.visionModel ?: provider.defaultModel else provider.defaultModel
+
+        val historyMessages = history.map { ChatMessageDto(roleOf(it), it.content) }
+        val userMessage = if (useVision) {
+            ChatMessageDto(
+                role = "user",
+                content = listOf(
+                    mapOf("type" to "text", "text" to prompt),
+                    mapOf("type" to "image_url", "image_url" to mapOf("url" to imageDataUri!!))
+                )
+            )
+        } else {
+            ChatMessageDto(role = "user", content = prompt)
+        }
+        val messages = historyMessages + userMessage
+        val request = ChatCompletionRequest(model = model, messages = messages)
         try {
             val response = service.generateChatResponse("Bearer $apiKey", request)
             val text = response.choices.firstOrNull()?.message?.content
@@ -145,7 +175,11 @@ class CloudflareWorkersAiProvider(
     private val service: CloudflareWorkersApiService
 ) : AiProvider {
 
-    override fun sendMessage(prompt: String, history: List<ChatMessage>): Flow<AiResponse> = flow {
+    override fun sendMessage(
+        prompt: String,
+        history: List<ChatMessage>,
+        imageDataUri: String?
+    ): Flow<AiResponse> = flow {
         if (apiToken.isBlank() || accountId.isBlank()) {
             emit(AiResponse.Error("Cloudflare API token or account id not configured. Add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID to local.properties."))
             return@flow
@@ -187,7 +221,11 @@ class CohereAiProvider(
     private val service: CohereApiService
 ) : AiProvider {
 
-    override fun sendMessage(prompt: String, history: List<ChatMessage>): Flow<AiResponse> = flow {
+    override fun sendMessage(
+        prompt: String,
+        history: List<ChatMessage>,
+        imageDataUri: String?
+    ): Flow<AiResponse> = flow {
         if (apiKey.isBlank()) {
             emit(AiResponse.Error("Cohere API key not configured. Add COHERE_API_KEY to local.properties."))
             return@flow
@@ -260,7 +298,11 @@ class KeylessLlmAiProvider(
         const val LLM7_MODEL = "mistral-Nemo-Instruct-2407"
     }
 
-    override fun sendMessage(prompt: String, history: List<ChatMessage>): Flow<AiResponse> = flow {
+    override fun sendMessage(
+        prompt: String,
+        history: List<ChatMessage>,
+        imageDataUri: String?
+    ): Flow<AiResponse> = flow {
         val attempted = mutableListOf<String>()
 
         val pollinationsText = tryPollinations(prompt, history)
@@ -344,7 +386,11 @@ class KeylessLlmAiProvider(
 class PublicFreeAiProvider(
     private val apiService: PublicFreeApiService
 ) : AiProvider {
-    override fun sendMessage(prompt: String, history: List<ChatMessage>): Flow<AiResponse> = flow {
+    override fun sendMessage(
+        prompt: String,
+        history: List<ChatMessage>,
+        imageDataUri: String?
+    ): Flow<AiResponse> = flow {
         delay(1000) // Premium conversational pacing
         val lowerPrompt = prompt.lowercase()
         try {

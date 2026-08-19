@@ -28,7 +28,23 @@ data class LlmProvider(
     val baseUrl: String,
     val defaultModel: String,
     val apiKeyBuildConfig: String,
-    val needsAccountId: Boolean = false
+    val needsAccountId: Boolean = false,
+    /**
+     * Whether this provider exposes a vision-capable chat model through PK AI. When true,
+     * an attached image can be sent as part of the request so the model can actually "see" it.
+     */
+    val supportsVision: Boolean = false,
+    /**
+     * The vision model id used when an image is attached (only meaningful when
+     * [supportsVision] is true). Falls back to [defaultModel] when null.
+     */
+    val visionModel: String? = null,
+    /**
+     * Whether this provider can *generate* brand-new images from a text prompt. All seven
+     * BYOK chat providers here are text-only, so this stays false for them — the only real
+     * image generator wired into PK AI is Pollinations' key-less image endpoint (Free AI tab).
+     */
+    val supportsImageGen: Boolean = false
 ) {
     companion object {
         val ALL: List<LlmProvider> = listOf(
@@ -42,7 +58,9 @@ data class LlmProvider(
                 // `llama-3.3-70b-versatile` was shut down by Groq on 2026-08-16 and now
                 // returns HTTP 404. Groq's documented replacement is `openai/gpt-oss-120b`.
                 defaultModel = "openai/gpt-oss-120b",
-                apiKeyBuildConfig = "GROQ_API_KEY"
+                apiKeyBuildConfig = "GROQ_API_KEY",
+                supportsVision = true,
+                visionModel = "llama-3.2-11b-vision-preview"
             ),
             LlmProvider(
                 id = "cloudflare",

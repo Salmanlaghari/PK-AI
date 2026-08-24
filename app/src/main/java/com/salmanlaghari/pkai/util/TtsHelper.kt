@@ -164,32 +164,32 @@ object TtsHelper {
      */
     private fun playAudio(context: Context, file: File, onComplete: () -> Unit) {
         try {
-            mediaPlayer = MediaPlayer().apply {
-                setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                        .setUsage(AudioAttributes.USAGE_MEDIA)
-                        .build()
-                )
-                setDataSource(file.absolutePath)
-                setOnCompletionListener {
-                    release()
-                    mediaPlayer = null
-                    file.delete()
-                    onComplete()
-                }
-                setOnErrorListener { _, _, _ ->
-                    release()
-                    mediaPlayer = null
-                    file.delete()
-                    isPlaying = false
-                    currentText = null
-                    onComplete()
-                    true
-                }
-                prepare()
-                start()
+            val player = MediaPlayer()
+            player.setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .build()
+            )
+            player.setDataSource(file.absolutePath)
+            player.setOnCompletionListener {
+                it.release()
+                mediaPlayer = null
+                file.delete()
+                onComplete()
             }
+            player.setOnErrorListener { mp, _, _ ->
+                mp.release()
+                mediaPlayer = null
+                file.delete()
+                isPlaying = false
+                currentText = null
+                onComplete()
+                true
+            }
+            player.prepare()
+            player.start()
+            mediaPlayer = player
         } catch (e: Exception) {
             file.delete()
             isPlaying = false

@@ -79,33 +79,27 @@ class OxAlphaProvider(
                 if (data.isEmpty()) continue
 
                 try {
-                    val json = JSONObject(data)
-                    // Check for error events
-                    if (json.has("error")) {
-                        val errorObj = json.optJSONObject("error")
-                        val errorMsg = try { errorObj?.getString("error") } catch (_: Exception) { null } ?: "Unknown error"
+                    // Use regex to extract content from SSE JSON without JSONObject
+                    // to avoid any null-safety issues with the JSON library
+                    val contentMatch = Regex("\"content\":\"((?:[^\\\\]|\\\\.)*)\"").find(data)
+                    if (contentMatch != null) {
+                        val content = contentMatch.groupValues[1]
+                            .replace("\\n", "\n")
+                            .replace("\\t", "\t")
+                            .replace("\\"", "\"")
+                            .replace("\\\\", "\\")
+                        if (content.isNotEmpty()) {
+                            result.append(content)
+                        }
+                    } else if (data.contains("\"error\"")) {
+                        // Extract error message
+                        val errorMatch = Regex("\"error\":\"((?:[^\\\\]|\\\\.)*)\"").find(data)
+                        val errorMsg = errorMatch?.groupValues?.get(1) ?: "Unknown error"
                         emit(AiResponse.Error("$DISPLAY_NAME: $errorMsg"))
                         return@flow
                     }
-                    val choices = json.optJSONArray("choices") ?: continue
-                    if (choices.length() == 0) continue
-                    val choice = choices.optJSONObject(0) ?: continue
-                    val delta = choice.optJSONObject("delta") ?: continue
-                    // Extract content safely — handle null, JSONObject.NULL, and missing keys
-                    val content: String = try {
-                        if (delta.has("content") && !delta.isNull("content")) {
-                            delta.getString("content")
-                        } else {
-                            ""
-                        }
-                    } catch (_: Exception) {
-                        ""
-                    }
-                    if (content.isNotEmpty()) {
-                        result.append(content)
-                    }
                 } catch (_: Exception) {
-                    // Skip malformed JSON lines
+                    // Skip malformed lines
                 }
             }
             reader.close()

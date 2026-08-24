@@ -2,6 +2,7 @@ package com.salmanlaghari.pkai.data.remote.provider
 
 import com.google.gson.JsonParser
 import com.salmanlaghari.pkai.data.model.ChatMessage
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import okhttp3.MediaType.Companion.toMediaType
@@ -40,6 +41,22 @@ class OxAlphaProvider(
         const val MODEL = "stealth/ox-alpha"
         const val DISPLAY_NAME = "Ox Alpha"
         const val MAX_HISTORY_TURNS = 20
+
+        /** The upstream is a shared free endpoint that briefly rate-limits under load;
+         *  its own error message says "wait a few seconds and retry", so we do exactly
+         *  that (a small, bounded number of times) before surfacing the failure. */
+        const val MAX_ATTEMPTS = 4
+        const val RETRY_DELAY_MS = 3_000L
+
+        /** Substrings in an upstream error payload that indicate a transient condition
+         *  worth retrying (as opposed to a permanent request failure). */
+        val TRANSIENT_MARKERS = listOf("overloaded", "rate-limited", "rate limited", "temporarily", "capacity", "try again")
+    }
+
+    /** Outcome of one request attempt against the Ox Alpha endpoint. */
+    private sealed interface AttemptResult {
+        data class Done(val response: AiResponse) : AttemptResult
+        data object Retry : AttemptResult
     }
 
     override fun sendMessage(
@@ -48,31 +65,65 @@ class OxAlphaProvider(
         imageDataUri: String?
     ): Flow<AiResponse> = flow {
         try {
-            val requestBody = buildRequestBody(prompt, history)
+            var lastError: String? = null
+            for (attempt in 1..MAX_ATTEMPTS) {
+                when (val outcome = attemptRequest(prompt, history)) {
+                    is AttemptResult.Done -> {
+                        emit(outcome.response)
+                        return@flow
+                    }
+                    AttemptResult.Retry -> {
+                        lastError = "$DISPLAY_NAME is busy right now (attempt $attempt/$MAX_ATTEMPTS)."
+                        if (attempt < MAX_ATTEMPTS) delay(RETRY_DELAY_MS)
+                    }
+                }
+            }
+            emit(AiResponse.Error(
+                "${lastError ?: ""} The service is temporarily overloaded — please try again shortly."
+            ))
+        } catch (e: IOException) {
+            emit(AiResponse.Error("$DISPLAY_NAME: Network error. Check your internet connection."))
+        } catch (e: Exception) {
+            emit(AiResponse.Error("$DISPLAY_NAME: ${e.localizedMessage ?: "Unknown error"}"))
+        }
+    }
 
-            val request = Request.Builder()
-                .url(API_URL)
-                .post(requestBody)
-                .header("Content-Type", "application/json")
-                .header("User-Agent", "PK-AI-Android/1.0")
-                .header("Referer", "https://oxalpha.com/chat")
-                .header("Origin", "https://oxalpha.com")
-                .build()
+    /** Performs one full request/response cycle against the Ox Alpha chat API. */
+    private fun attemptRequest(prompt: String, history: List<ChatMessage>): AttemptResult {
+        val requestBody = buildRequestBody(prompt, history)
 
-            val response = okHttpClient.newCall(request).execute()
-            if (!response.isSuccessful) {
-                emit(AiResponse.Error("$DISPLAY_NAME: Request failed (HTTP ${response.code}). Please try again."))
-                return@flow
+        val request = Request.Builder()
+            .url(API_URL)
+            .post(requestBody)
+            .header("Content-Type", "application/json")
+            .header("User-Agent", "PK-AI-Android/1.0")
+            .header("Referer", "https://oxalpha.com/chat")
+            .header("Origin", "https://oxalpha.com")
+            .build()
+
+        val response = okHttpClient.newCall(request).execute()
+        response.use { resp ->
+            if (!resp.isSuccessful) {
+                // 428 = the endpoint's per-IP anonymous-message checkpoint (Turnstile);
+                // it is sticky for the current network, so report it instead of retrying.
+                if (resp.code == 428) {
+                    return AttemptResult.Done(AiResponse.Error(
+                        "$DISPLAY_NAME reached its free per-network message limit and needs a quick " +
+                            "verification. Please try again later or use a different network."
+                    ))
+                }
+                // Transient upstream failures are worth retrying; other client errors are not.
+                return if (resp.code == 429 || resp.code in 500..599) AttemptResult.Retry
+                else AttemptResult.Done(AiResponse.Error(
+                    "$DISPLAY_NAME: Request failed (HTTP ${resp.code}). Please try again."
+                ))
             }
 
-            val body = response.body ?: run {
-                emit(AiResponse.Error("$DISPLAY_NAME: Empty response. Please try again."))
-                return@flow
-            }
+            val body = resp.body ?: return AttemptResult.Retry
 
             val result = StringBuilder()
             var sawDataLine = false
-            var errorMessage: String? = null
+            var transientError = false
             val reader = BufferedReader(InputStreamReader(body.byteStream()))
             var line: String?
 
@@ -84,34 +135,26 @@ class OxAlphaProvider(
                 sawDataLine = true
 
                 val content = extractContent(data)
-                if (content != null) {
+                if (!content.isNullOrEmpty()) {
                     result.append(content)
                     continue
                 }
                 // No content chunk — check whether the event carries an API error payload.
                 val apiError = extractErrorMessage(data)
-                if (apiError != null && errorMessage == null) {
-                    errorMessage = apiError
+                if (apiError != null && TRANSIENT_MARKERS.any { apiError.lowercase().contains(it) }) {
+                    transientError = true
                 }
             }
             reader.close()
-            body.close()
-
-            if (errorMessage != null) {
-                emit(AiResponse.Error("$DISPLAY_NAME: $errorMessage"))
-                return@flow
-            }
 
             val text = result.toString().trim()
-            if (!sawDataLine || text.isEmpty()) {
-                emit(AiResponse.Error("$DISPLAY_NAME returned an empty response. Please try again."))
-            } else {
-                emit(AiResponse.Success(text))
+            return when {
+                text.isNotEmpty() -> AttemptResult.Done(AiResponse.Success(text))
+                transientError -> AttemptResult.Retry
+                else -> AttemptResult.Done(AiResponse.Error(
+                    "$DISPLAY_NAME returned an empty response. Please try again."
+                ))
             }
-        } catch (e: IOException) {
-            emit(AiResponse.Error("$DISPLAY_NAME: Network error. Check your internet connection."))
-        } catch (e: Exception) {
-            emit(AiResponse.Error("$DISPLAY_NAME: ${e.localizedMessage ?: "Unknown error"}"))
         }
     }
 

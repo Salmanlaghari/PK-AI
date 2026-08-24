@@ -239,7 +239,7 @@ class HomeViewModelTest {
 
     @Test
     fun `rate-limited provider falls back to the next provider and notes the switch`() {
-        // Given the selected provider (Groq) returns HTTP 429 and Cerebras succeeds.
+        // Given the selected provider (Groq) returns HTTP 429 and Mistral succeeds.
         val groqRateLimited = object : AiProvider {
             override fun sendMessage(
                 prompt: String,
@@ -249,34 +249,34 @@ class HomeViewModelTest {
                 emit(AiResponse.Error("Groq: Rate limit exceeded (HTTP 429). Please wait and try again."))
             }
         }
-        val cerebrasOk = object : AiProvider {
+        val mistralOk = object : AiProvider {
             override fun sendMessage(
                 prompt: String,
                 history: List<ChatMessage>,
                 imageDataUri: String?
             ): Flow<AiResponse> = flow {
-                emit(AiResponse.Success("Cerebras handled it"))
+                emit(AiResponse.Success("Mistral handled it"))
             }
         }
         whenever(mockAiProviderFactory.fallbackChain(anyString()))
-            .thenReturn(listOf(LlmProvider.fromId("groq"), LlmProvider.fromId("cerebras")))
+            .thenReturn(listOf(LlmProvider.fromId("groq"), LlmProvider.fromId("mistral")))
         whenever(mockAiProviderFactory.getProvider("groq")).thenReturn(groqRateLimited)
-        whenever(mockAiProviderFactory.getProvider("cerebras")).thenReturn(cerebrasOk)
+        whenever(mockAiProviderFactory.getProvider("mistral")).thenReturn(mistralOk)
 
         // When
         testDispatcher.scheduler.advanceUntilIdle()
         viewModel.sendMessage("Hello")
         testDispatcher.scheduler.advanceUntilIdle()
 
-        // Then the answer comes from Cerebras and a switch note is shown
+        // Then the answer comes from Mistral and a switch note is shown
         val messages = viewModel.chatMessages.value
         val aiMessage = messages.last()
-        assertEquals("Cerebras handled it", aiMessage.content)
-        assertEquals("Cerebras", aiMessage.modelUsed)
+        assertEquals("Mistral handled it", aiMessage.content)
+        assertEquals("Mistral AI", aiMessage.modelUsed)
 
         val switchNote = messages.find { it.content.startsWith("↪ Switched to") }
         assertTrue(switchNote != null)
-        assertTrue(switchNote!!.content.contains("Cerebras"))
+        assertTrue(switchNote!!.content.contains("Mistral"))
         assertTrue(switchNote.content.contains("Groq limit reached"))
     }
 }

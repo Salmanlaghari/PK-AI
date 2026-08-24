@@ -38,13 +38,6 @@ class AiProviderFactoryTest {
         assertTrue(factory.getProvider("groq") is OpenAiCompatibleProvider)
         assertTrue(factory.getProvider("llm7") is OpenAiCompatibleProvider)
         assertTrue(factory.getProvider("mistral") is OpenAiCompatibleProvider)
-        assertTrue(factory.getProvider("cerebras") is OpenAiCompatibleProvider)
-        assertTrue(factory.getProvider("huggingface") is OpenAiCompatibleProvider)
-    }
-
-    @Test
-    fun `cloudflare uses its own adapter`() = runTest {
-        assertTrue(factory.getProvider("cloudflare") is CloudflareWorkersAiProvider)
     }
 
     @Test
@@ -58,15 +51,16 @@ class AiProviderFactoryTest {
     }
 
     @Test
-    fun `free AI tab resolves both key-less models`() = runTest {
+    fun `free AI tab resolves all key-less models`() = runTest {
         assertTrue(factory.getFreeProvider(FreeAiModel.PUBLIC_CHATBOT.id) is PublicFreeAiProvider)
         assertTrue(factory.getFreeProvider(FreeAiModel.FREE_LLM.id) is KeylessLlmAiProvider)
+        assertTrue(factory.getFreeProvider(FreeAiModel.OX_ALPHA.id) is OxAlphaProvider)
     }
 
     @Test
     fun `unknown free model id falls back to the default free model`() = runTest {
-        // FreeAiModel.DEFAULT is the key-less LLM, so an unknown id must resolve to it.
-        assertTrue(factory.getFreeProvider("does-not-exist") is KeylessLlmAiProvider)
+        // FreeAiModel.DEFAULT is Ox Alpha, so an unknown id must resolve to it.
+        assertTrue(factory.getFreeProvider("does-not-exist") is OxAlphaProvider)
     }
 
     @Test

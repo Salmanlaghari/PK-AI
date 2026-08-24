@@ -362,6 +362,28 @@ class HomeFragment : Fragment() {
             }
         })
 
+        // Read Aloud — TTS for the last AI response
+        layout.addView(menuButton("🔊 Read Aloud Last Response") {
+            dialog.dismiss()
+            val lastAiMessage = viewModel.chatMessages.value.lastOrNull { !it.isUser }
+            if (lastAiMessage == null) {
+                Toast.makeText(context, "No AI response to read.", Toast.LENGTH_SHORT).show()
+                return@menuButton
+            }
+            val lang = com.salmanlaghari.pkai.util.TtsHelper.detectLanguage(lastAiMessage.content)
+            com.salmanlaghari.pkai.util.TtsHelper.speak(
+                context = context,
+                text = lastAiMessage.content,
+                lang = lang,
+                onComplete = {
+                    Toast.makeText(context, "Done.", Toast.LENGTH_SHORT).show()
+                },
+                onError = { err ->
+                    Toast.makeText(context, "TTS error: $err", Toast.LENGTH_SHORT).show()
+                }
+            )
+        })
+
         scroll.addView(layout)
         dialog.setContentView(scroll)
         dialog.show()

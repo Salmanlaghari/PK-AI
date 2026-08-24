@@ -19,6 +19,7 @@ import com.salmanlaghari.pkai.databinding.ItemChatAiBinding
 import com.salmanlaghari.pkai.databinding.ItemChatUserBinding
 import com.salmanlaghari.pkai.util.ImageLoadHelper
 import com.salmanlaghari.pkai.util.MarkdownImageParser
+import com.salmanlaghari.pkai.util.TtsHelper
 
 class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(ChatDiffCallback()) {
 
@@ -149,6 +150,29 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(ChatDiffCa
                     }
                 }
                 if (anyError) binding.tvAiImageError.visibility = View.VISIBLE
+            }
+
+            // TTS button — read the AI response aloud
+            binding.btnTts.setOnClickListener {
+                val context = binding.root.context
+                if (TtsHelper.isSpeaking()) {
+                    TtsHelper.stop()
+                    binding.btnTts.setImageResource(android.R.drawable.ic_btn_speak_now)
+                } else {
+                    val lang = TtsHelper.detectLanguage(message.content)
+                    binding.btnTts.setImageResource(android.R.drawable.ic_media_pause)
+                    TtsHelper.speak(
+                        context = context,
+                        text = message.content,
+                        lang = lang,
+                        onComplete = {
+                            binding.btnTts.setImageResource(android.R.drawable.ic_btn_speak_now)
+                        },
+                        onError = {
+                            binding.btnTts.setImageResource(android.R.drawable.ic_btn_speak_now)
+                        }
+                    )
+                }
             }
         }
     }

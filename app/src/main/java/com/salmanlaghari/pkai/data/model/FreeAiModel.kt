@@ -52,7 +52,18 @@ data class FreeAiModel(
             logoEmoji = "⚡"
         )
 
-        val ALL: List<FreeAiModel> = listOf(PUBLIC_CHATBOT, FREE_LLM)
+        /**
+         * Ox Alpha — a free stealth reasoning model with 1M-token context.
+         * Backed by oxalpha.com/api/chat, no API key or login required.
+         */
+        val OX_ALPHA = FreeAiModel(
+            id = "ox_alpha",
+            displayName = "Ox Alpha",
+            tagline = "Stealth reasoning · 1M context · free",
+            logoEmoji = "🧠"
+        )
+
+        val ALL: List<FreeAiModel> = listOf(PUBLIC_CHATBOT, FREE_LLM, OX_ALPHA)
 
         /** The real LLM is the default so the Free tab feels like a proper assistant. */
         val DEFAULT: FreeAiModel = FREE_LLM

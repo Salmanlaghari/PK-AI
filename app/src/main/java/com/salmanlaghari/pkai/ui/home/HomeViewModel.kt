@@ -43,8 +43,7 @@ class HomeViewModel @Inject constructor(
 
     /** Hugging Face text-to-image model used by the dedicated Image Generation tab. */
     private companion object {
-        const val IMAGE_MODEL = "stabilityai/stable-diffusion-xl-base-1.0"
-        const val IMAGE_PROVIDER_LABEL = "Hugging Face Image"
+        const val IMAGE_PROVIDER_LABEL = "PK AI Image"
     }
 
     private val _isFreeMode = MutableStateFlow(false)
@@ -352,13 +351,11 @@ class HomeViewModel @Inject constructor(
     }
 
     /**
-     * Generates a real image via Hugging Face's Inference API (SDXL), rendered inline as a
-     * Bitmap in the chat. Uses the configured HUGGINGFACE_API_KEY but a different endpoint
-     * that returns raw image bytes (not chat-completion JSON).
+     * Generates a real image via Pollinations' key-less image endpoint (Flux), rendered
+     * inline as a Bitmap in the chat. No API key needed — works out of the box.
      *
-     * Hugging Face's free tier cold-starts models, returning HTTP 503 "model loading"; we
-     * retry with exponential backoff and keep the UI in a "Generating image, please wait…"
-     * state until it succeeds or gives up.
+     * Pollinations occasionally rate-limits bursts; we retry a few times with backoff and
+     * keep the UI in a "Generating image, please wait…" state until it succeeds or gives up.
      */
     fun generateHuggingFaceImage(prompt: String) {
         if (prompt.isBlank()) return
@@ -374,11 +371,7 @@ class HomeViewModel @Inject constructor(
             _isGenerating.value = true
             _generatingLabel.value = "Generating image, please wait…"
             try {
-                val key = BuildConfig.HUGGINGFACE_API_KEY
-                if (key.isBlank()) throw IllegalStateException(
-                    "Hugging Face API key not configured. Add HUGGINGFACE_API_KEY to local.properties."
-                )
-                val bytes = generateImageWithRetry(key, prompt)
+                val bytes = generateImageWithRetry(prompt)
                 val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
                 val markdown = "![Generated image](data:image/png;base64,$base64)"
                 chatMessageDao.insertMessage(
@@ -388,7 +381,7 @@ class HomeViewModel @Inject constructor(
                 chatMessageDao.insertMessage(
                     ChatMessage(
                         content = "🖼 I couldn't generate that image (${e.localizedMessage ?: "unknown error"}). " +
-                            "The Hugging Face model may still be loading — please try again shortly.",
+                            "The image service may be rate-limited — please try again shortly.",
                         isUser = false,
                         modelUsed = IMAGE_PROVIDER_LABEL
                     )
@@ -447,30 +440,29 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    /** Calls the HF image endpoint, retrying on the 503 "model loading" cold-start response. */
-    private suspend fun generateImageWithRetry(key: String, prompt: String, maxAttempts: Int = 4): ByteArray {
+    /** Calls the Pollinations image endpoint, retrying on transient rate-limit responses. */
+    private suspend fun generateImageWithRetry(prompt: String, maxAttempts: Int = 4): ByteArray {
         var attempt = 0
         var backoffMs = 2000L
         var lastError: String? = null
         while (attempt < maxAttempts) {
             attempt++
             try {
-                val body = JSONObject().put("inputs", prompt).toString()
-                    .toRequestBody("application/json".toMediaType())
-                val request = Request.Builder()
-                    .url("https://api-inference.huggingface.co/models/$IMAGE_MODEL")
-                    .addHeader("Authorization", "Bearer $key")
-                    .addHeader("Accept", "image/png")
-                    .post(body)
-                    .build()
+                val url = "https://image.pollinations.ai/prompt/" +
+                    java.net.URLEncoder.encode(prompt.trim(), "UTF-8") +
+                    "?width=768&height=768&nologo=true&model=flux&enhance=true"
+                val request = Request.Builder().url(url).get().build()
                 val response = okHttpClient.newCall(request).execute()
                 if (response.isSuccessful) {
                     val bytes = response.body?.bytes()
                     if (bytes != null && bytes.isNotEmpty()) return bytes
-                    lastError = "Hugging Face returned an empty image."
+                    lastError = "The image service returned an empty image."
                 } else {
-                    lastError = "Hugging Face image request failed (HTTP ${response.code})."
-                    if (response.code != 503) throw IllegalStateException(lastError)
+                    lastError = "Image request failed (HTTP ${response.code})."
+                    // 429/5xx are transient — retry; other statuses fail fast.
+                    if (response.code != 429 && response.code !in 500..599) {
+                        throw IllegalStateException(lastError)
+                    }
                 }
             } catch (e: Exception) {
                 // A fatal HTTP status (re-thrown just above) must not be retried; only
@@ -480,7 +472,7 @@ class HomeViewModel @Inject constructor(
             }
             if (attempt < maxAttempts) delay(backoffMs).also { backoffMs *= 2 }
         }
-        throw IllegalStateException("Hugging Face image model didn't load after $maxAttempts tries ($lastError)")
+        throw IllegalStateException("Image generation didn't succeed after $maxAttempts tries ($lastError)")
     }
 
     /**

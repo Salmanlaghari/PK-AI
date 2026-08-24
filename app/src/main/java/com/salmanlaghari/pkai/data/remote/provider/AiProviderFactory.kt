@@ -15,8 +15,8 @@ import javax.inject.Singleton
 /**
  * Builds the correct [AiProvider] implementation for the user's selected provider.
  *
- * OpenAI-compatible providers (Groq, LLM7.io, Mistral, Cerebras, Hugging Face) all
- * share [OpenAiCompatibleProvider]; Cloudflare and Cohere get their own adapters.
+ * OpenAI-compatible providers (Groq, LLM7.io, Mistral) share [OpenAiCompatibleProvider];
+ * Cohere gets its own adapter.
  *
  * API keys are read from BuildConfig (injected at build time from local.properties /
  * CI secrets) — never hardcoded in source.
@@ -29,7 +29,7 @@ import javax.inject.Singleton
  * This is a single editable constant so the order can be tweaked in one place.
  */
 val FALLBACK_ORDER: List<String> = listOf(
-    "groq", "cerebras", "llm7", "mistral", "huggingface", "cohere", "cloudflare"
+    "groq", "llm7", "mistral", "cohere"
 )
 
 @Singleton
@@ -52,11 +52,6 @@ class AiProviderFactory @Inject constructor(
             retrofit(provider.baseUrl).create(OpenAiCompatibleApiService::class.java)
         }
 
-    private val cloudflareService: CloudflareWorkersApiService by lazy {
-        retrofit(LlmProvider.fromId("cloudflare").baseUrl)
-            .create(CloudflareWorkersApiService::class.java)
-    }
-
     private val cohereService: CohereApiService by lazy {
         retrofit(LlmProvider.fromId("cohere").baseUrl)
             .create(CohereApiService::class.java)
@@ -70,12 +65,6 @@ class AiProviderFactory @Inject constructor(
                 provider,
                 keyFor(provider),
                 openAiService(provider)
-            )
-            ProviderFormat.CLOUDFLARE -> CloudflareWorkersAiProvider(
-                provider,
-                BuildConfig.CLOUDFLARE_API_TOKEN,
-                BuildConfig.CLOUDFLARE_ACCOUNT_ID,
-                cloudflareService
             )
             ProviderFormat.COHERE -> CohereAiProvider(
                 provider,
@@ -118,11 +107,7 @@ class AiProviderFactory @Inject constructor(
      * Cloudflare, the account id) is configured. Used to prune the fallback chain so we never
      * waste a request on a provider the user hasn't set up.
      */
-    fun hasConfiguredKey(provider: LlmProvider): Boolean {
-        if (keyFor(provider).isBlank()) return false
-        if (provider.needsAccountId && BuildConfig.CLOUDFLARE_ACCOUNT_ID.isBlank()) return false
-        return true
-    }
+    fun hasConfiguredKey(provider: LlmProvider): Boolean = keyFor(provider).isNotBlank()
 
     /**
      * Builds the ordered list of providers to try for a given starting provider.
@@ -143,8 +128,6 @@ class AiProviderFactory @Inject constructor(
         "GROQ_API_KEY" -> BuildConfig.GROQ_API_KEY
         "LLM7_API_KEY" -> BuildConfig.LLM7_API_KEY
         "MISTRAL_API_KEY" -> BuildConfig.MISTRAL_API_KEY
-        "CEREBRAS_API_KEY" -> BuildConfig.CEREBRAS_API_KEY
-        "HUGGINGFACE_API_KEY" -> BuildConfig.HUGGINGFACE_API_KEY
         "COHERE_API_KEY" -> BuildConfig.COHERE_API_KEY
         else -> ""
     }

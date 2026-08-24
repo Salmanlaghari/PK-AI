@@ -82,8 +82,8 @@ class OxAlphaProvider(
                     val json = JSONObject(data)
                     // Check for error events
                     if (json.has("error")) {
-                        val error = json.optJSONObject("error")
-                        val errorMsg = error?.opt("error")?.toString() ?: "Unknown error"
+                        val errorObj = json.optJSONObject("error")
+                        val errorMsg = try { errorObj?.getString("error") } catch (_: Exception) { null } ?: "Unknown error"
                         emit(AiResponse.Error("$DISPLAY_NAME: $errorMsg"))
                         return@flow
                     }
@@ -91,7 +91,16 @@ class OxAlphaProvider(
                     if (choices.length() == 0) continue
                     val choice = choices.optJSONObject(0) ?: continue
                     val delta = choice.optJSONObject("delta") ?: continue
-                    val content = delta.opt("content")?.toString() ?: ""
+                    // Extract content safely — handle null, JSONObject.NULL, and missing keys
+                    val content: String = try {
+                        if (delta.has("content") && !delta.isNull("content")) {
+                            delta.getString("content")
+                        } else {
+                            ""
+                        }
+                    } catch (_: Exception) {
+                        ""
+                    }
                     if (content.isNotEmpty()) {
                         result.append(content)
                     }

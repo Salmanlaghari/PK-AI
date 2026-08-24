@@ -165,54 +165,7 @@ open class OpenAiCompatibleProvider(
         "${provider.displayName} API key not configured. Add ${provider.apiKeyBuildConfig} to local.properties."
 }
 
-/* ─────────────────────────────────────────────────────────────────────────────
- * Cloudflare Workers AI — custom request/response adapter
- * ───────────────────────────────────────────────────────────────────────────── */
-
-class CloudflareWorkersAiProvider(
-    private val provider: LlmProvider,
-    private val apiToken: String,
-    private val accountId: String,
-    private val service: CloudflareWorkersApiService
-) : AiProvider {
-
-    override fun sendMessage(
-        prompt: String,
-        history: List<ChatMessage>,
-        imageDataUri: String?
-    ): Flow<AiResponse> = flow {
-        if (apiToken.isBlank() || accountId.isBlank()) {
-            emit(AiResponse.Error("Cloudflare API token or account id not configured. Add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID to local.properties."))
-            return@flow
-        }
-        val messages = history.map { CloudflareMessage(roleOf(it), it.content) } +
-            listOf(CloudflareMessage("user", prompt))
-        try {
-            val response = service.run(
-                accountId = accountId,
-                modelPath = provider.defaultModel,
-                authorization = "Bearer $apiToken",
-                request = CloudflareRequest(messages)
-            )
-            val text = response.result?.response
-            if (text.isNullOrBlank()) {
-                emit(AiResponse.Error("Cloudflare Workers AI returned an empty response. Please try again."))
-            } else {
-                emit(AiResponse.Success(text))
-            }
-        } catch (e: HttpException) {
-            val body = errorBodyOf(e)
-            logHttpFailure("Cloudflare Workers AI", e, body)
-            emit(AiResponse.Error(mapHttpError("Cloudflare Workers AI", e.code(), e.message(), body)))
-        } catch (e: IOException) {
-            emit(AiResponse.Error("Cloudflare Workers AI: Network error. Check your internet connection."))
-        } catch (e: Exception) {
-            emit(AiResponse.Error("Cloudflare Workers AI: ${e.localizedMessage ?: "Unknown error"}"))
-        }
-    }
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
+/* ───────────────────────────────────────────────────────────────────────────
  * Cohere — v2 chat API custom adapter
  * ───────────────────────────────────────────────────────────────────────────── */
 

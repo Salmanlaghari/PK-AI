@@ -25,35 +25,6 @@ interface OpenAiCompatibleApiService {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
- * Cloudflare Workers AI — custom REST shape (NOT OpenAI compatible)
- * POST /accounts/{accountId}/ai/run/{modelPath}
- * ───────────────────────────────────────────────────────────────────────────── */
-
-data class CloudflareMessage(val role: String, val content: String)
-
-data class CloudflareRequest(
-    val messages: List<CloudflareMessage>,
-    val stream: Boolean = false
-)
-
-data class CloudflareResult(val response: String?)
-
-data class CloudflareResponse(
-    val result: CloudflareResult?,
-    val success: Boolean = true
-)
-
-interface CloudflareWorkersApiService {
-    @POST("accounts/{accountId}/ai/run/{modelPath}")
-    suspend fun run(
-        @Path("accountId") accountId: String,
-        @Path("modelPath", encoded = true) modelPath: String,
-        @Header("Authorization") authorization: String,
-        @Body request: CloudflareRequest
-    ): CloudflareResponse
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
  * Cohere — v2 chat API custom shape (NOT OpenAI compatible)
  * POST /v2/chat
  * ───────────────────────────────────────────────────────────────────────────── */

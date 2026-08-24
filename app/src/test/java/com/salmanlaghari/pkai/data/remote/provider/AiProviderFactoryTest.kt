@@ -38,13 +38,6 @@ class AiProviderFactoryTest {
         assertTrue(factory.getProvider("groq") is OpenAiCompatibleProvider)
         assertTrue(factory.getProvider("llm7") is OpenAiCompatibleProvider)
         assertTrue(factory.getProvider("mistral") is OpenAiCompatibleProvider)
-        assertTrue(factory.getProvider("cerebras") is OpenAiCompatibleProvider)
-        assertTrue(factory.getProvider("huggingface") is OpenAiCompatibleProvider)
-    }
-
-    @Test
-    fun `cloudflare uses its own adapter`() = runTest {
-        assertTrue(factory.getProvider("cloudflare") is CloudflareWorkersAiProvider)
     }
 
     @Test

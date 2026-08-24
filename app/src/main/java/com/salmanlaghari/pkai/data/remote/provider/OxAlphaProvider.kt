@@ -82,15 +82,16 @@ class OxAlphaProvider(
                     val json = JSONObject(data)
                     // Check for error events
                     if (json.has("error")) {
-                        val error = json.getJSONObject("error")
-                        val errorMsg = error.optString("error", "Unknown error")
+                        val error = json.optJSONObject("error")
+                        val errorMsg = error?.opt("error")?.toString() ?: "Unknown error"
                         emit(AiResponse.Error("$DISPLAY_NAME: $errorMsg"))
                         return@flow
                     }
                     val choices = json.optJSONArray("choices") ?: continue
                     if (choices.length() == 0) continue
-                    val delta = choices.getJSONObject(0).optJSONObject("delta") ?: continue
-                    val content = delta.optString("content", "")
+                    val choice = choices.optJSONObject(0) ?: continue
+                    val delta = choice.optJSONObject("delta") ?: continue
+                    val content = delta.opt("content")?.toString() ?: ""
                     if (content.isNotEmpty()) {
                         result.append(content)
                     }

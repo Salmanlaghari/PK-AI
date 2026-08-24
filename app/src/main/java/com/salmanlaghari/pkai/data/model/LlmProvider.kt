@@ -15,7 +15,6 @@ package com.salmanlaghari.pkai.data.model
  */
 enum class ProviderFormat {
     OPENAI,
-    CLOUDFLARE,
     COHERE
 }
 
@@ -28,7 +27,6 @@ data class LlmProvider(
     val baseUrl: String,
     val defaultModel: String,
     val apiKeyBuildConfig: String,
-    val needsAccountId: Boolean = false,
     /**
      * Whether this provider exposes a vision-capable chat model through PK AI. When true,
      * an attached image can be sent as part of the request so the model can actually "see" it.
@@ -40,9 +38,9 @@ data class LlmProvider(
      */
     val visionModel: String? = null,
     /**
-     * Whether this provider can *generate* brand-new images from a text prompt. All seven
-     * BYOK chat providers here are text-only, so this stays false for them — the only real
-     * image generator wired into PK AI is Pollinations' key-less image endpoint (Free AI tab).
+     * Whether this provider can *generate* brand-new images from a text prompt. All BYOK
+     * chat providers here are text-only, so this stays false for them — the real
+     * image generator wired into PK AI is Pollinations' key-less image endpoint.
      */
     val supportsImageGen: Boolean = false
 ) {
@@ -61,20 +59,6 @@ data class LlmProvider(
                 apiKeyBuildConfig = "GROQ_API_KEY",
                 supportsVision = true,
                 visionModel = "llama-3.2-11b-vision-preview"
-            ),
-            LlmProvider(
-                id = "cloudflare",
-                displayName = "Cloudflare Workers AI",
-                tagline = "Edge serverless inference",
-                logoEmoji = "☁️",
-                format = ProviderFormat.CLOUDFLARE,
-                // The service declares the full path `accounts/{accountId}/ai/run/...`, so the
-                // base url must stop at /v4/ — including `accounts/` here produced
-                // `/client/v4/accounts/accounts/<id>/ai/run/...` and a 7003 routing error.
-                baseUrl = "https://api.cloudflare.com/client/v4/",
-                defaultModel = "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
-                apiKeyBuildConfig = "CLOUDFLARE_API_TOKEN",
-                needsAccountId = true
             ),
             LlmProvider(
                 id = "llm7",
@@ -112,33 +96,6 @@ data class LlmProvider(
                 // HTTP 404. `command-a-03-2025` is the recommended active replacement.
                 defaultModel = "command-a-03-2025",
                 apiKeyBuildConfig = "COHERE_API_KEY"
-            ),
-            LlmProvider(
-                id = "cerebras",
-                displayName = "Cerebras",
-                tagline = "Instant trillion-parameter inference",
-                logoEmoji = "🚀",
-                format = ProviderFormat.OPENAI,
-                baseUrl = "https://api.cerebras.ai/v1/",
-                // `llama3.1-70b` (404) and `llama3.1-8b` ("Model does not exist or you do not
-                // have access to it") are not reachable with the current key. `gpt-oss-120b`
-                // is a current production model and demonstrably exists — it returns HTTP 402
-                // payment_required, i.e. the Cerebras account itself has no inference quota.
-                // Keeping it here surfaces that accurate billing error instead of a misleading 404.
-                defaultModel = "gpt-oss-120b",
-                apiKeyBuildConfig = "CEREBRAS_API_KEY"
-            ),
-            LlmProvider(
-                id = "huggingface",
-                displayName = "Hugging Face",
-                tagline = "Open models for everyone",
-                logoEmoji = "🤗",
-                format = ProviderFormat.OPENAI,
-                baseUrl = "https://router.huggingface.co/v1/",
-                // The HF router expects the fully-qualified repo id, not a slugified name.
-                // `meta-llama-3-1-8b-instruct` is not a valid router model id (404).
-                defaultModel = "meta-llama/Llama-3.1-8B-Instruct",
-                apiKeyBuildConfig = "HUGGINGFACE_API_KEY"
             )
         )
 

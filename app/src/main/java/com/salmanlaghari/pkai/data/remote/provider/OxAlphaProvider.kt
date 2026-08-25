@@ -23,6 +23,13 @@ import java.io.InputStreamReader
  *   Body: { "model": "stealth/ox-alpha", "messages": [...] }
  *   Response: `data: {"choices":[{"delta":{"content":"..."}}]}` lines + `data: [DONE]`
  *
+ * **Fallback route:** the same `stealth/ox-alpha` model is also served free on
+ * OpenRouter (https://openrouter.ai/stealth/ox-alpha). When the direct oxalpha.com
+ * route is unavailable (per-IP Turnstile checkpoint / rate limit / outage) and an
+ * `OPENROUTER_API_KEY` is configured, requests are retried through OpenRouter's
+ * OpenAI-compatible API so the model stays reachable from restricted networks
+ * (shared CI runners, carrier NATs, etc.).
+ *
  * Implementation notes:
  *  - Request bodies are built and responses parsed with **Gson** ([JsonParser]), not
  *    `org.json`. The JVM unit-test environment runs against android.jar stubs where
@@ -33,12 +40,17 @@ import java.io.InputStreamReader
  *    meaningful [AiResponse.Error] instead of throwing.
  */
 class OxAlphaProvider(
-    private val okHttpClient: OkHttpClient
+    private val okHttpClient: OkHttpClient,
+    /** Optional OpenRouter key enabling the fallback route. Blank = direct route only. */
+    private val openRouterApiKey: String = ""
 ) : AiProvider {
 
     private companion object {
         const val API_URL = "https://oxalpha.com/api/chat"
         const val MODEL = "stealth/ox-alpha"
+
+        /** OpenRouter's OpenAI-compatible endpoint serving the same stealth/ox-alpha model. */
+        const val OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
         const val DISPLAY_NAME = "Ox Alpha"
         const val MAX_HISTORY_TURNS = 20
 
@@ -66,10 +78,19 @@ class OxAlphaProvider(
     ): Flow<AiResponse> = flow {
         try {
             var lastError: String? = null
+            var directRouteBlocked = false
             for (attempt in 1..MAX_ATTEMPTS) {
                 when (val outcome = attemptRequest(prompt, history)) {
                     is AttemptResult.Done -> {
-                        emit(outcome.response)
+                        val response = outcome.response
+                        // Per-network limit (HTTP 428) is sticky for the current IP —
+                        // retrying the same route is pointless. Break out to the
+                        // OpenRouter fallback route instead.
+                        if (response is AiResponse.Error && response.text.contains("per-network")) {
+                            directRouteBlocked = true
+                            break
+                        }
+                        emit(response)
                         return@flow
                     }
                     AttemptResult.Retry -> {
@@ -78,6 +99,19 @@ class OxAlphaProvider(
                     }
                 }
             }
+
+            // ── Fallback route: OpenRouter (same stealth/ox-alpha model) ──────────
+            if (openRouterApiKey.isNotBlank()) {
+                val fallbackText = openRouterRequest(prompt, history)
+                if (!fallbackText.isNullOrBlank()) {
+                    emit(AiResponse.Success(fallbackText))
+                    return@flow
+                }
+                lastError = "$lastError OpenRouter fallback also failed."
+            } else if (directRouteBlocked) {
+                lastError = "$DISPLAY_NAME reached its free per-network message limit."
+            }
+
             emit(AiResponse.Error(
                 "${lastError ?: ""} The service is temporarily overloaded — please try again shortly."
             ))
@@ -87,6 +121,38 @@ class OxAlphaProvider(
             emit(AiResponse.Error("$DISPLAY_NAME: ${e.localizedMessage ?: "Unknown error"}"))
         }
     }
+
+    /**
+     * Fallback route through OpenRouter's OpenAI-compatible API (non-streaming).
+     * Returns the reply text, or null when the route fails for any reason — the caller
+     * then surfaces the original direct-route error.
+     */
+    private fun openRouterRequest(prompt: String, history: List<ChatMessage>): String? = runCatching {
+        val payload = com.google.gson.JsonObject().apply {
+            addProperty("model", MODEL)
+            add("messages", buildMessagesArray(prompt, history))
+        }
+
+        val request = Request.Builder()
+            .url(OPENROUTER_URL)
+            .post(payload.toString().toRequestBody("application/json".toMediaType()))
+            .header("Content-Type", "application/json")
+            .header("Authorization", "Bearer $openRouterApiKey")
+            .header("X-Title", "PK AI")
+            .build()
+
+        okHttpClient.newCall(request).execute().use { resp ->
+            if (!resp.isSuccessful) return@runCatching null
+            val bodyStr = resp.body?.string() ?: return@runCatching null
+            val root = JsonParser.parseString(bodyStr)
+            if (!root.isJsonObject) return@runCatching null
+            val choices = root.asJsonObject.get("choices") as? com.google.gson.JsonArray
+                ?: return@runCatching null
+            val first = choices.firstOrNull() as? com.google.gson.JsonObject ?: return@runCatching null
+            val message = first.get("message") as? com.google.gson.JsonObject ?: return@runCatching null
+            message.get("content")?.takeIf { it.isJsonPrimitive }?.asString
+        }
+    }.getOrNull()
 
     /** Performs one full request/response cycle against the Ox Alpha chat API. */
     private fun attemptRequest(prompt: String, history: List<ChatMessage>): AttemptResult {
@@ -163,6 +229,15 @@ class OxAlphaProvider(
      * on the JVM used by unit tests (org.json is stubbed there).
      */
     private fun buildRequestBody(prompt: String, history: List<ChatMessage>): okhttp3.RequestBody {
+        val payload = com.google.gson.JsonObject().apply {
+            addProperty("model", MODEL)
+            add("messages", buildMessagesArray(prompt, history))
+        }
+        return payload.toString().toRequestBody("application/json".toMediaType())
+    }
+
+    /** Shared message-array builder used by both the direct and OpenRouter routes. */
+    private fun buildMessagesArray(prompt: String, history: List<ChatMessage>): com.google.gson.JsonArray {
         val messages = com.google.gson.JsonArray()
         for (msg in history.takeLast(MAX_HISTORY_TURNS)) {
             messages.add(com.google.gson.JsonObject().apply {
@@ -174,12 +249,7 @@ class OxAlphaProvider(
             addProperty("role", "user")
             addProperty("content", prompt.trim())
         })
-
-        val payload = com.google.gson.JsonObject().apply {
-            addProperty("model", MODEL)
-            add("messages", messages)
-        }
-        return payload.toString().toRequestBody("application/json".toMediaType())
+        return messages
     }
 
     /**

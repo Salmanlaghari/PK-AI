@@ -95,7 +95,7 @@ class AiProviderFactory @Inject constructor(
                 // adapter without ever reading an API key.
                 llm7 = openAiService(LlmProvider.fromId("llm7"))
             )
-            FreeAiModel.OX_ALPHA.id -> OxAlphaProvider(okHttpClient)
+            FreeAiModel.OX_ALPHA.id -> OxAlphaProvider(okHttpClient, BuildConfig.OPENROUTER_API_KEY)
             else -> PublicFreeAiProvider(publicFreeApiService)
         }
 

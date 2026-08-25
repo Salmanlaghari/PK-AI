@@ -137,6 +137,9 @@ class HomeFragment : Fragment() {
 
         binding.btnTabPremium.setOnClickListener { viewModel.setFreeMode(false) }
         binding.btnTabFree.setOnClickListener { viewModel.setFreeMode(true) }
+        binding.btnTabSuperChat.setOnClickListener {
+            findNavController().navigate(R.id.superChatFragment)
+        }
         binding.btnTabImage.setOnClickListener { viewModel.setImageMode(true) }
 
         setupFreeModelChips()

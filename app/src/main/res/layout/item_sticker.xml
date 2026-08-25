@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="4dp"
+    android:background="@drawable/bg_superchat_sticker_cell"
+    android:padding="4dp">
+
+    <ImageView
+        android:id="@+id/ivStickerCell"
+        android:layout_width="match_parent"
+        android:layout_height="90dp"
+        android:scaleType="fitCenter"
+        android:contentDescription="@string/superchat_avatar"
+        tools:src="@drawable/bg_superchat_ring" />
+
+    <TextView
+        android:id="@+id/tvStickerFav"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_margin="2dp"
+        android:padding="4dp"
+        android:text="🤍"
+        android:textSize="13sp"
+        android:contentDescription="@string/superchat_favorite" />
+
+    <TextView
+        android:id="@+id/tvStickerIndex"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|start"
+        android:layout_margin="2dp"
+        android:textColor="#C4B5FD"
+        android:textSize="9sp"
+        tools:text="#1" />
+</FrameLayout>

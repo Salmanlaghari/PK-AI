@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="superchat_back">Back</string>
+    <string name="superchat_logo">PK AI Super Chat</string>
+    <string name="superchat_subtitle">Super Chat · AI Companion</string>
+    <string name="superchat_pro">👑 Pro</string>
+    <string name="superchat_avatar">AI avatar</string>
+    <string name="superchat_stickers">3D\nStickers</string>
+    <string name="superchat_live_pose">Live\nPose</string>
+    <string name="superchat_hq">8K\nQuality</string>
+    <string name="superchat_saved">Saved</string>
+    <string name="superchat_favorites">Favorites</string>
+    <string name="superchat_hint">Ask anything…</string>
+    <string name="superchat_send">Send</string>
+    <string name="superchat_nav_chat">💬 AI Chat</string>
+    <string name="superchat_title">Super Chat</string>
+    <string name="superchat_pick_sticker">Pick a Pose</string>
+    <string name="superchat_favorite">Favorite</string>
+    <string name="superchat_live_pose_on">Live Pose ON — avatar will gently move</string>
+    <string name="superchat_live_pose_off">Live Pose OFF</string>
+    <string name="superchat_hq_on">8K Ultra HD rendering enabled</string>
+    <string name="superchat_hq_off">Standard rendering</string>
+    <string name="superchat_no_favorites">No favorites yet — tap 💜 on a sticker to add one!</string>
+    <string name="superchat_sheet_missing">Using built-in poses. Drop pose sheets into assets/poses to upgrade.</string>
+    <string name="superchat_user_label">You</string>
+    <string name="superchat_ai_label">PK AI</string>
+    <string name="superchat_speak">Speak</string>
+    <string name="superchat_copy">Copy</string>
+    <string name="superchat_share">Share</string>
+</resources>

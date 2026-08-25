@@ -135,7 +135,7 @@ class SuperChatFragment : Fragment() {
         if (childFragmentManager.findFragmentByTag("sticker_picker") != null) return
         val favorites = viewModel.favorites.value
         val picker = StickerPickerDialogFragment.newInstance(
-            indices = PoseRegistryIndices.forPicker(favorites, favoritesOnly),
+            indices = PoseRegistryIndices.forPicker(requireContext(), favorites, favoritesOnly),
             favorites = favorites,
             onPick = { index ->
                 viewModel.selectSticker(index)

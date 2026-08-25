@@ -131,6 +131,9 @@ class SuperChatViewModel @Inject constructor(
                 timestamp = System.currentTimeMillis()
             )
             _isGenerating.value = false
+            // React to the reply with a fresh pose too, so every exchange
+            // visibly changes the avatar twice (once per message).
+            _currentSticker.value = nextPoseFor(_currentMood.value)
         }
     }
 

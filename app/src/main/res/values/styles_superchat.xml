@@ -15,20 +15,35 @@
         <item name="android:backgroundTint">@null</item>
     </style>
 
-    <!-- Super Chat option chips for the horizontal strip below the chat -->
-    <style name="SuperChatOptionChip">
-        <item name="android:layout_width">72dp</item>
+    <!-- Compact glass buttons for the left vertical options rail -->
+    <style name="SuperChatRailItem">
+        <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:orientation">vertical</item>
         <item name="android:gravity">center</item>
-        <item name="android:background">@drawable/bg_superchat_side_button</item>
-        <item name="android:layout_marginHorizontal">4dp</item>
-        <item name="android:paddingTop">6dp</item>
-        <item name="android:paddingBottom">5dp</item>
-        <item name="android:paddingHorizontal">4dp</item>
+        <item name="android:background">@drawable/bg_superchat_rail_item</item>
+        <item name="android:layout_marginBottom">6dp</item>
+        <item name="android:paddingTop">7dp</item>
+        <item name="android:paddingBottom">6dp</item>
+        <item name="android:paddingHorizontal">2dp</item>
         <item name="android:clickable">true</item>
         <item name="android:focusable">true</item>
-        <item name="android:backgroundTint">@null</item>
+    </style>
+
+    <style name="SuperChatRailIcon">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textSize">16sp</item>
+    </style>
+
+    <style name="SuperChatRailLabel">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textColor">#C4B5FD</item>
+        <item name="android:textSize">8sp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:maxLines">2</item>
+        <item name="android:lineSpacingExtra">-1sp</item>
     </style>
 
     <style name="SuperChatSideIcon">

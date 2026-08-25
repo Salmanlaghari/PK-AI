@@ -251,22 +251,37 @@ class HomeViewModel @Inject constructor(
 
                 val builder = StringBuilder()
                 var answeredBy: LlmProvider? = null
+                var answeredFreeModel: FreeAiModel? = null
                 var firstFailureReason: String? = null
                 var lastError: String? = null
 
                 if (isFree) {
-                    val instance = aiProviderFactory.getFreeProvider(freeModel.id)
-                    var text: String? = null
-                    var err: String? = null
-                    instance.sendMessage(content, history, if (visionProvider) imageDataUri else null)
-                        .collect { response ->
-                            when (response) {
-                                is AiResponse.Success -> text = response.text
-                                is AiResponse.Error -> err = response.text
+                    // Free path: try the selected key-less model first, then fall through the
+                    // remaining free models so a busy / per-IP-limited endpoint (e.g. Ox Alpha's
+                    // anonymous Turnstile checkpoint) never dead-ends the chat with a raw error.
+                    val freeChain = listOf(freeModel) + FreeAiModel.ALL.filter { it.id != freeModel.id }
+                    for (candidate in freeChain) {
+                        val instance = aiProviderFactory.getFreeProvider(candidate.id)
+                        var text: String? = null
+                        var err: String? = null
+                        instance.sendMessage(content, history, if (visionProvider) imageDataUri else null)
+                            .collect { response ->
+                                when (response) {
+                                    is AiResponse.Success -> text = response.text
+                                    is AiResponse.Error -> err = response.text
+                                }
                             }
+
+                        if (!text.isNullOrBlank()) {
+                            builder.append(text)
+                            answeredFreeModel = candidate
+                            break
                         }
-                    if (!text.isNullOrBlank()) builder.append(text)
-                    else builder.clear().append(err ?: "Unknown error")
+
+                        if (firstFailureReason == null) firstFailureReason = err
+                        lastError = err
+                    }
+                    if (answeredFreeModel == null) builder.clear().append(lastError ?: "Unknown error")
                 } else {
                     // Premium path: try the selected provider, then fall back through the
                     // ordered chain when it is rate-limited / out of quota.
@@ -299,7 +314,18 @@ class HomeViewModel @Inject constructor(
                     }
                 }
 
-                val finalLabel = if (isFree) freeModel.chatLabel else (answeredBy ?: provider).displayName
+                val finalLabel = if (isFree) (answeredFreeModel ?: freeModel).chatLabel else (answeredBy ?: provider).displayName
+
+                // Free tier: when a fallback model answered, tell the user which one did.
+                if (isFree && answeredFreeModel != null && answeredFreeModel.id != freeModel.id) {
+                    chatMessageDao.insertMessage(
+                        ChatMessage(
+                            content = "↪ Switched to ${answeredFreeModel.displayName} (${freeModel.displayName} unavailable)",
+                            isUser = false,
+                            modelUsed = null
+                        )
+                    )
+                }
 
                 // After a successful fallback, surface which provider actually answered and
                 // nudge the active-provider indicator to match.

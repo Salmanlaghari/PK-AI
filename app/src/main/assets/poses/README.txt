@@ -1,20 +1,16 @@
-PK AI Super Chat — Avatar Pose Sheets
-=====================================
+Super Chat avatar stickers
+==========================
 
-Drop your avatar sprite sheets in this folder using these exact names:
+stickers/pose_001.webp … pose_192.webp
+  Individually sliced pose stickers, numbered row-major per source sheet:
+    poses 1-20    = sheet 1  (1 wave, 2 heart hands, 3 thumbs up, 4 pointing,
+                              5 peace, 6 kiss, 7 hands on hips, 8 sitting,
+                              9 jump, 10 hologram, 11 clap, 12 thinking,
+                              13 welcome, 14 excited, 15 cheer, 16 shy,
+                              17 arms crossed, 18 salute, 19 fist pump, 20 back)
+    poses 21-40   = sheet 2 … poses 181-200 = sheet 10
 
-    poses_sheet_1.png   (stickers 1–20)
-    poses_sheet_2.png   (stickers 21–40)
-    poses_sheet_3.png   (stickers 41–60)
-    poses_sheet_4.png   (stickers 61–80)
-    poses_sheet_5.png   (stickers 81–100)
-    ... up to poses_sheet_10.png (stickers 191–200)
+The app discovers this folder at runtime — drop additional pose_NNN.webp files
+here to extend the sticker grid with no code change.
 
-Sheet format (important — slicing depends on it):
-- Uniform 5-column x 4-row grid = 20 cells per sheet
-- Cells numbered ROW-MAJOR: left→right, top→bottom
-- Every cell the same size; character anchored bottom-center of each cell
-- Transparent or dark background both work
-
-The app slices these at runtime automatically. Until a sheet is present, a
-built-in placeholder pose is shown for its sticker range — the app never breaks.
+Mood mapping lives in PoseRegistry.kt (indices are 0-based: pose 1 = index 0).

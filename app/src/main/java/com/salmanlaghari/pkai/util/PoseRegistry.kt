@@ -3,39 +3,63 @@ package com.salmanlaghari.pkai.util
 /**
  * Central catalogue of Super Chat avatar stickers.
  *
- * Sticker indices map 1:1 onto the sprite-sheet cells loaded by [SpriteSheetLoader]
- * (sheet 1 holds stickers 1-20, sheet 2 holds 21-40, and so on). The mood mapping
- * below points each [Mood] at the sticker index that best matches the emotion —
- * edit the numbers here if the artwork order changes; no other code needs touching.
+ * Sticker indices map 1:1 onto the sliced images loaded by [SpriteSheetLoader]
+ * (pose 1 = index 0, pose 2 = index 1, …). Each mood maps to a *list* of
+ * candidate poses; [stickerForMood] rotates through the list so the avatar
+ * changes on every message instead of freezing on a single pose.
  *
- * Default mapping follows the reference sheet numbering:
- *  1 wave · 2 heart hands · 3 thumbs up · 4 pointing · 5 peace · 6 kiss ·
- *  7 hands on hips · 8 sitting · 9 jump · 10 hologram · 11 clap · 12 thinking ·
- *  13 welcome · 14 excited · 15 cheer · 16 shy · 17 arms crossed · 18 salute ·
- *  19 fist pump · 20 back view
+ * Sheet 1 pose reference (indices 0-19):
+ *  0 wave · 1 heart hands · 2 thumbs up · 3 pointing · 4 peace · 5 kiss ·
+ *  6 hands on hips · 7 sitting · 8 jump · 9 hologram · 10 clap · 11 thinking ·
+ *  12 welcome · 13 excited · 14 cheer · 15 shy · 16 arms crossed · 17 salute ·
+ *  18 fist pump · 19 back view
  */
 object PoseRegistry {
-
-    /** Sticker index (0-based) shown for each mood. */
-    val moodSticker: Map<Mood, Int> = mapOf(
-        Mood.GREETING to 0,    // 1  — wave
-        Mood.GRATEFUL to 1,    // 2  — heart hands
-        Mood.AGREE to 2,       // 3  — thumbs up
-        Mood.HAPPY to 3,       // 4  — pointing
-        Mood.EXCITED to 4,     // 5  — peace
-        Mood.LOVE to 5,        // 6  — kiss
-        Mood.NEUTRAL to 6,     // 7  — hands on hips
-        Mood.SAD to 15,        // 16 — shy/head down
-        Mood.THINKING to 11,   // 12 — thinking
-        Mood.DISAGREE to 16,   // 17 — arms crossed
-        Mood.ANGRY to 16,      // 17 — arms crossed
-        Mood.FAREWELL to 0     // 1  — wave
-    )
 
     /** The pose shown when Super Chat opens. */
     val defaultSticker: Int = 0
 
-    fun stickerForMood(mood: Mood): Int = moodSticker[mood] ?: defaultSticker
+    /** Candidate poses per mood — [stickerForMood] cycles through these. */
+    val moodStickers: Map<Mood, List<Int>> = mapOf(
+        Mood.GREETING to listOf(0, 12, 10, 17),          // wave, welcome, clap, salute
+        Mood.HAPPY to listOf(3, 18, 13, 4),              // pointing, fist pump, excited, peace
+        Mood.GRATEFUL to listOf(1, 10, 5),               // heart hands, clap, kiss
+        Mood.SAD to listOf(15, 16, 7),                   // shy, arms crossed, sitting
+        Mood.LOVE to listOf(5, 1, 6),                    // kiss, heart hands, hips
+        Mood.FAREWELL to listOf(0, 17, 12),              // wave, salute, welcome
+        Mood.EXCITED to listOf(8, 14, 4, 18),            // jump, cheer, peace, fist pump
+        Mood.AGREE to listOf(2, 6, 17),                  // thumbs up, hips, salute
+        Mood.DISAGREE to listOf(16, 15, 11),             // crossed, shy, thinking
+        Mood.ANGRY to listOf(16, 15, 19),                // crossed, shy, back view
+        Mood.THINKING to listOf(11, 15, 9),              // thinking, shy, hologram
+        Mood.NEUTRAL to listOf(
+            6, 9, 13, 19,                                 // sheet 1 variety
+            22, 27, 33, 38,                               // sheet 2
+            44, 50, 55, 59,                               // sheet 3
+            63, 70, 77,                                   // sheet 4
+            83, 90, 97,                                   // sheet 5
+            104, 111, 118,                                // sheet 6
+            125, 132, 139,                                // sheet 7
+            144, 150, 157,                                // sheet 8
+            163, 170,                                     // sheet 9
+            182, 190, 197                                 // sheet 10
+        )
+    )
+
+    /** Legacy single-pose map (first candidate of each mood) for quick lookups. */
+    val moodSticker: Map<Mood, Int> =
+        Mood.entries.associateWith { moodStickers[it]?.first() ?: defaultSticker }
+
+    /**
+     * Returns the pose for [mood], advancing a per-mood rotation counter so
+     * consecutive messages show different poses. Pass the value returned by
+     * [nextRotation] as [rotation].
+     */
+    fun stickerForMood(mood: Mood, rotation: Int = 0): Int {
+        val candidates = moodStickers[mood].orEmpty()
+        if (candidates.isEmpty()) return defaultSticker
+        return candidates[rotation.mod(candidates.size)]
+    }
 
     /** All sticker indices available in the picker grid. */
     fun allStickers(): IntArray = IntArray(SpriteSheetLoader.STICKER_COUNT) { it }

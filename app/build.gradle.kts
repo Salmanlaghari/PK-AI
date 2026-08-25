@@ -37,6 +37,7 @@ android {
         val cohereApiKey = System.getenv("COHERE_API_KEY") ?: localProperties.getProperty("COHERE_API_KEY") ?: ""
         val cerebrasApiKey = System.getenv("CEREBRAS_API_KEY") ?: localProperties.getProperty("CEREBRAS_API_KEY") ?: ""
         val huggingfaceApiKey = System.getenv("HUGGINGFACE_API_KEY") ?: localProperties.getProperty("HUGGINGFACE_API_KEY") ?: ""
+        val openRouterApiKey = System.getenv("OPENROUTER_API_KEY") ?: localProperties.getProperty("OPENROUTER_API_KEY") ?: ""
 
         buildConfigField("String", "GROQ_API_KEY", "\"$groqApiKey\"")
         buildConfigField("String", "CLOUDFLARE_API_TOKEN", "\"$cloudflareApiToken\"")
@@ -46,6 +47,7 @@ android {
         buildConfigField("String", "COHERE_API_KEY", "\"$cohereApiKey\"")
         buildConfigField("String", "CEREBRAS_API_KEY", "\"$cerebrasApiKey\"")
         buildConfigField("String", "HUGGINGFACE_API_KEY", "\"$huggingfaceApiKey\"")
+        buildConfigField("String", "OPENROUTER_API_KEY", "\"$openRouterApiKey\"")
     }
 
     signingConfigs {

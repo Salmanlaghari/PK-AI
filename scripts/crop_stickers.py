@@ -1,82 +1,72 @@
 #!/usr/bin/env python3
 """Make Super Chat sticker assets background-free and tight-cropped.
 
-Reads  app/src/main/assets/poses/stickers/pose_*.webp  (RGB, sheet-cell slices)
-and rewrites each file in place as RGBA WebP where:
-  - the sheet-cell background (region-grown from the image border) is transparent
+Reads  app/src/main/assets/poses/stickers/pose_*.webp  and rewrites each file in place as
+RGBA WebP where:
+  - the sheet-cell background is transparent
+  - interior holes are opaque (colors matching the bg *inside* the character stay)
+  - only the largest connected component survives (sheet numbers / text dropped)
   - the image is tight-cropped to the character with a small padding
 
-Region growing compares each candidate pixel against its neighbouring
-background pixel, so gradient backgrounds (dark navy, purple, white) are
-handled without a global threshold.
+Algorithm (per image):
+  1. Estimate the background color as the median of all border pixels — robust even when
+     the character touches one edge.
+  2. Foreground = pixels whose RGB distance from that color exceeds a threshold; this
+     handles flat, gradient, dark-navy, purple and white sheet backgrounds alike.
+  3. Keep only the largest connected foreground component (scipy.ndimage.label).
+  4. Fill holes so interior pixels cut off from the border stay part of the character.
+  5. Feather alpha slightly, then tight-crop with padding.
+
+Requires: pillow, numpy, scipy.
 """
 import os
 import sys
-from collections import deque
 
 import numpy as np
 from PIL import Image
+from scipy import ndimage
 
 STICKER_DIR = os.path.join(
     os.path.dirname(__file__), "..", "app", "src", "main", "assets", "poses", "stickers"
 )
-TOLERANCE = 30  # max per-channel-ish distance between neighbouring bg pixels
-PAD = 6
-
-
-def background_mask(rgb: np.ndarray) -> np.ndarray:
-    """Boolean mask, True where the pixel belongs to the border-connected background."""
-    h, w, _ = rgb.shape
-    bg = np.zeros((h, w), dtype=bool)
-    visited = np.zeros((h, w), dtype=bool)
-    q = deque()
-
-    def push(y, x):
-        if not visited[y, x]:
-            visited[y, x] = True
-            q.append((y, x))
-
-    for x in range(w):
-        push(0, x)
-        push(h - 1, x)
-    for y in range(h):
-        push(y, 0)
-        push(y, w - 1)
-
-    while q:
-        y, x = q.popleft()
-        bg[y, x] = True
-        c = rgb[y, x]
-        for ny, nx in ((y - 1, x), (y + 1, x), (y, x - 1), (y, x + 1)):
-            if 0 <= ny < h and 0 <= nx < w and not visited[ny, nx]:
-                n = rgb[ny, nx]
-                if abs(int(n[0]) - int(c[0])) <= TOLERANCE and \
-                   abs(int(n[1]) - int(c[1])) <= TOLERANCE and \
-                   abs(int(n[2]) - int(c[2])) <= TOLERANCE:
-                    push(ny, nx)
-    return bg
+DIST_THRESHOLD = 45  # RGB euclidean distance from bg color marking foreground
+PAD = 4
 
 
 def process(path: str) -> tuple:
-    im = Image.open(path).convert("RGB")
-    rgb = np.asarray(im).astype(np.int16)
-    h, w, _ = rgb.shape
+    im = Image.open(path).convert("RGBA")
+    rgba = np.asarray(im)
+    rgb = rgba[..., :3].astype(np.int16)
+    h, w = rgb.shape[:2]
 
-    bg = background_mask(rgb)
+    # 1) Background color = median of border pixels
+    border = np.concatenate([rgb[0, :, :], rgb[-1, :, :], rgb[:, 0, :], rgb[:, -1, :]])
+    bg = np.median(border, axis=0)
 
-    alpha = np.where(bg, 0, 255).astype(np.uint8)
+    # 2) Foreground mask
+    dist = np.sqrt(((rgb - bg) ** 2).sum(axis=-1))
+    fg = dist > DIST_THRESHOLD
 
-    # Feather the cutout edge by 1px so there is no hard jaggies ring.
-    a_img = Image.fromarray(alpha, "L").filter(__import__("PIL.ImageFilter", fromlist=["GaussianBlur"]).GaussianBlur(0.8))
-    alpha = np.asarray(a_img)
+    # 3) Keep the largest connected component only
+    lab, n = ndimage.label(fg)
+    if n > 1:
+        sizes = ndimage.sum(fg, lab, range(1, n + 1))
+        fg = lab == (int(sizes.argmax()) + 1)
 
-    ys, xs = np.where(alpha > 12)
+    # 4) Fill interior holes
+    fg = ndimage.binary_fill_holes(fg)
+
+    # 5) Feathered alpha
+    alpha = ndimage.gaussian_filter(fg.astype(float), sigma=1.2)
+    alpha = np.clip(alpha * 255, 0, 255).astype(np.uint8)
+
+    ys, xs = np.where(alpha > 8)
     if len(ys) == 0:
-        return (path, w, h, 0, 0)  # nothing left; leave file untouched
+        return (path, w, h, w, h)  # nothing found; leave untouched
     top, bottom = max(ys.min() - PAD, 0), min(ys.max() + PAD + 1, h)
     left, right = max(xs.min() - PAD, 0), min(xs.max() + PAD + 1, w)
 
-    out = np.dstack([np.asarray(im), alpha])[top:bottom, left:right]
+    out = np.dstack([rgba[..., :3].astype(np.uint8), alpha])[top:bottom, left:right]
     Image.fromarray(out, "RGBA").save(path, "WEBP", quality=88)
     return (path, w, h, right - left, bottom - top)
 
@@ -86,8 +76,7 @@ def main():
     files = sorted(f for f in os.listdir(d) if f.startswith("pose_") and f.endswith(".webp"))
     print(f"processing {len(files)} stickers ...")
     for i, f in enumerate(files, 1):
-        p = os.path.join(d, f)
-        _, ow, oh, nw, nh = process(p)
+        _, ow, oh, nw, nh = process(os.path.join(d, f))
         if i % 24 == 0 or i == len(files):
             print(f"  {i}/{len(files)}  {f}: {ow}x{oh} -> {nw}x{nh}")
     print("done")

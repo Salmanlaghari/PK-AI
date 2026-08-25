@@ -69,6 +69,12 @@
     </fragment>
 
     <fragment
+        android:id="@+id/superChatFragment"
+        android:name="com.salmanlaghari.pkai.ui.superchat.SuperChatFragment"
+        android:label="SuperChatFragment"
+        tools:layout="@layout/fragment_super_chat" />
+
+    <fragment
         android:id="@+id/chatsFragment"
         android:name="com.salmanlaghari.pkai.ui.chats.ChatsFragment"
         android:label="ChatsFragment"

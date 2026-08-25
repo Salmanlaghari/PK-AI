@@ -1,0 +1,242 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0A0612">
+
+    <!-- ── Header ─────────────────────────────────────────────────────── -->
+    <LinearLayout
+        android:id="@+id/headerBar"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="14dp"
+        android:paddingVertical="10dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <ImageView
+            android:id="@+id/btnBack"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:src="@drawable/ic_arrow_back"
+            app:tint="#C4B5FD"
+            android:contentDescription="@string/superchat_back"
+            android:background="?attr/selectableItemBackgroundBorderless" />
+
+        <ImageView
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_marginStart="10dp"
+            android:src="@drawable/ic_ai_hub"
+            app:tint="#9D4EDD"
+            android:contentDescription="@string/superchat_logo" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="10dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/app_name"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/superchat_subtitle"
+                android:textColor="#9D4EDD"
+                android:textSize="10sp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/chipPro"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/superchat_pro"
+            android:textColor="#FFD166"
+            android:textSize="11sp"
+            android:background="@drawable/bg_superchat_side_button"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="5dp" />
+    </LinearLayout>
+
+    <View
+        android:id="@+id/headerDivider"
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:background="#4D7B2FFD"
+        app:layout_constraintTop_toBottomOf="@id/headerBar"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- ── Body: chat + avatar + side panel ───────────────────────────── -->
+    <LinearLayout
+        android:id="@+id/bodyRow"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:orientation="horizontal"
+        app:layout_constraintTop_toBottomOf="@id/headerDivider"
+        app:layout_constraintBottom_toTopOf="@id/inputBar"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- Chat messages -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvSuperChat"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:clipToPadding="false"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="8dp"
+            tools:listitem="@layout/item_super_chat_message" />
+
+        <!-- Avatar stage -->
+        <FrameLayout
+            android:id="@+id/avatarStage"
+            android:layout_width="118dp"
+            android:layout_height="match_parent">
+
+            <ImageView
+                android:id="@+id/ivSticker"
+                android:layout_width="match_parent"
+                android:layout_height="170dp"
+                android:layout_gravity="center"
+                android:scaleType="fitCenter"
+                android:contentDescription="@string/superchat_avatar"
+                tools:src="@drawable/bg_superchat_ring" />
+
+            <!-- Glowing ring under the avatar -->
+            <View
+                android:id="@+id/glowRing"
+                android:layout_width="84dp"
+                android:layout_height="20dp"
+                android:layout_gravity="bottom|center_horizontal"
+                android:layout_marginBottom="52dp"
+                android:background="@drawable/bg_superchat_ring" />
+
+            <TextView
+                android:id="@+id/tvPoseLabel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom|center_horizontal"
+                android:layout_marginBottom="24dp"
+                android:gravity="center"
+                android:textColor="#00D4FF"
+                android:textSize="10sp"
+                tools:text="👋 Greeting" />
+        </FrameLayout>
+
+        <!-- Side panel -->
+        <LinearLayout
+            android:id="@+id/sidePanel"
+            android:layout_width="62dp"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:padding="6dp"
+            android:background="#B31A102F">
+
+            <LinearLayout style="@style/SuperChatSideButton" android:id="@+id/btnStickers">
+                <TextView style="@style/SuperChatSideIcon" android:text="😊" />
+                <TextView style="@style/SuperChatSideLabel" android:text="@string/superchat_stickers" />
+            </LinearLayout>
+
+            <LinearLayout style="@style/SuperChatSideButton" android:id="@+id/btnLivePose">
+                <TextView style="@style/SuperChatSideIcon" android:text="🕺" />
+                <TextView style="@style/SuperChatSideLabel" android:text="@string/superchat_live_pose" />
+            </LinearLayout>
+
+            <LinearLayout style="@style/SuperChatSideButton" android:id="@+id/btnHq">
+                <TextView style="@style/SuperChatSideIcon" android:text="🖼️" />
+                <TextView style="@style/SuperChatSideLabel" android:text="@string/superchat_hq" />
+            </LinearLayout>
+
+            <LinearLayout style="@style/SuperChatSideButton" android:id="@+id/btnSaved">
+                <TextView style="@style/SuperChatSideIcon" android:text="🔖" />
+                <TextView style="@style/SuperChatSideLabel" android:text="@string/superchat_saved" />
+            </LinearLayout>
+
+            <LinearLayout style="@style/SuperChatSideButton" android:id="@+id/btnFavorites">
+                <TextView style="@style/SuperChatSideIcon" android:text="💜" />
+                <TextView style="@style/SuperChatSideLabel" android:text="@string/superchat_favorites" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- ── Input bar ──────────────────────────────────────────────────── -->
+    <LinearLayout
+        android:id="@+id/inputBar"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="8dp"
+        app:layout_constraintBottom_toTopOf="@id/superChatNav"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <EditText
+            android:id="@+id/etSuperChatInput"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@drawable/bg_superchat_input"
+            android:hint="@string/superchat_hint"
+            android:textColorHint="#C4B5FD"
+            android:textColor="#FFFFFF"
+            android:maxLines="3"
+            android:inputType="textCapSentences|textMultiLine"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="11dp"
+            android:textSize="13sp"
+            android:importantForAutofill="no" />
+
+        <TextView
+            android:id="@+id/btnSuperSend"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_superchat_send"
+            android:gravity="center"
+            android:text="➤"
+            android:textColor="#FFFFFF"
+            android:textSize="15sp"
+            android:contentDescription="@string/superchat_send" />
+    </LinearLayout>
+
+    <!-- Mini nav strip (visual, mirrors reference) -->
+    <LinearLayout
+        android:id="@+id/superChatNav"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:paddingBottom="8dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <TextView
+            android:id="@+id/navBackToChat"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/superchat_nav_chat"
+            android:textColor="#9D4EDD"
+            android:textSize="11sp"
+            android:paddingHorizontal="16dp"
+            android:background="?attr/selectableItemBackground" />
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

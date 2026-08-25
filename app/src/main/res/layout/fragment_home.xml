@@ -182,6 +182,20 @@
                 android:text="🖼 Image"
                 android:textColor="@color/outline"
                 android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/btn_tab_super_chat"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="@android:color/transparent"
+                android:clickable="true"
+                android:focusable="true"
+                android:fontFamily="@font/poppins"
+                android:gravity="center"
+                android:text="✨ Super"
+                android:textColor="@color/outline"
+                android:textSize="12sp" />
         </LinearLayout>
     </LinearLayout>
 

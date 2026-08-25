@@ -11,105 +11,87 @@ import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Shader
 import android.util.LruCache
-import java.io.InputStream
 
 /**
- * Loads Super Chat avatar stickers from sprite sheets bundled in `assets/poses/`.
+ * Loads Super Chat avatar stickers bundled in `assets/poses/stickers/`.
  *
- * Expected files: `poses_sheet_1.png` … `poses_sheet_10.png`, each a uniform
- * **5 × 4 grid = 20 cells** (numbered row-major, left→right, top→bottom), so
- * sticker index *i* lives on sheet `i / 20 + 1` at column `i % 5`, row `i / 5 % 4`.
+ * Files are individually sliced pose images named `pose_001.webp` … `pose_NNN.webp`,
+ * numbered row-major per source sheet (poses 1-20 = sheet 1, 21-40 = sheet 2, …).
+ * The catalogue is discovered at runtime via [android.content.res.AssetManager.list],
+ * so dropping more sticker files into the assets folder extends the grid with no
+ * code change.
  *
- * When a sheet file is missing, a stylized placeholder sticker is generated
- * programmatically so the UI always works. When real sheets are dropped into
- * `assets/poses/` they are picked up automatically — no code change needed.
+ * When a sticker file is missing, a stylized placeholder is generated
+ * programmatically so the UI always works.
  */
 object SpriteSheetLoader {
 
+    /** Hard upper bound for grid sizing; actual count comes from the assets folder. */
     const val STICKER_COUNT = 200
-    const val COLS = 5
-    const val ROWS = 4
-    private const val CELLS_PER_SHEET = COLS * ROWS
-    private const val MAX_SHEETS = STICKER_COUNT / CELLS_PER_SHEET
     private const val MAX_CACHE_SIZE = 48 // individual sticker bitmaps
 
-    private val sheetCache = object : LruCache<String, Bitmap?>(MAX_SHEETS) {}
     private val cellCache = object : LruCache<Int, Bitmap>(MAX_CACHE_SIZE) {}
 
-    /** Emoji shown on placeholder stickers, one per mood in [Mood] order, cycled. */
+    /** Emoji shown on placeholder stickers, cycled. */
     private val placeholderEmoji = listOf(
         "👋", "❤️", "👍", "☝️", "✌️", "😘", "💃", "🧘", "🎉", "🖥️",
         "👏", "🤔", "🤗", "🤷", "🤸", "😊", "🙅", "🫡", "💪", "🔄"
     )
 
+    private var catalog: List<Int>? = null
+
+    /**
+     * Sorted list of available sticker indices (0-based), read from the assets
+     * folder. Falls back to the full 0..199 range when the folder is absent so
+     * placeholder stickers still populate the grid.
+     */
+    fun availableStickers(context: Context): List<Int> {
+        catalog?.let { return it }
+        val list = try {
+            context.assets.list("poses/stickers")
+                ?.mapNotNull { name ->
+                    Regex("^pose_(\\d+)\\.webp$").find(name)?.groupValues?.get(1)?.toIntOrNull()
+                }
+                ?.map { it - 1 }
+                ?.sorted()
+                .orEmpty()
+        } catch (_: Exception) {
+            emptyList()
+        }
+        val result = list.ifEmpty { IntArray(STICKER_COUNT) { it }.toList() }
+        catalog = result
+        return result
+    }
+
+    /** True when at least one real sticker is bundled in assets. */
+    fun hasAnyRealSheet(context: Context): Boolean =
+        availableStickers(context).isNotEmpty()
+
     /**
      * Returns the sticker bitmap for [index] (0-based). Never null — falls back to a
-     * generated placeholder when the sheet is not bundled.
+     * generated placeholder when the file is not bundled.
      */
     fun getSticker(context: Context, index: Int): Bitmap {
-        val safeIndex = index.coerceIn(0, STICKER_COUNT - 1)
-        cellCache.get(safeIndex)?.let { return it }
+        val available = availableStickers(context)
+        val resolved = if (index < available.size) available[index] else index
+        cellCache.get(resolved)?.let { return it }
 
-        val sheetIndex = safeIndex / CELLS_PER_SHEET
-        val cell = safeIndex % CELLS_PER_SHEET
-        val col = cell % COLS
-        val row = cell / COLS
-
-        val sheet = loadSheet(context, sheetIndex + 1)
-        val bitmap = if (sheet != null) {
-            Bitmap.createBitmap(
-                sheet,
-                col * sheet.width / COLS,
-                row * sheet.height / ROWS,
-                sheet.width / COLS,
-                sheet.height / ROWS
-            )
-        } else {
-            generatePlaceholder(safeIndex)
-        }
-        cellCache.put(safeIndex, bitmap)
+        val bitmap = loadSticker(context, resolved) ?: generatePlaceholder(resolved)
+        cellCache.put(resolved, bitmap)
         return bitmap
     }
 
-    /** True when the real sheet file for [sheetNumber] (1-based) is bundled. */
-    fun isSheetBundled(context: Context, sheetNumber: Int): Boolean = try {
-        context.assets.open(sheetAssetName(sheetNumber)).use { true }
+    private fun loadSticker(context: Context, index: Int): Bitmap? = try {
+        context.assets.open("poses/stickers/pose_%03d.webp".format(index + 1)).use { stream ->
+            BitmapFactory.decodeStream(stream)
+        }
     } catch (_: Exception) {
-        false
-    }
-
-    /** True when at least one real sheet is bundled in assets. */
-    fun hasAnyRealSheet(context: Context): Boolean =
-        (1..MAX_SHEETS).any { isSheetBundled(context, it) }
-
-    private fun sheetAssetName(sheetNumber: Int) = "poses/poses_sheet_$sheetNumber.png"
-
-    private fun loadSheet(context: Context, sheetNumber: Int): Bitmap? {
-        val key = "sheet_$sheetNumber"
-        if (sheetCache.get(key) != null) return sheetCache.get(key)
-
-        val bitmap = try {
-            context.assets.open(sheetAssetName(sheetNumber)).use { stream: InputStream ->
-                val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                BitmapFactory.decodeStream(stream, null, opts)
-                // Downsample large sheets — cells only need ~300px each for crisp display.
-                var sample = 1
-                while (opts.outHeight / (sample * 2) >= ROWS * 300) sample *= 2
-                val decodeOpts = BitmapFactory.Options().apply { inSampleSize = sample }
-                context.assets.open(sheetAssetName(sheetNumber)).use { s2 ->
-                    BitmapFactory.decodeStream(s2, null, decodeOpts)
-                }
-            }
-        } catch (_: Exception) {
-            null
-        }
-        sheetCache.put(key, bitmap)
-        return bitmap
+        null
     }
 
     /**
      * Generates a stylized placeholder sticker so the UI is fully functional before
-     * real sprite sheets are bundled.
+     * real sticker assets are bundled.
      */
     private fun generatePlaceholder(index: Int): Bitmap {
         val size = 300

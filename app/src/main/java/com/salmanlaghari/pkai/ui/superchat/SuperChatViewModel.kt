@@ -1,0 +1,143 @@
+package com.salmanlaghari.pkai.ui.superchat
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.salmanlaghari.pkai.data.model.ChatMessage
+import com.salmanlaghari.pkai.data.remote.provider.AiProviderFactory
+import com.salmanlaghari.pkai.data.remote.provider.AiResponse
+import com.salmanlaghari.pkai.util.Mood
+import com.salmanlaghari.pkai.util.MoodDetector
+import com.salmanlaghari.pkai.util.PoseRegistry
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+/**
+ * Backing state for the Super Chat session — an avatar-companion chat with
+ * mood-reactive pose changes.
+ *
+ * Messages live in memory only (a Super Chat is a session, not saved history).
+ * Replies come from the user's default AI provider; when no provider is
+ * configured (or the call fails), a friendly offline persona reply keeps the
+ * session usable.
+ */
+@HiltViewModel
+class SuperChatViewModel @Inject constructor(
+    private val providerFactory: AiProviderFactory
+) : ViewModel() {
+
+    companion object {
+        private const val PERSONA =
+            "You are PK AI's friendly virtual assistant in Super Chat. Reply warmly, " +
+                "briefly (1-2 sentences) and add one fitting emoji."
+    }
+
+    private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
+    val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
+
+    private val _isGenerating = MutableStateFlow(false)
+    val isGenerating: StateFlow<Boolean> = _isGenerating.asStateFlow()
+
+    private val _currentSticker = MutableStateFlow(PoseRegistry.defaultSticker)
+    val currentSticker: StateFlow<Int> = _currentSticker.asStateFlow()
+
+    private val _currentMood = MutableStateFlow(Mood.NEUTRAL)
+    val currentMood: StateFlow<Mood> = _currentMood.asStateFlow()
+
+    private val _livePoseEnabled = MutableStateFlow(true)
+    val livePoseEnabled: StateFlow<Boolean> = _livePoseEnabled.asStateFlow()
+
+    /** Sticker indices the user favorited (persisted by the fragment). */
+    private val _favorites = MutableStateFlow<Set<Int>>(emptySet())
+    val favorites: StateFlow<Set<Int>> = _favorites.asStateFlow()
+
+    fun setFavorites(favorites: Set<Int>) {
+        _favorites.value = favorites
+    }
+
+    fun toggleFavorite(index: Int) {
+        _favorites.value = _favorites.value.toMutableSet().apply {
+            if (!add(index)) remove(index)
+        }
+    }
+
+    fun setLivePoseEnabled(enabled: Boolean) {
+        _livePoseEnabled.value = enabled
+    }
+
+    /** Shows a sticker chosen manually from the picker grid. */
+    fun selectSticker(index: Int) {
+        _currentSticker.value = index
+        _currentMood.value = Mood.NEUTRAL
+    }
+
+    /**
+     * Sends a user message: appends it, switches the avatar pose to match the
+     * detected mood, then streams an AI reply.
+     */
+    fun sendMessage(text: String) {
+        val trimmed = text.trim()
+        if (trimmed.isEmpty() || _isGenerating.value) return
+
+        val mood = MoodDetector.detect(trimmed)
+        _currentMood.value = mood
+        _currentSticker.value = PoseRegistry.stickerForMood(mood)
+
+        _messages.value = _messages.value + ChatMessage(
+            content = trimmed,
+            isUser = true,
+            timestamp = System.currentTimeMillis()
+        )
+        fetchReply(trimmed)
+    }
+
+    private fun fetchReply(prompt: String) {
+        _isGenerating.value = true
+        viewModelScope.launch {
+            val reply = tryRequest(prompt) ?: offlineReply()
+            _messages.value = _messages.value + ChatMessage(
+                content = reply,
+                isUser = false,
+                timestamp = System.currentTimeMillis()
+            )
+            _isGenerating.value = false
+        }
+    }
+
+    private suspend fun tryRequest(prompt: String): String? {
+        return try {
+            var text: String? = null
+            providerFactory.getDefaultProvider()
+                .sendMessage(prompt, emptyList())
+                .collect { response ->
+                    if (response is AiResponse.Success) text = response.text
+                }
+            text?.takeIf { it.isNotBlank() }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    /** Warm canned replies so the session never feels broken offline. */
+    private fun offlineReply(): String {
+        val mood = _currentMood.value
+        val replies = when (mood) {
+            Mood.GREETING -> listOf("Hello! 👋 How are you?", "Hi there! 👋 Great to see you!")
+            Mood.HAPPY -> listOf("Very Good! 😎", "That's wonderful! 😄")
+            Mood.GRATEFUL -> listOf("You're Welcome! 🥰", "Anytime! 💜")
+            Mood.LOVE -> listOf("Aww, that's sweet! 💖", "Sending love right back! 💕")
+            Mood.SAD -> listOf("I'm here for you 💜", "It'll be okay — stay strong! 🤗")
+            Mood.FAREWELL -> listOf("Goodbye! 👋 Come back soon!", "Allah Hafiz! 👋 Take care!")
+            Mood.EXCITED -> listOf("Yay! 🎉 So exciting!", "Woohoo! 🤩 Let's celebrate!")
+            Mood.AGREE -> listOf("Awesome! 👍", "Great choice! 👍")
+            Mood.DISAGREE -> listOf("No problem! 🙏", "Okay, we'll figure it out! 😊")
+            Mood.ANGRY -> listOf("Let's take a deep breath 💜", "It's okay, I'm listening 🤗")
+            Mood.THINKING -> listOf("Take your time 🤔", "No rush — think it through! 💭")
+            Mood.NEUTRAL -> listOf("I'm listening! 😊", "Tell me more! ✨")
+        }
+        return replies.random()
+    }
+}

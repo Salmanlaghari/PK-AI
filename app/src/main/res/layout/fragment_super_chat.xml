@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#0A0612">
+    android:background="@drawable/bg_superchat_screen">
 
     <!-- ── Header ─────────────────────────────────────────────────────── -->
     <LinearLayout
@@ -80,16 +80,53 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- ── Body: chat + avatar stage (options live below the chat) ────── -->
+    <!-- ── Body: left options rail + chat + large avatar stage ────────── -->
     <LinearLayout
         android:id="@+id/bodyRow"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:orientation="horizontal"
         app:layout_constraintTop_toBottomOf="@id/headerDivider"
-        app:layout_constraintBottom_toTopOf="@id/optionsStrip"
+        app:layout_constraintBottom_toTopOf="@id/inputBar"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- Left options rail — fixed sidebar, glass style -->
+        <LinearLayout
+            android:id="@+id/optionsRail"
+            android:layout_width="56dp"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:gravity="center_horizontal"
+            android:paddingTop="10dp"
+            android:paddingHorizontal="4dp"
+            android:background="@drawable/bg_superchat_rail">
+
+            <LinearLayout style="@style/SuperChatRailItem" android:id="@+id/btnStickers">
+                <TextView style="@style/SuperChatRailIcon" android:text="😊" />
+                <TextView style="@style/SuperChatRailLabel" android:text="@string/superchat_stickers" />
+            </LinearLayout>
+
+            <LinearLayout style="@style/SuperChatRailItem" android:id="@+id/btnLivePose">
+                <TextView style="@style/SuperChatRailIcon" android:text="🕺" />
+                <TextView style="@style/SuperChatRailLabel" android:text="@string/superchat_live_pose" />
+            </LinearLayout>
+
+            <LinearLayout style="@style/SuperChatRailItem" android:id="@+id/btnHq">
+                <TextView style="@style/SuperChatRailIcon" android:text="🖼️" />
+                <TextView style="@style/SuperChatRailLabel" android:text="@string/superchat_hq" />
+            </LinearLayout>
+
+            <LinearLayout style="@style/SuperChatRailItem" android:id="@+id/btnSaved">
+                <TextView style="@style/SuperChatRailIcon" android:text="🔖" />
+                <TextView style="@style/SuperChatRailLabel" android:text="@string/superchat_saved" />
+            </LinearLayout>
+
+            <LinearLayout style="@style/SuperChatRailItem" android:id="@+id/btnFavorites">
+                <TextView style="@style/SuperChatRailIcon" android:text="💜" />
+                <TextView style="@style/SuperChatRailLabel" android:text="@string/superchat_favorites" />
+            </LinearLayout>
+        </LinearLayout>
 
         <!-- Chat messages -->
         <androidx.recyclerview.widget.RecyclerView
@@ -99,13 +136,13 @@
             android:layout_weight="1"
             android:clipToPadding="false"
             android:paddingHorizontal="8dp"
-            android:paddingVertical="8dp"
+            android:paddingVertical="10dp"
             tools:listitem="@layout/item_super_chat_message" />
 
-        <!-- Avatar stage — anchored to the bottom so sticker + ring stay together -->
+        <!-- Large avatar stage — anchored to the bottom, sticker + ring together -->
         <FrameLayout
             android:id="@+id/avatarStage"
-            android:layout_width="112dp"
+            android:layout_width="150dp"
             android:layout_height="match_parent">
 
             <LinearLayout
@@ -118,7 +155,7 @@
                 <ImageView
                     android:id="@+id/ivSticker"
                     android:layout_width="match_parent"
-                    android:layout_height="150dp"
+                    android:layout_height="230dp"
                     android:scaleType="fitCenter"
                     android:contentDescription="@string/superchat_avatar"
                     tools:src="@drawable/bg_superchat_ring" />
@@ -126,8 +163,8 @@
                 <!-- Glowing ring under the avatar -->
                 <View
                     android:id="@+id/glowRing"
-                    android:layout_width="84dp"
-                    android:layout_height="16dp"
+                    android:layout_width="116dp"
+                    android:layout_height="20dp"
                     android:layout_marginTop="2dp"
                     android:background="@drawable/bg_superchat_ring" />
 
@@ -135,60 +172,15 @@
                     android:id="@+id/tvPoseLabel"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:layout_marginBottom="6dp"
+                    android:layout_marginTop="5dp"
+                    android:layout_marginBottom="8dp"
                     android:gravity="center"
                     android:textColor="#00D4FF"
-                    android:textSize="10sp"
+                    android:textSize="11sp"
                     tools:text="👋 Greeting" />
             </LinearLayout>
         </FrameLayout>
     </LinearLayout>
-
-    <!-- ── Options strip (below the chat, horizontally scrollable) ────── -->
-    <HorizontalScrollView
-        android:id="@+id/optionsStrip"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:scrollbars="none"
-        android:background="#B31A102F"
-        android:paddingVertical="4dp"
-        app:layout_constraintBottom_toTopOf="@id/inputBar"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
-
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:paddingHorizontal="6dp">
-
-            <LinearLayout style="@style/SuperChatOptionChip" android:id="@+id/btnStickers">
-                <TextView style="@style/SuperChatSideIcon" android:text="😊" />
-                <TextView style="@style/SuperChatSideLabel" android:text="@string/superchat_stickers" />
-            </LinearLayout>
-
-            <LinearLayout style="@style/SuperChatOptionChip" android:id="@+id/btnLivePose">
-                <TextView style="@style/SuperChatSideIcon" android:text="🕺" />
-                <TextView style="@style/SuperChatSideLabel" android:text="@string/superchat_live_pose" />
-            </LinearLayout>
-
-            <LinearLayout style="@style/SuperChatOptionChip" android:id="@+id/btnHq">
-                <TextView style="@style/SuperChatSideIcon" android:text="🖼️" />
-                <TextView style="@style/SuperChatSideLabel" android:text="@string/superchat_hq" />
-            </LinearLayout>
-
-            <LinearLayout style="@style/SuperChatOptionChip" android:id="@+id/btnSaved">
-                <TextView style="@style/SuperChatSideIcon" android:text="🔖" />
-                <TextView style="@style/SuperChatSideLabel" android:text="@string/superchat_saved" />
-            </LinearLayout>
-
-            <LinearLayout style="@style/SuperChatOptionChip" android:id="@+id/btnFavorites">
-                <TextView style="@style/SuperChatSideIcon" android:text="💜" />
-                <TextView style="@style/SuperChatSideLabel" android:text="@string/superchat_favorites" />
-            </LinearLayout>
-        </LinearLayout>
-    </HorizontalScrollView>
 
     <!-- ── Input bar ──────────────────────────────────────────────────── -->
     <LinearLayout
@@ -221,8 +213,8 @@
 
         <TextView
             android:id="@+id/btnSuperSend"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="42dp"
+            android:layout_height="42dp"
             android:layout_marginStart="8dp"
             android:background="@drawable/bg_superchat_send"
             android:gravity="center"

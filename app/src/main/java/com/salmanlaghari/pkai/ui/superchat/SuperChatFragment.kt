@@ -187,13 +187,14 @@ class SuperChatFragment : Fragment() {
         }
     }
 
-    /** Swaps the avatar sticker with a 300ms crossfade (150ms out + 150ms in). */
+    /** Swaps the avatar sticker with a 300ms crossfade, then starts its 4D/5D motion. */
     private fun showSticker(index: Int, animate: Boolean) {
         val imageView = binding.ivSticker
         if (!animate || pendingSticker == index) {
             pendingSticker = null
             imageView.setImageBitmap(SpriteSheetLoader.getSticker(requireContext(), index))
             imageView.alpha = 1f
+            startPoseMotion(index)
             return
         }
         if (pendingSticker == index) return
@@ -207,23 +208,20 @@ class SuperChatFragment : Fragment() {
                 imageView.setImageBitmap(SpriteSheetLoader.getSticker(requireContext(), index))
                 imageView.animate().alpha(1f).setDuration(150).withEndAction {
                     pendingSticker = null
+                    startPoseMotion(index)
                 }.start()
             }
             .start()
     }
 
+    /** Runs the pose-matched looping motion (shake / bounce / pulse / tilt / sway). */
+    private fun startPoseMotion(index: Int) {
+        if (_binding == null) return
+        StickerMotion.start(binding.ivSticker, StickerMotion.styleFor(index))
+    }
+
     /** Gentle breathing/sway loop on the avatar for the "Live Pose" feel. */
     private fun startLivePose() {
-        if (binding.ivSticker.animation != null) return
-        val breathe = AnimationSet(true).apply {
-            addAnimation(AlphaAnimation(0.92f, 1f).apply {
-                duration = 1600; repeatMode = Animation.REVERSE; repeatCount = Animation.INFINITE
-            })
-            addAnimation(TranslateAnimation(0f, 0f, 0f, -6f).apply {
-                duration = 1600; repeatMode = Animation.REVERSE; repeatCount = Animation.INFINITE
-            })
-        }
-        binding.ivSticker.startAnimation(breathe)
         val ringPulse = AlphaAnimation(0.5f, 1f).apply {
             duration = 1200; repeatMode = Animation.REVERSE; repeatCount = Animation.INFINITE
         }
@@ -231,8 +229,8 @@ class SuperChatFragment : Fragment() {
     }
 
     private fun stopLivePose() {
-        binding.ivSticker.clearAnimation()
         binding.glowRing.clearAnimation()
+        StickerMotion.stop(binding.ivSticker)
     }
 
     /* ── Message actions ─────────────────────────────────────────────────── */
@@ -292,8 +290,8 @@ class SuperChatFragment : Fragment() {
     }
 
     override fun onDestroyView() {
-        binding.ivSticker.clearAnimation()
         binding.glowRing.clearAnimation()
+        StickerMotion.stop(binding.ivSticker)
         tts?.stop()
         tts?.shutdown()
         tts = null

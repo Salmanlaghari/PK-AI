@@ -54,6 +54,10 @@ class SuperChatViewModel @Inject constructor(
     private val _favorites = MutableStateFlow<Set<Int>>(emptySet())
     val favorites: StateFlow<Set<Int>> = _favorites.asStateFlow()
 
+    /** Per-mood rotation counters so every message shows a different pose. */
+    private val moodRotations = mutableMapOf<Mood, Int>()
+    private var lastSticker: Int = PoseRegistry.defaultSticker
+
     fun setFavorites(favorites: Set<Int>) {
         _favorites.value = favorites
     }
@@ -71,6 +75,7 @@ class SuperChatViewModel @Inject constructor(
     /** Shows a sticker chosen manually from the picker grid. */
     fun selectSticker(index: Int) {
         _currentSticker.value = index
+        lastSticker = index
         _currentMood.value = Mood.NEUTRAL
     }
 
@@ -84,7 +89,7 @@ class SuperChatViewModel @Inject constructor(
 
         val mood = MoodDetector.detect(trimmed)
         _currentMood.value = mood
-        _currentSticker.value = PoseRegistry.stickerForMood(mood)
+        _currentSticker.value = nextPoseFor(mood)
 
         _messages.value = _messages.value + ChatMessage(
             content = trimmed,
@@ -92,6 +97,28 @@ class SuperChatViewModel @Inject constructor(
             timestamp = System.currentTimeMillis()
         )
         fetchReply(trimmed)
+    }
+
+    /**
+     * Picks the next pose for [mood], rotating through the mood's candidate list
+     * and skipping the currently shown pose so the avatar visibly changes on
+     * every message.
+     */
+    private fun nextPoseFor(mood: Mood): Int {
+        val candidates = PoseRegistry.moodStickers[mood].orEmpty()
+        if (candidates.isEmpty()) return PoseRegistry.defaultSticker
+        var rotation = (moodRotations[mood] ?: -1) + 1
+        var pose = PoseRegistry.stickerForMood(mood, rotation)
+        // Skip forward past the currently shown pose while the list allows it.
+        var guard = 0
+        while (pose == lastSticker && candidates.size > 1 && guard < candidates.size) {
+            rotation += 1
+            pose = PoseRegistry.stickerForMood(mood, rotation)
+            guard++
+        }
+        moodRotations[mood] = rotation
+        lastSticker = pose
+        return pose
     }
 
     private fun fetchReply(prompt: String) {

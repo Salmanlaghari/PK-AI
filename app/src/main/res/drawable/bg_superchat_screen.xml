@@ -1,34 +1,56 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Deep purple-black base with a subtle vertical lift -->
+    <!-- Deep space black base -->
     <item>
         <shape android:shape="rectangle">
             <gradient
                 android:angle="270"
-                android:startColor="#120A24"
-                android:centerColor="#0A0612"
+                android:startColor="#080410"
+                android:centerColor="#0A0614"
                 android:endColor="#060310"
                 android:type="linear" />
         </shape>
     </item>
-    <!-- Faint cyan aura behind the avatar area (top-right) -->
-    <item android:gravity="top|end">
-        <shape android:shape="oval">
-            <size android:width="320dp" android:height="320dp" />
-            <gradient android:type="radial"
-                android:radius="160dp"
-                android:startColor="#1400D4FF"
-                android:endColor="#0000D4FF" />
+    <!-- Subtle radial nebula glow center -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="radial"
+                android:gradientRadius="400dp"
+                android:centerX="0.5"
+                android:centerY="0.4"
+                android:startColor="#0C7B2FFD"
+                android:endColor="#00050812" />
         </shape>
     </item>
-    <!-- Faint purple aura bottom-left -->
+    <!-- Top-right cyan nebula streak -->
+    <item android:gravity="top|end">
+        <shape android:shape="oval">
+            <size android:width="360dp" android:height="360dp" />
+            <gradient android:type="radial"
+                android:radius="180dp"
+                android:startColor="#0C00D4FF"
+                android:endColor="#00001020" />
+        </shape>
+    </item>
+    <!-- Bottom-left purple nebula streak -->
     <item android:gravity="bottom|start">
         <shape android:shape="oval">
-            <size android:width="280dp" android:height="280dp" />
+            <size android:width="300dp" android:height="300dp" />
             <gradient android:type="radial"
-                android:radius="140dp"
-                android:startColor="#1E7B2FFD"
-                android:endColor="#007B2FFD" />
+                android:radius="150dp"
+                android:startColor="#107B2FFD"
+                android:endColor="#000A0520" />
+        </shape>
+    </item>
+    <!-- Bottom center warm accent -->
+    <item android:gravity="bottom|center_horizontal">
+        <shape android:shape="oval">
+            <size android:width="500dp" android:height="200dp" />
+            <gradient android:type="radial"
+                android:radius="250dp"
+                android:startColor="#069D4EDD"
+                android:endColor="#00060314" />
         </shape>
     </item>
 </layer-list>

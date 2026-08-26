@@ -3,12 +3,14 @@ package com.salmanlaghari.pkai.ui.superchat
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.salmanlaghari.pkai.R
 import com.salmanlaghari.pkai.data.model.ChatMessage
+import com.salmanlaghari.pkai.util.SpriteSheetLoader
 
 /**
  * Renders the Super Chat conversation. One item layout hosts both the user row and
@@ -22,6 +24,15 @@ class SuperChatAdapter(
 ) : ListAdapter<ChatMessage, SuperChatAdapter.MessageViewHolder>(DIFF) {
 
     var favoriteContents: Set<String> = emptySet()
+
+    /** Mood sticker index per message id — shown beside each AI reply. */
+    private var stickers: Map<String, Int> = emptyMap()
+
+    /** Replaces the sticker map and rebinds so new replies pick up their pose. */
+    fun setStickers(map: Map<String, Int>) {
+        stickers = map
+        notifyDataSetChanged()
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MessageViewHolder {
         val view = LayoutInflater.from(parent.context)
@@ -50,6 +61,12 @@ class SuperChatAdapter(
                 userRow.visibility = View.GONE
                 aiRow.visibility = View.VISIBLE
                 tvAiMessage.text = message.content
+
+                // Mood sticker beside this reply — stays visible in history.
+                stickers[message.id]?.let { index ->
+                    itemView.findViewById<ImageView>(R.id.ivAiSticker)
+                        .setImageBitmap(SpriteSheetLoader.getSticker(itemView.context, index))
+                }
 
                 val fav = message.content in favoriteContents
                 itemView.findViewById<TextView>(R.id.btnFav).text = if (fav) "💖" else "💜"

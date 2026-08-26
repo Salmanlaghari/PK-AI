@@ -53,8 +53,9 @@ data class FreeAiModel(
         )
 
         /**
-         * Ox Alpha — a free stealth reasoning model with 1M-token context.
-         * Backed by oxalpha.com/api/chat, no API key or login required.
+         * Ox Alpha — retired from the Free tab. The key-less endpoint rate-limits
+         * aggressively and fails often; the constant is kept only so stored prefs
+         * referencing it fall back cleanly via [fromId] to [DEFAULT].
          */
         val OX_ALPHA = FreeAiModel(
             id = "ox_alpha",
@@ -63,11 +64,11 @@ data class FreeAiModel(
             logoEmoji = "🧠"
         )
 
-        /** Ox Alpha is first — it's the most capable free model and always available. */
-        val ALL: List<FreeAiModel> = listOf(OX_ALPHA, FREE_LLM, PUBLIC_CHATBOT)
+        /** PK AI Free LLM first — the dependable default; Ox Alpha is retired. */
+        val ALL: List<FreeAiModel> = listOf(FREE_LLM, PUBLIC_CHATBOT)
 
-        /** Ox Alpha is the default so the Free tab uses the best free model first. */
-        val DEFAULT: FreeAiModel = OX_ALPHA
+        /** PK AI Free LLM is the default free model. */
+        val DEFAULT: FreeAiModel = FREE_LLM
 
         fun fromId(id: String): FreeAiModel = ALL.firstOrNull { it.id == id } ?: DEFAULT
 

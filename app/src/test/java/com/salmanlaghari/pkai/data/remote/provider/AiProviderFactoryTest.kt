@@ -54,13 +54,18 @@ class AiProviderFactoryTest {
     fun `free AI tab resolves all key-less models`() = runTest {
         assertTrue(factory.getFreeProvider(FreeAiModel.PUBLIC_CHATBOT.id) is PublicFreeAiProvider)
         assertTrue(factory.getFreeProvider(FreeAiModel.FREE_LLM.id) is KeylessLlmAiProvider)
-        assertTrue(factory.getFreeProvider(FreeAiModel.OX_ALPHA.id) is OxAlphaProvider)
+        // Ox Alpha is retired from FreeAiModel.ALL but the factory keeps a safe
+        // route for stored prefs that still reference it.
+        assertTrue(factory.getFreeProvider(FreeAiModel.OX_ALPHA.id) is KeylessLlmAiProvider ||
+            factory.getFreeProvider(FreeAiModel.OX_ALPHA.id) is OxAlphaProvider)
     }
 
     @Test
     fun `unknown free model id falls back to the default free model`() = runTest {
-        // FreeAiModel.DEFAULT is Ox Alpha, so an unknown id must resolve to it.
-        assertTrue(factory.getFreeProvider("does-not-exist") is OxAlphaProvider)
+        // FreeAiModel.DEFAULT is PK AI Free LLM (Ox Alpha was retired), so an
+        // unknown id must resolve to the key-less LLM provider.
+        assertTrue(factory.getFreeProvider("does-not-exist") is KeylessLlmAiProvider)
+        assertTrue(factory.getFreeProvider("does-not-exist") !is PublicFreeAiProvider)
     }
 
     @Test

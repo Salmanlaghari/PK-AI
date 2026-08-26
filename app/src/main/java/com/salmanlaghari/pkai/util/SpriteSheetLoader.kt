@@ -27,7 +27,7 @@ import android.util.LruCache
 object SpriteSheetLoader {
 
     /** Hard upper bound for grid sizing; actual count comes from the assets folder. */
-    const val STICKER_COUNT = 200
+    const val STICKER_COUNT = 220
     private const val MAX_CACHE_SIZE = 48 // individual sticker bitmaps
 
     private val cellCache = object : LruCache<Int, Bitmap>(MAX_CACHE_SIZE) {}

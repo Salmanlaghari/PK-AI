@@ -52,6 +52,18 @@
         <item name="android:textSize">15sp</item>
     </style>
 
+    <!-- Square pose thumbnail in the right side panel grid -->
+    <style name="SuperChatPoseThumb">
+        <item name="android:layout_width">48dp</item>
+        <item name="android:layout_height">48dp</item>
+        <item name="android:scaleType">fitCenter</item>
+        <item name="android:background">@drawable/bg_superchat_rail_item</item>
+        <item name="android:padding">3dp</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+        <item name="android:contentDescription">@string/superchat_avatar</item>
+    </style>
+
     <style name="SuperChatSideLabel">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>

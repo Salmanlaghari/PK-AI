@@ -114,6 +114,7 @@ class SuperChatFragment : Fragment() {
         binding.btnStickers.setOnClickListener { showStickerPicker(favoritesOnly = false) }
         binding.btnFavorites.setOnClickListener { showStickerPicker(favoritesOnly = true) }
         binding.btnSaved.setOnClickListener { showStickerPicker(favoritesOnly = false) }
+        binding.btnMoreStickers.setOnClickListener { showStickerPicker(favoritesOnly = false) }
         binding.btnLivePose.setOnClickListener {
             val newState = !viewModel.livePoseEnabled.value
             viewModel.setLivePoseEnabled(newState)
@@ -128,6 +129,25 @@ class SuperChatFragment : Fragment() {
                 if (hqRendering) getString(R.string.superchat_hq_on)
                 else getString(R.string.superchat_hq_off)
             )
+        }
+        setupPoseThumbnails()
+    }
+
+    /** Fills the 2×3 pose grid with a spread of stickers; tap swaps the avatar. */
+    private fun setupPoseThumbnails() {
+        val available = SpriteSheetLoader.availableStickers(requireContext())
+        val thumbs = listOf(
+            binding.poseThumb1, binding.poseThumb2, binding.poseThumb3,
+            binding.poseThumb4, binding.poseThumb5, binding.poseThumb6
+        )
+        thumbs.forEachIndexed { i, thumb ->
+            if (available.isEmpty()) return@forEachIndexed
+            val index = available[(i * available.size / thumbs.size.coerceAtLeast(1)) % available.size]
+            thumb.setImageBitmap(SpriteSheetLoader.getSticker(requireContext(), index))
+            thumb.setOnClickListener {
+                viewModel.selectSticker(index)
+                showSticker(index, animate = true)
+            }
         }
     }
 

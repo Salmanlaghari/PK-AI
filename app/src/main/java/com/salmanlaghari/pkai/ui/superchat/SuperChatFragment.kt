@@ -9,10 +9,6 @@ import android.speech.tts.TextToSpeech
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.view.animation.AlphaAnimation
-import android.view.animation.Animation
-import android.view.animation.AnimationSet
-import android.view.animation.TranslateAnimation
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
@@ -24,7 +20,6 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.salmanlaghari.pkai.R
 import com.salmanlaghari.pkai.data.model.ChatMessage
 import com.salmanlaghari.pkai.databinding.FragmentSuperChatBinding
-import com.salmanlaghari.pkai.util.SpriteSheetLoader
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -49,13 +44,8 @@ class SuperChatFragment : Fragment() {
 
     private var tts: TextToSpeech? = null
     private var ttsReady = false
-    private var hqRendering = true
-
     /** Contents of AI messages the user hearted, for the 💖 badge. */
     private val favoritedContents = mutableSetOf<String>()
-
-    /** Pending sticker swap while the fade-out half of the crossfade runs. */
-    private var pendingSticker: Int? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -74,11 +64,9 @@ class SuperChatFragment : Fragment() {
         viewModel.setFavorites(loadFavorites())
 
         setupChat()
-        setupSidePanel()
         setupHeader()
         initTts()
         observeViewModel()
-        showSticker(viewModel.currentSticker.value, animate = false)
     }
 
     private fun setupChat() {
@@ -110,64 +98,6 @@ class SuperChatFragment : Fragment() {
         viewModel.sendMessage(text)
     }
 
-    private fun setupSidePanel() {
-        binding.btnStickers.setOnClickListener { showStickerPicker(favoritesOnly = false) }
-        binding.btnFavorites.setOnClickListener { showStickerPicker(favoritesOnly = true) }
-        binding.btnSaved.setOnClickListener { showStickerPicker(favoritesOnly = false) }
-        binding.btnMoreStickers.setOnClickListener { showStickerPicker(favoritesOnly = false) }
-        binding.btnLivePose.setOnClickListener {
-            val newState = !viewModel.livePoseEnabled.value
-            viewModel.setLivePoseEnabled(newState)
-            toast(
-                if (newState) getString(R.string.superchat_live_pose_on)
-                else getString(R.string.superchat_live_pose_off)
-            )
-        }
-        binding.btnHq.setOnClickListener {
-            hqRendering = !hqRendering
-            toast(
-                if (hqRendering) getString(R.string.superchat_hq_on)
-                else getString(R.string.superchat_hq_off)
-            )
-        }
-        setupPoseThumbnails()
-    }
-
-    /** Fills the 2×3 pose grid with a spread of stickers; tap swaps the avatar. */
-    private fun setupPoseThumbnails() {
-        val available = SpriteSheetLoader.availableStickers(requireContext())
-        val thumbs = listOf(
-            binding.poseThumb1, binding.poseThumb2, binding.poseThumb3,
-            binding.poseThumb4, binding.poseThumb5, binding.poseThumb6
-        )
-        thumbs.forEachIndexed { i, thumb ->
-            if (available.isEmpty()) return@forEachIndexed
-            val index = available[(i * available.size / thumbs.size.coerceAtLeast(1)) % available.size]
-            thumb.setImageBitmap(SpriteSheetLoader.getSticker(requireContext(), index))
-            thumb.setOnClickListener {
-                viewModel.selectSticker(index)
-                showSticker(index, animate = true)
-            }
-        }
-    }
-
-    private fun showStickerPicker(favoritesOnly: Boolean) {
-        if (childFragmentManager.findFragmentByTag("sticker_picker") != null) return
-        val favorites = viewModel.favorites.value
-        val picker = StickerPickerDialogFragment.newInstance(
-            indices = PoseRegistryIndices.forPicker(requireContext(), favorites, favoritesOnly),
-            favorites = favorites,
-            onPick = { index ->
-                viewModel.selectSticker(index)
-                showSticker(index, animate = true)
-            },
-            onToggleFavorite = { index ->
-                viewModel.toggleFavorite(index)
-            }
-        )
-        picker.show(childFragmentManager, "sticker_picker")
-    }
-
     private fun observeViewModel() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -179,23 +109,13 @@ class SuperChatFragment : Fragment() {
                     }
                 }
                 launch {
-                    viewModel.currentSticker.collect { index ->
-                        showSticker(index, animate = true)
-                    }
-                }
-                launch {
-                    viewModel.currentMood.collect { mood ->
-                        binding.tvPoseLabel.text = "${mood.emoji} ${mood.label}"
+                    viewModel.messageStickers.collect { map ->
+                        adapter.setStickers(map)
                     }
                 }
                 launch {
                     viewModel.isGenerating.collect { generating ->
                         binding.btnSuperSend.isEnabled = !generating
-                    }
-                }
-                launch {
-                    viewModel.livePoseEnabled.collect { enabled ->
-                        if (enabled) startLivePose() else stopLivePose()
                     }
                 }
                 launch {
@@ -205,52 +125,6 @@ class SuperChatFragment : Fragment() {
                 }
             }
         }
-    }
-
-    /** Swaps the avatar sticker with a 300ms crossfade, then starts its 4D/5D motion. */
-    private fun showSticker(index: Int, animate: Boolean) {
-        val imageView = binding.ivSticker
-        if (!animate || pendingSticker == index) {
-            pendingSticker = null
-            imageView.setImageBitmap(SpriteSheetLoader.getSticker(requireContext(), index))
-            imageView.alpha = 1f
-            startPoseMotion(index)
-            return
-        }
-        if (pendingSticker == index) return
-        pendingSticker = index
-
-        imageView.animate()
-            .alpha(0f)
-            .setDuration(150)
-            .withEndAction {
-                if (!isAdded) return@withEndAction
-                imageView.setImageBitmap(SpriteSheetLoader.getSticker(requireContext(), index))
-                imageView.animate().alpha(1f).setDuration(150).withEndAction {
-                    pendingSticker = null
-                    startPoseMotion(index)
-                }.start()
-            }
-            .start()
-    }
-
-    /** Runs the pose-matched looping motion (shake / bounce / pulse / tilt / sway). */
-    private fun startPoseMotion(index: Int) {
-        if (_binding == null) return
-        StickerMotion.start(binding.ivSticker, StickerMotion.styleFor(index))
-    }
-
-    /** Gentle breathing/sway loop on the avatar for the "Live Pose" feel. */
-    private fun startLivePose() {
-        val ringPulse = AlphaAnimation(0.5f, 1f).apply {
-            duration = 1200; repeatMode = Animation.REVERSE; repeatCount = Animation.INFINITE
-        }
-        binding.glowRing.startAnimation(ringPulse)
-    }
-
-    private fun stopLivePose() {
-        binding.glowRing.clearAnimation()
-        StickerMotion.stop(binding.ivSticker)
     }
 
     /* ── Message actions ─────────────────────────────────────────────────── */
@@ -310,8 +184,6 @@ class SuperChatFragment : Fragment() {
     }
 
     override fun onDestroyView() {
-        binding.glowRing.clearAnimation()
-        StickerMotion.stop(binding.ivSticker)
         tts?.stop()
         tts?.shutdown()
         tts = null

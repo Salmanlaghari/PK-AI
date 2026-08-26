@@ -102,11 +102,6 @@ class HomeFragment : Fragment() {
         // Active provider chip — persistent indicator (Issue 1) and web-search toggle.
         binding.chipActiveProvider.setOnClickListener {
             when {
-                viewModel.isImageMode.value -> Toast.makeText(
-                    requireContext(),
-                    "Image generation uses Hugging Face's SDXL model.",
-                    Toast.LENGTH_SHORT
-                ).show()
                 viewModel.isFreeMode.value -> Toast.makeText(
                     requireContext(),
                     "Web AI is a Premium feature — switch to Premium to enable.",
@@ -118,9 +113,6 @@ class HomeFragment : Fragment() {
 
         lifecycleScope.launch {
             viewModel.isFreeMode.collect { updateProviderChip() }
-        }
-        lifecycleScope.launch {
-            viewModel.isImageMode.collect { updateProviderChip() }
         }
         lifecycleScope.launch {
             viewModel.effectiveProvider.collect { updateProviderChip() }
@@ -140,7 +132,6 @@ class HomeFragment : Fragment() {
         binding.btnTabSuperChat.setOnClickListener {
             findNavController().navigate(R.id.superChatFragment)
         }
-        binding.btnTabImage.setOnClickListener { viewModel.setImageMode(true) }
 
         setupFreeModelChips()
 
@@ -185,12 +176,7 @@ class HomeFragment : Fragment() {
     private fun updateProviderChip() {
         updateTabSelection()
         val isFree = viewModel.isFreeMode.value
-        val isImage = viewModel.isImageMode.value
         when {
-            isImage -> {
-                binding.chipActiveProvider.text = "🤗 Hugging Face · Image"
-                binding.etMessageInput.setHint("Describe an image to generate…")
-            }
             isFree -> {
                 val fm = viewModel.selectedFreeModel.value
                 binding.chipActiveProvider.text = "${fm.logoEmoji} ${fm.displayName}"
@@ -205,7 +191,7 @@ class HomeFragment : Fragment() {
         }
     }
 
-    /** Highlights the active chat-mode tab (Premium / Free / Image). */
+    /** Highlights the active chat-mode tab (Premium / Free). */
     private fun updateTabSelection() {
         val selectedBg = R.drawable.bg_pill_chip_selected
         val transparent = android.R.color.transparent
@@ -213,16 +199,12 @@ class HomeFragment : Fragment() {
         val idleText = R.color.outline
 
         val isFree = viewModel.isFreeMode.value
-        val isImage = viewModel.isImageMode.value
 
-        binding.btnTabPremium.setBackgroundResource(if (!isFree && !isImage) selectedBg else transparent)
-        binding.btnTabPremium.setTextColor(resources.getColor(if (!isFree && !isImage) activeText else idleText, null))
+        binding.btnTabPremium.setBackgroundResource(if (!isFree) selectedBg else transparent)
+        binding.btnTabPremium.setTextColor(resources.getColor(if (!isFree) activeText else idleText, null))
 
         binding.btnTabFree.setBackgroundResource(if (isFree) selectedBg else transparent)
         binding.btnTabFree.setTextColor(resources.getColor(if (isFree) activeText else idleText, null))
-
-        binding.btnTabImage.setBackgroundResource(if (isImage) selectedBg else transparent)
-        binding.btnTabImage.setTextColor(resources.getColor(if (isImage) activeText else idleText, null))
     }
 
     private fun onSendClicked() {
@@ -344,26 +326,6 @@ class HomeFragment : Fragment() {
                 pickMedia.launch(mime)
             })
         }
-
-        // Image generation only works from the key-less Free AI tab (Pollinations).
-        layout.addView(menuButton("🖼 Generate Image (Free AI)") {
-            dialog.dismiss()
-            if (isFree) {
-                val prompt = binding.etMessageInput.text?.toString().orEmpty()
-                if (prompt.isBlank()) {
-                    Toast.makeText(context, "Type a description first, then tap Generate Image.", Toast.LENGTH_SHORT).show()
-                    return@menuButton
-                }
-                viewModel.generateImage(prompt)
-                binding.etMessageInput.text?.clear()
-            } else {
-                Toast.makeText(
-                    context,
-                    "Image generation lives in the 🖼 Image tab (Hugging Face). The selected chat provider is text-only.",
-                    Toast.LENGTH_LONG
-                ).show()
-            }
-        })
 
         // Read Aloud — TTS for the last AI response
         layout.addView(menuButton("🔊 Read Aloud Last Response") {

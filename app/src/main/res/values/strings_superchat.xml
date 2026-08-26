@@ -10,6 +10,9 @@
     <string name="superchat_hq">8K\nQuality</string>
     <string name="superchat_saved">Saved</string>
     <string name="superchat_favorites">Favorites</string>
+    <string name="superchat_pose_change">Pose Change</string>
+    <string name="superchat_pose_every_message">Every Message</string>
+    <string name="superchat_more_stickers">+500 More\nPosing Stickers</string>
     <string name="superchat_hint">Ask anything…</string>
     <string name="superchat_send">Send</string>
     <string name="superchat_nav_chat">💬 AI Chat</string>

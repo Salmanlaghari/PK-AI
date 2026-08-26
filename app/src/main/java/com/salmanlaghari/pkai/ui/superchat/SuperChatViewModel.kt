@@ -58,6 +58,9 @@ class SuperChatViewModel @Inject constructor(
     private val _favorites = MutableStateFlow<Set<Int>>(emptySet())
     val favorites: StateFlow<Set<Int>> = _favorites.asStateFlow()
 
+    /** When true, use the /18+ special sticker pool instead of mood stickers. */
+    private var specialMode = false
+
     /** Per-mood rotation counters so every message shows a different pose. */
     private val moodRotations = mutableMapOf<Mood, Int>()
     private var lastSticker: Int = PoseRegistry.defaultSticker
@@ -91,9 +94,23 @@ class SuperChatViewModel @Inject constructor(
         val trimmed = text.trim()
         if (trimmed.isEmpty() || _isGenerating.value) return
 
+        // Check for /18+ command — toggles special sticker mode
+        if (trimmed.equals("/18+", ignoreCase = true)) {
+            specialMode = !specialMode
+            val modeMsg = ChatMessage(
+                content = if (specialMode) "✨ Special sticker mode ON" else "Standard mode restored",
+                isUser = false,
+                timestamp = System.currentTimeMillis()
+            )
+            val stickerIdx = PoseRegistry.randomSpecialSticker()
+            _messageStickers.value = _messageStickers.value + (modeMsg.id to stickerIdx)
+            _messages.value = _messages.value + modeMsg
+            return
+        }
+
         val mood = MoodDetector.detect(trimmed)
         _currentMood.value = mood
-        val pose = nextPoseFor(mood)
+        val pose = if (specialMode) PoseRegistry.randomSpecialSticker() else nextPoseFor(mood)
         _currentSticker.value = pose
 
         val userMessage = ChatMessage(
@@ -103,7 +120,7 @@ class SuperChatViewModel @Inject constructor(
         )
         _messageStickers.value = _messageStickers.value + (userMessage.id to pose)
         _messages.value = _messages.value + userMessage
-        fetchReply(trimmed)
+        fetchReply(trimmed, specialMode)
     }
 
     /**
@@ -128,7 +145,7 @@ class SuperChatViewModel @Inject constructor(
         return pose
     }
 
-    private fun fetchReply(prompt: String) {
+    private fun fetchReply(prompt: String, useSpecial: Boolean = false) {
         _isGenerating.value = true
         viewModelScope.launch {
             val reply = tryRequest(prompt) ?: offlineReply()
@@ -139,8 +156,10 @@ class SuperChatViewModel @Inject constructor(
             )
             // React to the reply with a fresh pose too, so every exchange
             // shows its own sticker beside the message.
+            val replySticker = if (useSpecial) PoseRegistry.randomSpecialSticker()
+                else nextPoseFor(_currentMood.value)
             _messageStickers.value = _messageStickers.value +
-                (replyMessage.id to nextPoseFor(_currentMood.value))
+                (replyMessage.id to replySticker)
             _messages.value = _messages.value + replyMessage
             _isGenerating.value = false
         }

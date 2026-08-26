@@ -47,6 +47,10 @@ class SuperChatViewModel @Inject constructor(
     private val _currentMood = MutableStateFlow(Mood.NEUTRAL)
     val currentMood: StateFlow<Mood> = _currentMood.asStateFlow()
 
+    /** Sticker shown beside each message, keyed by message id. */
+    private val _messageStickers = MutableStateFlow<Map<String, Int>>(emptyMap())
+    val messageStickers: StateFlow<Map<String, Int>> = _messageStickers.asStateFlow()
+
     private val _livePoseEnabled = MutableStateFlow(true)
     val livePoseEnabled: StateFlow<Boolean> = _livePoseEnabled.asStateFlow()
 
@@ -89,13 +93,16 @@ class SuperChatViewModel @Inject constructor(
 
         val mood = MoodDetector.detect(trimmed)
         _currentMood.value = mood
-        _currentSticker.value = nextPoseFor(mood)
+        val pose = nextPoseFor(mood)
+        _currentSticker.value = pose
 
-        _messages.value = _messages.value + ChatMessage(
+        val userMessage = ChatMessage(
             content = trimmed,
             isUser = true,
             timestamp = System.currentTimeMillis()
         )
+        _messageStickers.value = _messageStickers.value + (userMessage.id to pose)
+        _messages.value = _messages.value + userMessage
         fetchReply(trimmed)
     }
 
@@ -125,15 +132,17 @@ class SuperChatViewModel @Inject constructor(
         _isGenerating.value = true
         viewModelScope.launch {
             val reply = tryRequest(prompt) ?: offlineReply()
-            _messages.value = _messages.value + ChatMessage(
+            val replyMessage = ChatMessage(
                 content = reply,
                 isUser = false,
                 timestamp = System.currentTimeMillis()
             )
-            _isGenerating.value = false
             // React to the reply with a fresh pose too, so every exchange
-            // visibly changes the avatar twice (once per message).
-            _currentSticker.value = nextPoseFor(_currentMood.value)
+            // shows its own sticker beside the message.
+            _messageStickers.value = _messageStickers.value +
+                (replyMessage.id to nextPoseFor(_currentMood.value))
+            _messages.value = _messages.value + replyMessage
+            _isGenerating.value = false
         }
     }
 

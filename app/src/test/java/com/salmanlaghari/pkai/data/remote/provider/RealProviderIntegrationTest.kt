@@ -57,7 +57,8 @@ class RealProviderIntegrationTest {
 
         // ── The 7 BYOK premium providers ─────────────────────────────────────────
         for (provider in LlmProvider.ALL) {
-            results += probe(provider.displayName, provider.defaultModel) {
+            val keyConfigured = factory.hasConfiguredKey(provider)
+            results += probe(provider.displayName, provider.defaultModel, soft = !keyConfigured) {
                 factory.getProvider(provider.id)
             }
         }

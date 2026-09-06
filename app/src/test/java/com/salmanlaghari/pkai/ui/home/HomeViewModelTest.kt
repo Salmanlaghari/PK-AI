@@ -11,6 +11,7 @@ import com.salmanlaghari.pkai.data.remote.provider.AiProviderFactory
 import com.salmanlaghari.pkai.data.remote.provider.AiResponse
 import com.salmanlaghari.pkai.data.repository.AppRepository
 import com.salmanlaghari.pkai.data.repository.AuthRepository
+import com.salmanlaghari.pkai.data.repository.CodeRunnerRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -118,7 +119,8 @@ class HomeViewModelTest {
             chatMessageDao = fakeChatMessageDao,
             aiProviderFactory = mockAiProviderFactory,
             preferencesManager = mockPreferencesManager,
-            okHttpClient = mock(OkHttpClient::class.java)
+            okHttpClient = mock(OkHttpClient::class.java),
+            codeRunnerRepository = mock(CodeRunnerRepository::class.java)
         )
 
         // Start collecting chatMessages Flow to activate WhileSubscribed collection

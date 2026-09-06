@@ -13,6 +13,8 @@ import com.salmanlaghari.pkai.data.remote.provider.AiProviderFactory
 import com.salmanlaghari.pkai.data.remote.provider.AiResponse
 import com.salmanlaghari.pkai.data.repository.AppRepository
 import com.salmanlaghari.pkai.data.repository.AuthRepository
+import com.salmanlaghari.pkai.data.repository.CodeExecutionResult
+import com.salmanlaghari.pkai.data.repository.CodeRunnerRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -38,7 +40,8 @@ class HomeViewModel @Inject constructor(
     private val chatMessageDao: ChatMessageDao,
     private val aiProviderFactory: AiProviderFactory,
     private val preferencesManager: PreferencesManager,
-    private val okHttpClient: OkHttpClient
+    private val okHttpClient: OkHttpClient,
+    private val codeRunnerRepository: CodeRunnerRepository
 ) : ViewModel() {
 
     /** Hugging Face text-to-image model used by the dedicated Image Generation tab. */
@@ -521,6 +524,14 @@ class HomeViewModel @Inject constructor(
             p.contains("image of") || p.contains("picture of") ||
             p.startsWith("image:") || p.startsWith("draw ") || p.startsWith("draw me") ||
             p.contains("paint a") || p.contains("render a")
+    }
+
+    /** Executes a code snippet using HackerEarth API / Proxy. */
+    fun runCode(source: String, lang: String, onResult: (CodeExecutionResult) -> Unit) {
+        viewModelScope.launch {
+            val result = codeRunnerRepository.executeCode(source, lang)
+            onResult(result)
+        }
     }
 
     fun clearConversation() {

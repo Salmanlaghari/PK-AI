@@ -16,10 +16,10 @@
         app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintWidth_max="280dp">
+        app:layout_constraintWidth_max="340dp">
 
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:paddingHorizontal="16dp"
@@ -60,6 +60,14 @@
                 android:textColor="@color/on_surface"
                 android:textIsSelectable="true"
                 android:textSize="14sp" />
+
+            <!-- Dynamic container for code blocks / message segments -->
+            <LinearLayout
+                android:id="@+id/layout_code_blocks"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone" />
 
             <!-- Inline AI-generated / linked images render here -->
             <LinearLayout

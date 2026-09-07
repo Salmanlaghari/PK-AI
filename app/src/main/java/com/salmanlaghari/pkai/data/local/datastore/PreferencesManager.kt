@@ -188,4 +188,21 @@ class PreferencesManager @Inject constructor(
     suspend fun getAppTheme(): String {
         return context.dataStore.data.first()[appThemeKey] ?: "aurora"
     }
+
+    // Code Runner / HackerEarth quota tracking (1000 requests limit)
+    private val codeRunCountKey = intPreferencesKey("code_run_count")
+
+    val codeRunCount: Flow<Int> = context.dataStore.data.map { preferences ->
+        preferences[codeRunCountKey] ?: 0
+    }
+
+    suspend fun incrementCodeRunCount() {
+        context.dataStore.edit { preferences ->
+            preferences[codeRunCountKey] = (preferences[codeRunCountKey] ?: 0) + 1
+        }
+    }
+
+    suspend fun getCodeRunCount(): Int {
+        return context.dataStore.data.first()[codeRunCountKey] ?: 0
+    }
 }

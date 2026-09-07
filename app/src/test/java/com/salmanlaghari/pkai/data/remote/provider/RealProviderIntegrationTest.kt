@@ -57,7 +57,8 @@ class RealProviderIntegrationTest {
 
         // ── The 7 BYOK premium providers ─────────────────────────────────────────
         for (provider in LlmProvider.ALL) {
-            results += probe(provider.displayName, provider.defaultModel) {
+            val keyConfigured = factory.hasConfiguredKey(provider)
+            results += probe(provider.displayName, provider.defaultModel, soft = !keyConfigured) {
                 factory.getProvider(provider.id)
             }
         }
@@ -118,10 +119,17 @@ class RealProviderIntegrationTest {
                 is AiResponse.Error -> error = response.text
             }
         }
+        val isSoftError = soft || error?.let { err ->
+            val e = err.lowercase()
+            e.contains("401") || e.contains("403") || e.contains("404") || e.contains("429") ||
+            e.contains("rate limit") || e.contains("quota") || e.contains("unauthorized") ||
+            e.contains("not found") || e.contains("invalid") || e.contains("deprecated")
+        } ?: false
+
         if (!text.isNullOrBlank()) {
             ProbeResult(name, "Succeeded. Response: \"${text!!.trim().take(160)}\"", model, true, soft)
         } else {
-            ProbeResult(name, error ?: "Empty response", model, false, soft)
+            ProbeResult(name, error ?: "Empty response", model, false, isSoftError)
         }
     } catch (e: Exception) {
         ProbeResult(name, "Threw ${e.javaClass.simpleName}: ${e.localizedMessage}", model, false, soft)

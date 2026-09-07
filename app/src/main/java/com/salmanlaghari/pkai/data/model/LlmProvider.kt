@@ -53,8 +53,8 @@ data class LlmProvider(
                 logoEmoji = "⚡",
                 format = ProviderFormat.OPENAI,
                 baseUrl = "https://api.groq.com/openai/v1/",
-                // Groq's standard versatile model
-                defaultModel = "llama-3.3-70b-versatile",
+                // Groq's active primary production model
+                defaultModel = "llama-3.1-8b-instant",
                 apiKeyBuildConfig = "GROQ_API_KEY",
                 supportsVision = true,
                 visionModel = "llama-3.2-11b-vision-preview"

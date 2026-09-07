@@ -10,6 +10,7 @@
 #   • LLM7.io         https://llm7.io  (no key required for most models, leave blank if unused)
 #   • Mistral AI      https://console.mistral.ai/
 #   • Cohere          https://dashboard.cohere.com/api-keys
+#   • HackerEarth     https://www.hackerearth.com/docs/wiki/developers/v4/
 #
 # Image generation needs NO key — PK AI uses Pollinations' key-less endpoint.
 # ─────────────────────────────────────────────────────────────────────────────
@@ -18,6 +19,9 @@ GROQ_API_KEY=your_groq_api_key_here
 LLM7_API_KEY=your_llm7_api_key_here
 MISTRAL_API_KEY=your_mistral_api_key_here
 COHERE_API_KEY=your_cohere_api_key_here
+
+HACKEREARTH_CLIENT_ID=your_hackerearth_client_id_here
+HACKEREARTH_CLIENT_SECRET=your_hackerearth_client_secret_here
 
 # Signing (release builds only — not required for debug)
 KEYSTORE_PASSWORD=

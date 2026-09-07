@@ -85,7 +85,9 @@ class HomeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        val chatAdapter = ChatAdapter()
+        val chatAdapter = ChatAdapter { code, lang, onResult ->
+            viewModel.runCode(code, lang, onResult)
+        }
         binding.rvChatMessages.adapter = chatAdapter
 
         lifecycleScope.launch {

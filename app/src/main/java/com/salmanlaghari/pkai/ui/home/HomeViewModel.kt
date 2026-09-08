@@ -13,6 +13,8 @@ import com.salmanlaghari.pkai.data.remote.provider.AiProviderFactory
 import com.salmanlaghari.pkai.data.remote.provider.AiResponse
 import com.salmanlaghari.pkai.data.repository.AppRepository
 import com.salmanlaghari.pkai.data.repository.AuthRepository
+import com.salmanlaghari.pkai.data.repository.CodeExecutionResult
+import com.salmanlaghari.pkai.data.repository.CodeRunnerRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -38,7 +40,8 @@ class HomeViewModel @Inject constructor(
     private val chatMessageDao: ChatMessageDao,
     private val aiProviderFactory: AiProviderFactory,
     private val preferencesManager: PreferencesManager,
-    private val okHttpClient: OkHttpClient
+    private val okHttpClient: OkHttpClient,
+    private val codeRunnerRepository: CodeRunnerRepository
 ) : ViewModel() {
 
     /** Hugging Face text-to-image model used by the dedicated Image Generation tab. */
@@ -346,14 +349,33 @@ class HomeViewModel @Inject constructor(
                 }
 
                 if (builder.isBlank()) {
-                    // Reached only when every candidate errored — show one clear message.
-                    chatMessageDao.insertMessage(
-                        ChatMessage(
-                            content = lastError ?: "All providers failed to respond. Please try again.",
-                            isUser = false,
-                            modelUsed = finalLabel
+                    // When every premium candidate fails or lacks a key, fall back to key-less PK AI Free LLM
+                    val freeFallback = aiProviderFactory.getFreeProvider(FreeAiModel.FREE_LLM.id)
+                    var fallbackText: String? = null
+                    freeFallback.sendMessage(content, history, if (visionProvider) imageDataUri else null)
+                        .collect { response ->
+                            if (response is AiResponse.Success) {
+                                fallbackText = response.text
+                            }
+                        }
+
+                    if (!fallbackText.isNullOrBlank()) {
+                        chatMessageDao.insertMessage(
+                            ChatMessage(
+                                content = fallbackText!!,
+                                isUser = false,
+                                modelUsed = "${provider.displayName} (Free Fallback)"
+                            )
                         )
-                    )
+                    } else {
+                        chatMessageDao.insertMessage(
+                            ChatMessage(
+                                content = lastError ?: "All providers failed to respond. Please try again.",
+                                isUser = false,
+                                modelUsed = finalLabel
+                            )
+                        )
+                    }
                 } else {
                     chatMessageDao.insertMessage(
                         ChatMessage(
@@ -521,6 +543,14 @@ class HomeViewModel @Inject constructor(
             p.contains("image of") || p.contains("picture of") ||
             p.startsWith("image:") || p.startsWith("draw ") || p.startsWith("draw me") ||
             p.contains("paint a") || p.contains("render a")
+    }
+
+    /** Executes a code snippet using HackerEarth API / Proxy. */
+    fun runCode(source: String, lang: String, onResult: (CodeExecutionResult) -> Unit) {
+        viewModelScope.launch {
+            val result = codeRunnerRepository.executeCode(source, lang)
+            onResult(result)
+        }
     }
 
     fun clearConversation() {

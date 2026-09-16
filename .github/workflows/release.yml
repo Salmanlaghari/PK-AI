@@ -25,8 +25,13 @@ jobs:
       - name: Decode keystore from KEYSTORE_BASE64 secret
         run: |
           if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "$KEYSTORE_BASE64" | base64 -d -i > app/upload-key.jks
-            echo "KEYSTORE_PATH=$GITHUB_WORKSPACE/app/upload-key.jks" >> "$GITHUB_ENV"
+            if echo "$KEYSTORE_BASE64" | base64 -d -i > app/upload-key.jks 2>/dev/null; then
+              echo "KEYSTORE_PATH=$GITHUB_WORKSPACE/app/upload-key.jks" >> "$GITHUB_ENV"
+              echo "Successfully decoded KEYSTORE_BASE64 secret."
+            else
+              echo "Warning: KEYSTORE_BASE64 secret is not a valid base64 encoded string. Skipping keystore decode."
+              rm -f app/upload-key.jks
+            fi
           else
             echo "KEYSTORE_BASE64 secret is empty or not provided."
           fi

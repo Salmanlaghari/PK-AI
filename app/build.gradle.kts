@@ -64,16 +64,20 @@ android {
             val keystorePath = System.getenv("KEYSTORE_PATH") ?: ""
             val keystoreBase64 = System.getenv("KEYSTORE_BASE64") ?: ""
 
-            val storeFile: File? = when {
-                keystoreBase64.isNotBlank() -> {
-                    val tempFile = File.createTempFile("upload-key", ".jks")
-                    tempFile.writeBytes(Base64.getDecoder().decode(keystoreBase64))
-                    tempFile.deleteOnExit()
-                    tempFile
+            val storeFile: File? = try {
+                when {
+                    keystoreBase64.isNotBlank() -> {
+                        val tempFile = File.createTempFile("upload-key", ".jks")
+                        tempFile.writeBytes(Base64.getDecoder().decode(keystoreBase64.trim()))
+                        tempFile.deleteOnExit()
+                        tempFile
+                    }
+                    keystorePath.isNotBlank() && File(keystorePath).exists() -> File(keystorePath)
+                    rootProject.file("pk-ai-upload-key.jks").exists() -> rootProject.file("pk-ai-upload-key.jks")
+                    else -> null
                 }
-                keystorePath.isNotBlank() -> File(keystorePath)
-                rootProject.file("pk-ai-upload-key.jks").exists() -> rootProject.file("pk-ai-upload-key.jks")
-                else -> null
+            } catch (_: Exception) {
+                null
             }
 
             val storePassword = System.getenv("KEYSTORE_PASSWORD") ?: localProperties.getProperty("KEYSTORE_PASSWORD") ?: ""

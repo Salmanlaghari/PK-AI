@@ -16,8 +16,12 @@ jobs:
 
       - name: Decode keystore from KEYSTORE_BASE64 secret
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/upload-key.jks
-          echo "KEYSTORE_PATH=$GITHUB_WORKSPACE/app/upload-key.jks" >> "$GITHUB_ENV"
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d -i > app/upload-key.jks
+            echo "KEYSTORE_PATH=$GITHUB_WORKSPACE/app/upload-key.jks" >> "$GITHUB_ENV"
+          else
+            echo "KEYSTORE_BASE64 secret is empty or not provided."
+          fi
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
 
@@ -66,6 +70,10 @@ jobs:
 
       - name: Verify Release AAB Signature Fingerprint
         run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "KEYSTORE_BASE64 not set; skipping release signature verification."
+            exit 0
+          fi
           echo "Extracting fingerprints from the generated Release AAB..."
           AAB_PATH="app/build/outputs/bundle/release/app-release.aab"
           FINGERPRINT=$(keytool -printcert -jarfile "$AAB_PATH" | grep "SHA1:" | awk '{print $2}')
@@ -77,6 +85,8 @@ jobs:
             exit 1
           fi
           echo "✅ SUCCESS: AAB successfully verified with expected Upload Key SHA1!"
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
 
       - name: Build Debug AAB
         run: ./gradlew bundleDebug --stacktrace

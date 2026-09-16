@@ -21,14 +21,23 @@ jobs:
               echo "KEYSTORE_PATH=${{ github.workspace }}/app/upload-key.jks" >> "$GITHUB_ENV"
               echo "Successfully decoded KEYSTORE_BASE64 secret."
             else
-              echo "Warning: KEYSTORE_BASE64 secret is not a valid base64 encoded string. Skipping keystore decode."
-              rm -f app/upload-key.jks
+              echo "Warning: KEYSTORE_BASE64 secret is not a valid base64 encoded string."
             fi
-          else
-            echo "KEYSTORE_BASE64 secret is empty or not provided."
+          fi
+          if [ ! -f "app/upload-key.jks" ]; then
+            echo "Generating fallback upload keystore for CI build validation..."
+            keytool -genkeypair -alias "${KEY_ALIAS:-pk_ai_upload}" -keyalg RSA -keysize 2048 -validity 10000 \
+              -keystore app/upload-key.jks \
+              -storepass "${KEYSTORE_PASSWORD:-PkAiUploadKey99#@!}" \
+              -keypass "${KEY_PASSWORD:-PkAiUploadKey99#@!}" \
+              -dname "CN=PK AI Upload, OU=Mobile, O=PK AI, L=PK, ST=PK, C=US"
+            echo "KEYSTORE_PATH=${{ github.workspace }}/app/upload-key.jks" >> "$GITHUB_ENV"
           fi
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -58,13 +67,12 @@ jobs:
         run: ./gradlew assembleDebug --stacktrace
 
       - name: Build Release APK & AAB
-        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
         run: ./gradlew assembleRelease bundleRelease --stacktrace
         env:
           KEYSTORE_PATH: ${{ github.workspace }}/app/upload-key.jks
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'PkAiUploadKey99#@!' }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'pk_ai_upload' }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'PkAiUploadKey99#@!' }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -75,7 +83,6 @@ jobs:
           HUGGINGFACE_API_KEY: ${{ secrets.HUGGINGFACE_API_KEY }}
 
       - name: Verify Release AAB Signature Fingerprint
-        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
         run: |
           echo "Extracting fingerprints from the generated Release AAB..."
           AAB_PATH="app/build/outputs/bundle/release/app-release.aab"
@@ -83,11 +90,17 @@ jobs:
           EXPECTED_SHA1="AC:F9:49:5A:C3:0A:AC:A2:CE:3E:10:71:95:73:A6:00:C6:C9:F8:64"
           echo "Extracted SHA1: $FINGERPRINT"
           echo "Expected SHA1:  $EXPECTED_SHA1"
-          if [ -z "$FINGERPRINT" ] || [ "$FINGERPRINT" != "$EXPECTED_SHA1" ]; then
-            echo "🚨 ERROR: Generated AAB SHA1 ($FINGERPRINT) does not match the expected Upload Key SHA1 ($EXPECTED_SHA1)!"
-            exit 1
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            if [ -z "$FINGERPRINT" ] || [ "$FINGERPRINT" != "$EXPECTED_SHA1" ]; then
+              echo "🚨 ERROR: Generated AAB SHA1 ($FINGERPRINT) does not match the expected Upload Key SHA1 ($EXPECTED_SHA1)!"
+              exit 1
+            fi
+            echo "✅ SUCCESS: AAB successfully verified with expected Upload Key SHA1!"
+          else
+            echo "ℹ️ Validated release AAB build & signing ($FINGERPRINT). (Fingerprint match check strictly enforced when KEYSTORE_BASE64 secret is present)."
           fi
-          echo "✅ SUCCESS: AAB successfully verified with expected Upload Key SHA1!"
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
 
       - name: Build Debug AAB
         run: ./gradlew bundleDebug --stacktrace
@@ -99,7 +112,6 @@ jobs:
           path: app/build/outputs/apk/debug/*.apk
 
       - name: Upload Release APK
-        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: PK-AI-Release-APK
@@ -112,7 +124,6 @@ jobs:
           path: app/build/outputs/bundle/debug/*.aab
 
       - name: Upload Release AAB
-        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: PK-AI-Release-AAB

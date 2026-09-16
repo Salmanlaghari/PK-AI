@@ -9,6 +9,8 @@ plugins {
 
 import java.util.Properties
 import java.security.KeyStore
+import java.util.Base64
+import org.gradle.api.GradleException
 
 val localProperties = Properties()
 val localPropertiesFile = rootProject.file("local.properties")
@@ -58,25 +60,59 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = rootProject.file("pk-ai-upload-key.jks")
-
-            val envPassword = System.getenv("KEYSTORE_PASSWORD")
-            val defaultPassword = "PkAiUploadKey99#@!"
-            val chosenPassword = if (!envPassword.isNullOrBlank()) {
-                try {
-                    val keystore = KeyStore.getInstance("PKCS12")
-                    storeFile?.inputStream()?.use { keystore.load(it, envPassword.toCharArray()) }
-                    envPassword
-                } catch (e: Exception) {
-                    defaultPassword
-                }
+            // Read keystore from environment variable KEYSTORE_BASE64 (decoded to file)
+            val keystorePath = System.getenv("KEYSTORE_PATH")
+            val keystoreBase64 = System.getenv("KEYSTORE_BASE64")
+            
+            // Determine storeFile location
+            val storeFile: File? = if (keystoreBase64.isNotBlank()) {
+                // Decode base64 to temporary file
+                val tempFile = File.createTempFile("upload-key", ".jks")
+                tempFile.writeBytes(Base64.getDecoder().decode(keystoreBase64))
+                tempFile.deleteOnExit()
+                tempFile
+            } else if (keystorePath.isNotBlank()) {
+                File(keystorePath)
             } else {
-                localProperties.getProperty("KEYSTORE_PASSWORD") ?: defaultPassword
+                // Fallback for local dev - but this should be avoided
+                rootProject.file("pk-ai-upload-key.jks")
             }
 
-            storePassword = chosenPassword
-            keyAlias = "pk_ai_upload"
-            keyPassword = chosenPassword
+            // Only use environment variables for passwords
+            val storePassword = System.getenv("KEYSTORE_PASSWORD") ?: ""
+            val keyPassword = System.getenv("KEY_PASSWORD") ?: ""
+            val keyAlias = System.getenv("KEY_ALIAS") ?: "pk_ai_upload"
+
+            // Fail fast if required env vars are missing (except for local dev with existing file)
+            if (storeFile == null || !storeFile.exists()) {
+                // For local development only - in CI this should fail fast
+                if (!System.getenv("GITHUB_ACTIONS").equals("true", ignoreCase = true) && 
+                    rootProject.file("pk-ai-upload-key.jks").exists()) {
+                    // Allow existing local file for development
+                } else {
+                    throw GradleException("""
+                        ERROR: Missing required environment variables for signing.
+                        Please set:
+                          - KEYSTORE_BASE64 (base64 encoded .jks file) OR KEYSTORE_PATH
+                          - KEYSTORE_PASSWORD
+                          - KEY_PASSWORD
+                          - KEY_ALIAS (optional, defaults to 'pk_ai_upload')
+                    """.trimIndent())
+                }
+            }
+
+            if (storePassword.isBlank() || keyPassword.isBlank() || keyAlias.isBlank()) {
+                throw GradleException("""
+                    ERROR: Missing required signing environment variables.
+                    Please set: KEYSTORE_PASSWORD, KEY_PASSWORD, KEY_ALIAS
+                """.trimIndent())
+            }
+
+            // Configure signing
+            this.setStoreFile(storeFile)
+            this.setStorePassword(storePassword)
+            this.setKeyPassword(keyPassword)
+            this.setKeyAlias(keyAlias)
         }
     }
 

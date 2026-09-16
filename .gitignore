@@ -15,6 +15,13 @@ app/build/
 
 # Local configuration files
 local.properties
+local.properties.example
+
+# Keystore / signing files (NEVER commit these)
+*.jks
+*.keystore
+*_upload_key_*.txt
+*.pem
 
 # OS files
 .DS_Store

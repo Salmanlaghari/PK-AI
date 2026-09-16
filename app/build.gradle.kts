@@ -90,6 +90,14 @@ android {
                 this.keyPassword = keyPassword
                 this.keyAlias = keyAlias
             }
+
+            val validStoreFile = storeFile
+            project.gradle.taskGraph.whenReady {
+                val isReleaseScheduled = allTasks.any { it.name.contains("Release", ignoreCase = true) }
+                if (isReleaseScheduled && (validStoreFile == null || !validStoreFile.exists())) {
+                    throw GradleException("🚨 ERROR: Missing required release keystore file for release signing. Please set KEYSTORE_BASE64 or KEYSTORE_PATH.")
+                }
+            }
         }
     }
 

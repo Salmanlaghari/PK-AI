@@ -58,47 +58,45 @@ android {
         buildConfigField("String", "CODE_RUNNER_PROXY_URL", "\"$codeRunnerProxyUrl\"")
     }
 
-    val releaseSigningConfig = signingConfigs.create("release") {
-        // Read keystore location from environment variable or fallback to local file
-        val keystorePath = System.getenv("KEYSTORE_PATH") ?: ""
-        val keystoreBase64 = System.getenv("KEYSTORE_BASE64") ?: ""
+    signingConfigs {
+        create("release") {
+            // Read keystore location from environment variable or fallback to local file
+            val keystorePath = System.getenv("KEYSTORE_PATH") ?: ""
+            val keystoreBase64 = System.getenv("KEYSTORE_BASE64") ?: ""
 
-        val storeFile: File? = try {
-            when {
-                keystoreBase64.isNotBlank() -> {
-                    val tempFile = File.createTempFile("upload-key", ".jks")
-                    tempFile.writeBytes(Base64.getDecoder().decode(keystoreBase64.trim()))
-                    tempFile.deleteOnExit()
-                    tempFile
+            val storeFile: File? = try {
+                when {
+                    keystoreBase64.isNotBlank() -> {
+                        val tempFile = File.createTempFile("upload-key", ".jks")
+                        tempFile.writeBytes(Base64.getDecoder().decode(keystoreBase64.trim()))
+                        tempFile.deleteOnExit()
+                        tempFile
+                    }
+                    keystorePath.isNotBlank() && File(keystorePath).exists() -> File(keystorePath)
+                    rootProject.file("pk-ai-upload-key.jks").exists() -> rootProject.file("pk-ai-upload-key.jks")
+                    else -> null
                 }
-                keystorePath.isNotBlank() && File(keystorePath).exists() -> File(keystorePath)
-                rootProject.file("pk-ai-upload-key.jks").exists() -> rootProject.file("pk-ai-upload-key.jks")
-                else -> null
+            } catch (_: Exception) {
+                null
             }
-        } catch (_: Exception) {
-            null
-        }
 
-        val storePassword = System.getenv("KEYSTORE_PASSWORD") ?: localProperties.getProperty("KEYSTORE_PASSWORD") ?: ""
-        val keyPassword = System.getenv("KEY_PASSWORD") ?: localProperties.getProperty("KEY_PASSWORD") ?: ""
-        val keyAlias = System.getenv("KEY_ALIAS") ?: localProperties.getProperty("KEY_ALIAS") ?: "pk_ai_upload"
+            val storePassword = System.getenv("KEYSTORE_PASSWORD") ?: localProperties.getProperty("KEYSTORE_PASSWORD") ?: ""
+            val keyPassword = System.getenv("KEY_PASSWORD") ?: localProperties.getProperty("KEY_PASSWORD") ?: ""
+            val keyAlias = System.getenv("KEY_ALIAS") ?: localProperties.getProperty("KEY_ALIAS") ?: "pk_ai_upload"
 
-        if (storeFile != null && storeFile.exists() && storePassword.isNotBlank()) {
-            this.storeFile = storeFile
-            this.storePassword = storePassword
-            this.keyPassword = keyPassword
-            this.keyAlias = keyAlias
+            if (storeFile != null && storeFile.exists()) {
+                this.storeFile = storeFile
+                this.storePassword = storePassword
+                this.keyPassword = keyPassword
+                this.keyAlias = keyAlias
+            }
         }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
-            if (releaseSigningConfig.storeFile != null && releaseSigningConfig.storeFile?.exists() == true) {
-                signingConfig = releaseSigningConfig
-            } else {
-                signingConfig = signingConfigs.getByName("debug")
-            }
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

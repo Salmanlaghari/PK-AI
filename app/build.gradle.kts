@@ -39,12 +39,14 @@ android {
         val cohereApiKey = System.getenv("COHERE_API_KEY") ?: localProperties.getProperty("COHERE_API_KEY") ?: ""
         val cerebrasApiKey = System.getenv("CEREBRAS_API_KEY") ?: localProperties.getProperty("CEREBRAS_API_KEY") ?: ""
         val huggingfaceApiKey = System.getenv("HUGGINGFACE_API_KEY") ?: localProperties.getProperty("HUGGINGFACE_API_KEY") ?: ""
+        val groqModel = System.getenv("GROQ_MODEL") ?: localProperties.getProperty("GROQ_MODEL") ?: "openai/gpt-oss-20b"
         val openRouterApiKey = System.getenv("OPENROUTER_API_KEY") ?: localProperties.getProperty("OPENROUTER_API_KEY") ?: ""
         val hackerEarthClientId = System.getenv("HACKEREARTH_CLIENT_ID") ?: localProperties.getProperty("HACKEREARTH_CLIENT_ID") ?: ""
         val hackerEarthClientSecret = System.getenv("HACKEREARTH_CLIENT_SECRET") ?: localProperties.getProperty("HACKEREARTH_CLIENT_SECRET") ?: ""
         val codeRunnerProxyUrl = System.getenv("CODE_RUNNER_PROXY_URL") ?: localProperties.getProperty("CODE_RUNNER_PROXY_URL") ?: ""
 
         buildConfigField("String", "GROQ_API_KEY", "\"$groqApiKey\"")
+        buildConfigField("String", "GROQ_MODEL", "\"$groqModel\"")
         buildConfigField("String", "CLOUDFLARE_API_TOKEN", "\"$cloudflareApiToken\"")
         buildConfigField("String", "CLOUDFLARE_ACCOUNT_ID", "\"$cloudflareAccountId\"")
         buildConfigField("String", "LLM7_API_KEY", "\"$llm7ApiKey\"")

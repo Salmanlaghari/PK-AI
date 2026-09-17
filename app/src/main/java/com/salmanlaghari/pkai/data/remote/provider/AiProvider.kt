@@ -89,16 +89,20 @@ private fun shortDetail(errorBody: String?): String =
     errorBody?.replace(Regex("\\s+"), " ")?.trim()?.take(300)?.let { " — $it" } ?: ""
 
 /** Maps an HTTP status code to a clear, actionable in-app message. */
-fun mapHttpError(providerName: String, code: Int, message: String?, errorBody: String? = null): String = when (code) {
-    401, 403 -> "$providerName: Authentication failed (HTTP $code). Your API key or token is invalid, " +
-        "or lacks the permission needed for inference.${shortDetail(errorBody)}"
-    402 -> "$providerName: Payment or quota required (HTTP 402). This account has no remaining " +
-        "inference quota.${shortDetail(errorBody)}"
-    404 -> "$providerName: Model or endpoint not found (HTTP 404). The configured model id is most likely " +
-        "deprecated or renamed by the provider.${shortDetail(errorBody)}"
-    429 -> "$providerName: Rate limit exceeded (HTTP 429). Please wait and try again.${shortDetail(errorBody)}"
-    in 500..599 -> "$providerName: The provider's servers are unavailable (HTTP $code). Try again later."
-    else -> "$providerName: Request failed (HTTP $code)${message?.let { " — $it" } ?: ""}${shortDetail(errorBody)}"
+fun mapHttpError(providerName: String, code: Int, message: String?, errorBody: String? = null): String {
+    val isModelNotFound = code == 404 || errorBody?.contains("model_not_found", ignoreCase = true) == true
+    if (isModelNotFound) {
+        return "$providerName: Model not found (HTTP $code). The configured model may have been deprecated or moved by the provider."
+    }
+    return when (code) {
+        401, 403 -> "$providerName: Authentication failed (HTTP $code). Your API key or token is invalid, " +
+            "or lacks the permission needed for inference.${shortDetail(errorBody)}"
+        402 -> "$providerName: Payment or quota required (HTTP 402). This account has no remaining " +
+            "inference quota.${shortDetail(errorBody)}"
+        429 -> "$providerName: Rate limit exceeded (HTTP 429). Please wait and try again.${shortDetail(errorBody)}"
+        in 500..599 -> "$providerName: The provider's servers are unavailable (HTTP $code). Try again later."
+        else -> "$providerName: Request failed (HTTP $code)${message?.let { " — $it" } ?: ""}${shortDetail(errorBody)}"
+    }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────

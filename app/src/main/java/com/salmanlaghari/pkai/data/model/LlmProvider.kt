@@ -1,5 +1,7 @@
 package com.salmanlaghari.pkai.data.model
 
+import com.salmanlaghari.pkai.BuildConfig
+
 /**
  * The catalogue of free-tier LLM providers supported by PK AI.
  *
@@ -53,8 +55,8 @@ data class LlmProvider(
                 logoEmoji = "⚡",
                 format = ProviderFormat.OPENAI,
                 baseUrl = "https://api.groq.com/openai/v1/",
-                // Groq's active primary production model
-                defaultModel = "llama-3.1-8b-instant",
+                // Groq's active primary production model (configurable via BuildConfig.GROQ_MODEL)
+                defaultModel = BuildConfig.GROQ_MODEL,
                 apiKeyBuildConfig = "GROQ_API_KEY",
                 supportsVision = true,
                 visionModel = "llama-3.2-11b-vision-preview"

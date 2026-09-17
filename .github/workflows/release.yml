@@ -24,8 +24,17 @@ jobs:
 
       - name: Decode keystore from KEYSTORE_BASE64 secret
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/upload-key.jks
-          echo "KEYSTORE_PATH=$GITHUB_WORKSPACE/app/upload-key.jks" >> "$GITHUB_ENV"
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            if echo "$KEYSTORE_BASE64" | base64 -d -i > app/upload-key.jks 2>/dev/null; then
+              echo "KEYSTORE_PATH=${{ github.workspace }}/app/upload-key.jks" >> "$GITHUB_ENV"
+              echo "Successfully decoded KEYSTORE_BASE64 secret."
+            else
+              echo "Warning: KEYSTORE_BASE64 secret is not a valid base64 encoded string. Skipping keystore decode."
+              rm -f app/upload-key.jks
+            fi
+          else
+            echo "KEYSTORE_BASE64 secret is empty or not provided."
+          fi
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
 
@@ -42,7 +51,7 @@ jobs:
       - name: Build Release APK & AAB
         run: ./gradlew assembleRelease bundleRelease --stacktrace
         env:
-          KEYSTORE_PATH: $GITHUB_WORKSPACE/app/upload-key.jks
+          KEYSTORE_PATH: ${{ github.workspace }}/app/upload-key.jks
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}

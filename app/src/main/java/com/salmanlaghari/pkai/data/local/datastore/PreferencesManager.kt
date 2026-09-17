@@ -205,4 +205,30 @@ class PreferencesManager @Inject constructor(
     suspend fun getCodeRunCount(): Int {
         return context.dataStore.data.first()[codeRunCountKey] ?: 0
     }
+
+    // Age Verification Gate (18+ confirmation required for app entry)
+    private val isAgeVerifiedKey = booleanPreferencesKey("is_age_verified")
+
+    val isAgeVerified: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[isAgeVerifiedKey] ?: false
+    }
+
+    suspend fun setAgeVerified(verified: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[isAgeVerifiedKey] = verified
+        }
+    }
+
+    // Dismissible In-App Sticker Hint Banner (/18+ discovery)
+    private val isStickerHintDismissedKey = booleanPreferencesKey("is_sticker_hint_dismissed")
+
+    val isStickerHintDismissed: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[isStickerHintDismissedKey] ?: false
+    }
+
+    suspend fun setStickerHintDismissed(dismissed: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[isStickerHintDismissedKey] = dismissed
+        }
+    }
 }

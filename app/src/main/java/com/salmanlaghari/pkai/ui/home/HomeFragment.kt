@@ -172,6 +172,18 @@ class HomeFragment : Fragment() {
         binding.btnSettings.setOnClickListener {
             findNavController().navigate(R.id.settingsFragment)
         }
+
+        // Sticker discovery hint banner
+        lifecycleScope.launch {
+            preferencesManager.isStickerHintDismissed.collect { dismissed ->
+                binding.cardStickerHint.visibility = if (dismissed) View.GONE else View.VISIBLE
+            }
+        }
+        binding.btnDismissStickerHint.setOnClickListener {
+            lifecycleScope.launch {
+                preferencesManager.setStickerHintDismissed(true)
+            }
+        }
     }
 
     /** Reflects the active provider/model in the persistent chip + input hint. */

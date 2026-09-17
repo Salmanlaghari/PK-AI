@@ -48,10 +48,12 @@ class CodeRunnerRepository @Inject constructor(
             return CodeExecutionResult.QuotaExceeded
         }
 
-        val secretKey = BuildConfig.HACKEREARTH_CLIENT_SECRET.ifBlank {
-            "5ef5fed19a69253a5a2592b2dfac397b4494904f"
-        }
+        val secretKey = BuildConfig.HACKEREARTH_CLIENT_SECRET
         val proxyUrl = BuildConfig.CODE_RUNNER_PROXY_URL
+
+        if (secretKey.isBlank() && proxyUrl.isBlank()) {
+            return CodeExecutionResult.Error("API credentials or proxy endpoint not configured.")
+        }
 
         return try {
             if (proxyUrl.isNotBlank()) {

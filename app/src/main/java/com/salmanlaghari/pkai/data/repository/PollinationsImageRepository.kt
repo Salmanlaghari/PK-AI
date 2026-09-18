@@ -2,21 +2,29 @@ package com.salmanlaghari.pkai.data.repository
 
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.logging.HttpLoggingInterceptor
 import javax.inject.Inject
 import javax.inject.Singleton
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 
 @Singleton
-class PollinationsImageRepository @Inject constructor(
-    private val okHttpClient: OkHttpClient
-) {
+class PollinationsImageRepository @Inject constructor() {
     companion object {
         const val DEFAULT_WIDTH = 768
         const val DEFAULT_HEIGHT = 768
         const val MAX_ATTEMPTS = 4
         const val INITIAL_BACKOFF_MS = 2000L
+        private const val TIMEOUT_SECONDS = 40L
     }
+
+    private val okHttpClient: OkHttpClient = OkHttpClient.Builder()
+        .addInterceptor(HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BODY
+        })
+        .connectTimeout(TIMEOUT_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
+        .readTimeout(TIMEOUT_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
+        .build()
 
     fun buildImageUrl(prompt: String, width: Int = DEFAULT_WIDTH, height: Int = DEFAULT_HEIGHT): String {
         val encodedPrompt = java.net.URLEncoder.encode(prompt, "UTF-8")

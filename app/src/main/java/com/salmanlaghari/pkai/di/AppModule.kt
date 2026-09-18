@@ -101,19 +101,7 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun providePollinationsImageRepository(pollinationsOkHttpClient: OkHttpClient): com.salmanlaghari.pkai.data.repository.PollinationsImageRepository {
-        return com.salmanlaghari.pkai.data.repository.PollinationsImageRepository(pollinationsOkHttpClient)
-    }
-
-    @Provides
-    @Singleton
-    fun providePollinationsOkHttpClient(): OkHttpClient {
-        return OkHttpClient.Builder()
-            .addInterceptor(HttpLoggingInterceptor().apply {
-                level = HttpLoggingInterceptor.Level.BODY
-            })
-            .connectTimeout(40, java.util.concurrent.TimeUnit.SECONDS)
-            .readTimeout(40, java.util.concurrent.TimeUnit.SECONDS)
-            .build()
+    fun providePollinationsImageRepository(okHttpClient: OkHttpClient): com.salmanlaghari.pkai.data.repository.PollinationsImageRepository {
+        return com.salmanlaghari.pkai.data.repository.PollinationsImageRepository(okHttpClient)
     }
 }

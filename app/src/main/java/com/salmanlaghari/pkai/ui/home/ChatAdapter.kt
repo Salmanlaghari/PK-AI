@@ -358,35 +358,4 @@ class ChatAdapter(
             return oldItem == newItem
         }
     }
-
-    private fun showFullScreenImage(context: Context, source: String) {
-        val imageView = ImageView(context).apply {
-            layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
-            )
-            scaleType = ImageView.ScaleType.FIT_CENTER
-            setBackgroundColor(Color.BLACK)
-        }
-
-        val dialog = AlertDialog.Builder(context, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
-            .setView(imageView)
-            .setPositiveButton("Close") { d, _ -> d.dismiss() }
-            .setNegativeButton("Share") { _, _ ->
-                val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                    type = "text/plain"
-                    putExtra(android.content.Intent.EXTRA_TEXT, source)
-                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                context.startActivity(android.content.Intent.createChooser(shareIntent, "Share image"))
-            }
-            .create()
-
-        ImageLoadHelper.load(context, source, imageView) {
-            Toast.makeText(context, "Couldn't load image for full-screen view.", Toast.LENGTH_SHORT).show()
-            dialog.dismiss()
-        }
-
-        dialog.show()
-    }
 }

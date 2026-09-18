@@ -277,7 +277,7 @@ class ChatAdapter(
                         scaleType = ImageView.ScaleType.CENTER_CROP
                         adjustViewBounds = true
                         setOnClickListener {
-                            showFullScreenImage(it.context, image.source)
+                            this@ChatAdapter.showFullScreenImage(it.context, image.source)
                         }
                     }
                     binding.layoutAiImages.addView(imageView)

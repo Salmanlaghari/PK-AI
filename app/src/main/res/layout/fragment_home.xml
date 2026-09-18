@@ -309,6 +309,49 @@
                 android:padding="10dp" />
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- Chat / Image mode toggle -->
+        <LinearLayout
+            android:id="@+id/layout_image_mode_toggle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_pill_chip"
+            android:orientation="horizontal"
+            android:padding="2dp"
+            app:layout_constraintBottom_toTopOf="@id/input_message_layout"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/layout_attachment_preview">
+
+            <TextView
+                android:id="@+id/btn_tab_chat"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="@drawable/bg_pill_chip_selected"
+                android:clickable="true"
+                android:focusable="true"
+                android:fontFamily="@font/poppins"
+                android:gravity="center"
+                android:text="💬 Chat"
+                android:textColor="@color/white"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/btn_tab_image"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="@android:color/transparent"
+                android:clickable="true"
+                android:focusable="true"
+                android:fontFamily="@font/poppins"
+                android:gravity="center"
+                android:text="🖼 Image"
+                android:textColor="@color/outline"
+                android:textSize="11sp" />
+        </LinearLayout>
+
         <!-- Attachment FAB (left) -->
         <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/btn_attach"
@@ -343,7 +386,7 @@
             app:layout_constraintBottom_toTopOf="@id/chip_active_provider"
             app:layout_constraintEnd_toStartOf="@id/btn_voice"
             app:layout_constraintStart_toEndOf="@id/btn_attach"
-            app:layout_constraintTop_toBottomOf="@id/layout_attachment_preview">
+            app:layout_constraintTop_toBottomOf="@id/layout_image_mode_toggle">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/et_message_input"

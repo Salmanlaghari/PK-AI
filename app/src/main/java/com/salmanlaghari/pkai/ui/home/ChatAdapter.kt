@@ -12,6 +12,7 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -35,6 +36,38 @@ class ChatAdapter(
     companion object {
         private const val VIEW_TYPE_USER = 1
         private const val VIEW_TYPE_AI = 2
+
+        @JvmStatic
+        fun showFullScreenImage(context: Context, source: String) {
+            val imageView = ImageView(context).apply {
+                layoutParams = ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                )
+                scaleType = ImageView.ScaleType.FIT_CENTER
+                setBackgroundColor(Color.BLACK)
+            }
+
+            val dialog = AlertDialog.Builder(context, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
+                .setView(imageView)
+                .setPositiveButton("Close") { d, _ -> d.dismiss() }
+                .setNegativeButton("Share") { _, _ ->
+                    val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(android.content.Intent.EXTRA_TEXT, source)
+                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(android.content.Intent.createChooser(shareIntent, "Share image"))
+                }
+                .create()
+
+            ImageLoadHelper.load(context, source, imageView) {
+                Toast.makeText(context, "Couldn't load image for full-screen view.", Toast.LENGTH_SHORT).show()
+                dialog.dismiss()
+            }
+
+            dialog.show()
+        }
     }
 
     override fun getItemViewType(position: Int): Int {
@@ -275,6 +308,9 @@ class ChatAdapter(
                         ).apply { bottomMargin = (8 * density).toInt() }
                         scaleType = ImageView.ScaleType.CENTER_CROP
                         adjustViewBounds = true
+                        setOnClickListener {
+                            showFullScreenImage(it.context, image.source)
+                        }
                     }
                     binding.layoutAiImages.addView(imageView)
                     ImageLoadHelper.load(

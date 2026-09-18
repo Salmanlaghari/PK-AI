@@ -109,7 +109,6 @@ class PollinationsImageRepository @Inject constructor(
     }
 
     private object DecodeFactory {
-        fun decode(bytes: ByteArray): Bitmap? =
-            DecodeResult(bytes).decode()
+        fun decode(bytes: ByteArray): Bitmap? = DecodeResult(bytes).decode()
     }
 }

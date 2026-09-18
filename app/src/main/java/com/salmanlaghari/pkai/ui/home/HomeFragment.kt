@@ -126,6 +126,9 @@ class HomeFragment : Fragment() {
             viewModel.webSearchMode.collect { updateProviderChip() }
         }
         lifecycleScope.launch {
+            viewModel.isImageMode.collect { updateImageModeToggle() }
+        }
+        lifecycleScope.launch {
             viewModel.generatingLabel.collect { binding.tvTyping.text = it }
         }
 
@@ -134,6 +137,9 @@ class HomeFragment : Fragment() {
         binding.btnTabSuperChat.setOnClickListener {
             findNavController().navigate(R.id.superChatFragment)
         }
+
+        binding.btnTabChat.setOnClickListener { viewModel.setImageMode(false) }
+        binding.btnTabImage.setOnClickListener { viewModel.setImageMode(true) }
 
         setupFreeModelChips()
 
@@ -178,6 +184,14 @@ class HomeFragment : Fragment() {
     private fun updateProviderChip() {
         updateTabSelection()
         val isFree = viewModel.isFreeMode.value
+        val isImage = viewModel.isImageMode.value
+
+        if (isImage) {
+            binding.chipActiveProvider.text = "🖼 PK AI Image"
+            binding.etMessageInput.setHint("Describe the image you want…")
+            return
+        }
+
         when {
             isFree -> {
                 val fm = viewModel.selectedFreeModel.value
@@ -207,6 +221,23 @@ class HomeFragment : Fragment() {
 
         binding.btnTabFree.setBackgroundResource(if (isFree) selectedBg else transparent)
         binding.btnTabFree.setTextColor(resources.getColor(if (isFree) activeText else idleText, null))
+    }
+
+    /** Updates the Chat / Image segmented control to match the current mode. */
+    private fun updateImageModeToggle() {
+        val isImage = viewModel.isImageMode.value
+        binding.layoutImageModeToggle.visibility = View.VISIBLE
+
+        val selectedBg = R.drawable.bg_pill_chip_selected
+        val transparent = android.R.color.transparent
+        val activeText = R.color.white
+        val idleText = R.color.outline
+
+        binding.btnTabChat.setBackgroundResource(if (!isImage) selectedBg else transparent)
+        binding.btnTabChat.setTextColor(resources.getColor(if (!isImage) activeText else idleText, null))
+
+        binding.btnTabImage.setBackgroundResource(if (isImage) selectedBg else transparent)
+        binding.btnTabImage.setTextColor(resources.getColor(if (isImage) activeText else idleText, null))
     }
 
     private fun onSendClicked() {

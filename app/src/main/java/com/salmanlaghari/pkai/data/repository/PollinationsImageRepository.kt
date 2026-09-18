@@ -7,6 +7,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Singleton
 class PollinationsImageRepository @Inject constructor() {
@@ -32,7 +34,7 @@ class PollinationsImageRepository @Inject constructor() {
                 "?width=$width&height=$height&nologo=true&model=flux&enhance=true"
     }
 
-    suspend fun generateImage(prompt: String): ByteArray {
+    suspend fun generateImage(prompt: String): ByteArray = withContext(Dispatchers.IO) {
         var attempt = 0
         var backoffMs = INITIAL_BACKOFF_MS
         var lastError: String? = null
@@ -45,7 +47,7 @@ class PollinationsImageRepository @Inject constructor() {
                 val response = okHttpClient.newCall(request).execute()
                 if (response.isSuccessful) {
                     val bytes = response.body?.bytes()
-                    if (bytes != null && bytes.isNotEmpty()) return bytes
+                    if (bytes != null && bytes.isNotEmpty()) return@withContext bytes
                     lastError = "The image service returned an empty image."
                 } else {
                     lastError = "Image request failed (HTTP ${response.code})."

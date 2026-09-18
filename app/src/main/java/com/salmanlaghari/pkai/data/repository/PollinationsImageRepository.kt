@@ -92,7 +92,7 @@ class PollinationsImageRepository @Inject constructor(
                         "The image service returned an empty image."
                     )
                 }
-                val bitmap = bitmapFromBytes(bytes)
+                val bitmap = decodeBitmap(bytes)
                     ?: return ImageGenerationResult.Error("Could not decode the image bytes.")
                 ImageGenerationResult.Success(bitmap)
             }
@@ -101,7 +101,7 @@ class PollinationsImageRepository @Inject constructor(
         }
     }
 
-    private fun bitmapFromBytes(bytes: ByteArray): Bitmap? =
+    private fun decodeBitmap(bytes: ByteArray): Bitmap? =
         DecodeResult(bytes).decode()
 
     private class DecodeResult(val bytes: ByteArray) {

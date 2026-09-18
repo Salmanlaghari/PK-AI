@@ -2,7 +2,6 @@ package com.salmanlaghari.pkai.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.salmanlaghari.pkai.BuildConfig
 import com.salmanlaghari.pkai.data.local.datastore.PreferencesManager
 import com.salmanlaghari.pkai.data.local.room.ChatMessageDao
 import com.salmanlaghari.pkai.data.model.ChatMessage
@@ -15,6 +14,7 @@ import com.salmanlaghari.pkai.data.repository.AppRepository
 import com.salmanlaghari.pkai.data.repository.AuthRepository
 import com.salmanlaghari.pkai.data.repository.CodeExecutionResult
 import com.salmanlaghari.pkai.data.repository.CodeRunnerRepository
+import com.salmanlaghari.pkai.data.repository.PollinationsImageRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -24,14 +24,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
 import javax.inject.Inject
 import android.util.Base64
-import kotlinx.coroutines.delay
-import org.json.JSONObject
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -40,8 +34,8 @@ class HomeViewModel @Inject constructor(
     private val chatMessageDao: ChatMessageDao,
     private val aiProviderFactory: AiProviderFactory,
     private val preferencesManager: PreferencesManager,
-    private val okHttpClient: OkHttpClient,
-    private val codeRunnerRepository: CodeRunnerRepository
+    private val codeRunnerRepository: CodeRunnerRepository,
+    private val pollinationsImageRepository: PollinationsImageRepository
 ) : ViewModel() {
 
     /** Hugging Face text-to-image model used by the dedicated Image Generation tab. */
@@ -400,7 +394,7 @@ class HomeViewModel @Inject constructor(
             _isGenerating.value = true
             _generatingLabel.value = "Generating image, please wait…"
             try {
-                val bytes = generateImageWithRetry(prompt)
+                val bytes = pollinationsImageRepository.generateImage(prompt)
                 val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
                 val markdown = "![Generated image](data:image/png;base64,$base64)"
                 chatMessageDao.insertMessage(
@@ -441,14 +435,7 @@ class HomeViewModel @Inject constructor(
 
             _isGenerating.value = true
             try {
-                val url = "https://image.pollinations.ai/prompt/" +
-                    java.net.URLEncoder.encode(prompt.trim(), "UTF-8") +
-                    "?width=512&height=512&nologo=true&model=flux&enhance=true"
-                val request = Request.Builder().url(url).get().build()
-                val bytes = okHttpClient.newCall(request).execute().use { resp ->
-                    if (!resp.isSuccessful) throw IllegalStateException("HTTP ${resp.code}")
-                    resp.body?.bytes() ?: throw IllegalStateException("Empty image body")
-                }
+                val bytes = pollinationsImageRepository.generateImage(prompt.trim())
                 val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
                 val markdown = "![Generated image](data:image/png;base64,$base64)"
                 chatMessageDao.insertMessage(
@@ -469,45 +456,6 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    /** Calls the Pollinations image endpoint, retrying on transient rate-limit responses. */
-    private suspend fun generateImageWithRetry(prompt: String, maxAttempts: Int = 4): ByteArray {
-        var attempt = 0
-        var backoffMs = 2000L
-        var lastError: String? = null
-        while (attempt < maxAttempts) {
-            attempt++
-            try {
-                val url = "https://image.pollinations.ai/prompt/" +
-                    java.net.URLEncoder.encode(prompt.trim(), "UTF-8") +
-                    "?width=768&height=768&nologo=true&model=flux&enhance=true"
-                val request = Request.Builder().url(url).get().build()
-                val response = okHttpClient.newCall(request).execute()
-                if (response.isSuccessful) {
-                    val bytes = response.body?.bytes()
-                    if (bytes != null && bytes.isNotEmpty()) return bytes
-                    lastError = "The image service returned an empty image."
-                } else {
-                    lastError = "Image request failed (HTTP ${response.code})."
-                    // 429/5xx are transient — retry; other statuses fail fast.
-                    if (response.code != 429 && response.code !in 500..599) {
-                        throw IllegalStateException(lastError)
-                    }
-                }
-            } catch (e: Exception) {
-                // A fatal HTTP status (re-thrown just above) must not be retried; only
-                // transient network failures are swallowed and retried.
-                if (e is IllegalStateException) throw e
-                lastError = e.localizedMessage ?: "Network error"
-            }
-            if (attempt < maxAttempts) delay(backoffMs).also { backoffMs *= 2 }
-        }
-        throw IllegalStateException("Image generation didn't succeed after $maxAttempts tries ($lastError)")
-    }
-
-    /**
-     * True when [error] is a free-tier rate-limit / quota problem that justifies retrying on
-     * another provider. Detects HTTP 429 (rate limit) and HTTP 402 / "quota" (quota exceeded).
-     */
     private fun isRateLimitOrQuota(error: String?): Boolean {
         if (error == null) return false
         val e = error.lowercase()

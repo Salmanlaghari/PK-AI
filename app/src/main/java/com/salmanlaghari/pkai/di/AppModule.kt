@@ -98,4 +98,10 @@ object AppModule {
     fun provideAuthRepository(preferencesManager: PreferencesManager): AuthRepository {
         return AuthRepositoryImpl(preferencesManager)
     }
+
+    @Provides
+    @Singleton
+    fun providePollinationsImageRepository(okHttpClient: OkHttpClient): com.salmanlaghari.pkai.data.repository.PollinationsImageRepository {
+        return com.salmanlaghari.pkai.data.repository.PollinationsImageRepository(okHttpClient)
+    }
 }

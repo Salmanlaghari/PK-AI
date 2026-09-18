@@ -4,6 +4,8 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import javax.inject.Inject
 import javax.inject.Singleton
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 
 @Singleton
 class PollinationsImageRepository @Inject constructor(
@@ -45,7 +47,12 @@ class PollinationsImageRepository @Inject constructor(
                 }
             } catch (e: Exception) {
                 if (e is IllegalStateException) throw e
-                lastError = e.localizedMessage ?: "Network error"
+                val errorType = when (e) {
+                    is SocketTimeoutException -> "SocketTimeoutException"
+                    is UnknownHostException -> "UnknownHostException"
+                    else -> e.javaClass.simpleName
+                }
+                lastError = "$errorType: ${e.localizedMessage ?: e.message ?: "Unknown error"}"
             }
             if (attempt < MAX_ATTEMPTS) {
                 kotlinx.coroutines.delay(backoffMs)

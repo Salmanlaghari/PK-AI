@@ -11,7 +11,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SplashViewModel @Inject constructor(
-    private val preferencesManager: PreferencesManager,
+    val preferencesManager: PreferencesManager,
     private val authRepository: AuthRepository
 ) : ViewModel() {
     val isOnboardingCompletedFlow = preferencesManager.isOnboardingCompleted

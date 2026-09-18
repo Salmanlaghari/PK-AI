@@ -61,12 +61,19 @@ class SplashFragment : Fragment() {
         lifecycleScope.launch {
             delay(1800) // short branded intro
 
+            val isAgeVerified = viewModel.preferencesManager.isAgeVerified.first()
+            if (!isAgeVerified) {
+                // Age Verification Gate required before any app access
+                findNavController().navigate(R.id.action_splashFragment_to_ageVerificationFragment)
+                return@launch
+            }
+
             val session = viewModel.userSessionFlow.first()
             if (session.isLoggedIn) {
                 // Returning user — go straight to the app
                 findNavController().navigate(R.id.action_splashFragment_to_homeFragment)
             } else {
-                // First launch — show the auth screen (Continue with Google / Continue as Guest)
+                // Auth screen
                 findNavController().navigate(R.id.action_splashFragment_to_loginFragment)
             }
         }

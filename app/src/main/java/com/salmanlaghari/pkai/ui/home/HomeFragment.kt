@@ -85,7 +85,9 @@ class HomeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        val chatAdapter = ChatAdapter()
+        val chatAdapter = ChatAdapter { code, lang, onResult ->
+            viewModel.runCode(code, lang, onResult)
+        }
         binding.rvChatMessages.adapter = chatAdapter
 
         lifecycleScope.launch {
@@ -169,6 +171,18 @@ class HomeFragment : Fragment() {
         }
         binding.btnSettings.setOnClickListener {
             findNavController().navigate(R.id.settingsFragment)
+        }
+
+        // Sticker discovery hint banner
+        lifecycleScope.launch {
+            preferencesManager.isStickerHintDismissed.collect { dismissed ->
+                binding.cardStickerHint.visibility = if (dismissed) View.GONE else View.VISIBLE
+            }
+        }
+        binding.btnDismissStickerHint.setOnClickListener {
+            lifecycleScope.launch {
+                preferencesManager.setStickerHintDismissed(true)
+            }
         }
     }
 

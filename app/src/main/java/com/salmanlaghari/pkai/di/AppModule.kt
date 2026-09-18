@@ -84,6 +84,17 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideHackerEarthApiService(okHttpClient: OkHttpClient): com.salmanlaghari.pkai.data.remote.HackerEarthApiService {
+        return Retrofit.Builder()
+            .baseUrl("https://api.hackerearth.com/")
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(com.salmanlaghari.pkai.data.remote.HackerEarthApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
     fun provideAuthRepository(preferencesManager: PreferencesManager): AuthRepository {
         return AuthRepositoryImpl(preferencesManager)
     }

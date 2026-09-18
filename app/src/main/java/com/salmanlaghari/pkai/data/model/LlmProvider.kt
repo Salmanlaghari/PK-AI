@@ -53,9 +53,8 @@ data class LlmProvider(
                 logoEmoji = "⚡",
                 format = ProviderFormat.OPENAI,
                 baseUrl = "https://api.groq.com/openai/v1/",
-                // `llama-3.3-70b-versatile` was shut down by Groq on 2026-08-16 and now
-                // returns HTTP 404. Groq's documented replacement is `openai/gpt-oss-120b`.
-                defaultModel = "openai/gpt-oss-120b",
+                // Groq's active primary production model
+                defaultModel = "llama-3.1-8b-instant",
                 apiKeyBuildConfig = "GROQ_API_KEY",
                 supportsVision = true,
                 visionModel = "llama-3.2-11b-vision-preview"

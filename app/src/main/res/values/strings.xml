@@ -51,4 +51,12 @@
     <string name="title_about">About PK AI</string>
     <string name="desc_about_app">PK AI is a state-of-the-art native premium AI Super App designed to bring next generation deep learning models, image generation, voice Synthesis, and generative coding tools right to your fingertips under a single unified ecosystem.</string>
     <string name="lbl_developer_branding">Developed by ❤️ Admin Prince Laghari ❤️</string>
+
+    <!-- Crash Diagnostics -->
+    <string name="title_crash_diagnostics">Crash Diagnostics</string>
+    <string name="no_crash_log_available">No crash log available.</string>
+    <string name="crash_timestamp_format">Crash at: %s</string>
+    <string name="crash_log_cleared">Crash log cleared</string>
+    <string name="crash_log_copied">Crash log copied to clipboard</string>
+    <string name="share_crash_log">Share crash log</string>
 </resources>

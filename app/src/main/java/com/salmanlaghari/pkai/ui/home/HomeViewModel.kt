@@ -23,6 +23,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import android.util.Base64
@@ -394,9 +396,12 @@ class HomeViewModel @Inject constructor(
             _isGenerating.value = true
             _generatingLabel.value = "Generating image, please wait…"
             try {
-                val bytes = pollinationsImageRepository.generateImage(prompt)
-                val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
-                val markdown = "![Generated image](data:image/png;base64,$base64)"
+                val (base64, markdown) = withContext(Dispatchers.IO) {
+                    val bytes = pollinationsImageRepository.generateImage(prompt)
+                    val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                    val markdown = "![Generated image](data:image/png;base64,$base64)"
+                    base64 to markdown
+                }
                 chatMessageDao.insertMessage(
                     ChatMessage(content = markdown, isUser = false, modelUsed = IMAGE_PROVIDER_LABEL)
                 )
@@ -435,9 +440,12 @@ class HomeViewModel @Inject constructor(
 
             _isGenerating.value = true
             try {
-                val bytes = pollinationsImageRepository.generateImage(prompt.trim())
-                val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
-                val markdown = "![Generated image](data:image/png;base64,$base64)"
+                val (base64, markdown) = withContext(Dispatchers.IO) {
+                    val bytes = pollinationsImageRepository.generateImage(prompt.trim())
+                    val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                    val markdown = "![Generated image](data:image/png;base64,$base64)"
+                    base64 to markdown
+                }
                 chatMessageDao.insertMessage(
                     ChatMessage(content = markdown, isUser = false, modelUsed = providerLabel)
                 )

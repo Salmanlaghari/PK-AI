@@ -1,6 +1,5 @@
 package com.salmanlaghari.pkai.data.repository
 
-import okhttp3.OkHttpClient
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
@@ -12,7 +11,7 @@ class PollinationsImageRepositoryTest {
 
     @Before
     fun setUp() {
-        repo = PollinationsImageRepository(OkHttpClient.Builder().build())
+        repo = PollinationsImageRepository()
     }
 
     @Test

@@ -101,7 +101,7 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun providePollinationsImageRepository(okHttpClient: OkHttpClient): com.salmanlaghari.pkai.data.repository.PollinationsImageRepository {
-        return com.salmanlaghari.pkai.data.repository.PollinationsImageRepository(okHttpClient)
+    fun providePollinationsImageRepository(): com.salmanlaghari.pkai.data.repository.PollinationsImageRepository {
+        return com.salmanlaghari.pkai.data.repository.PollinationsImageRepository()
     }
 }

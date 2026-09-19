@@ -84,9 +84,9 @@ class SuperChatFragment : Fragment() {
         binding.btnBack.setOnClickListener { findNavController().popBackStack() }
         binding.navBackToChat.setOnClickListener { findNavController().popBackStack() }
         binding.btnSuperSend.setOnClickListener { onSendClicked() }
-        binding.chipDola.setOnClickListener {
-            viewModel.toggleDolaMode()
-            val state = if (viewModel.isDolaMode.value) "Dola.ai Calendar Assistant Active" else "Dola.ai Mode Paused"
+        binding.chipPkAi.setOnClickListener {
+            viewModel.togglePkAiMode()
+            val state = if (viewModel.isPkAiMode.value) "PK AI Calendar Assistant Active" else "PK AI Mode Paused"
             Toast.makeText(requireContext(), state, Toast.LENGTH_SHORT).show()
         }
         binding.etSuperChatInput.setOnEditorActionListener { _, actionId, _ ->
@@ -124,13 +124,13 @@ class SuperChatFragment : Fragment() {
                     }
                 }
                 launch {
-                    viewModel.isDolaMode.collect { active ->
-                        binding.chipDola.setBackgroundResource(
-                            if (active) R.drawable.bg_dola_badge_active else R.drawable.bg_dola_badge_inactive
+                    viewModel.isPkAiMode.collect { active ->
+                        binding.chipPkAi.setBackgroundResource(
+                            if (active) R.drawable.bg_pkai_badge_active else R.drawable.bg_pkai_badge_inactive
                         )
-                        binding.chipDola.text = if (active) "✨ Dola.ai" else "Dola Off"
+                        binding.chipPkAi.text = if (active) "✨ PK AI" else "PK AI Off"
                         binding.etSuperChatInput.hint = if (active) {
-                            "Ask Dola AI to schedule, remind, or chat…"
+                            "Ask PK AI to schedule, remind, or chat…"
                         } else {
                             getString(R.string.superchat_hint)
                         }

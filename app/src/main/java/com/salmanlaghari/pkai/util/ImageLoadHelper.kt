@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Log
 import android.widget.ImageView
+import com.salmanlaghari.pkai.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -37,13 +38,13 @@ object ImageLoadHelper {
         onError: (() -> Unit)? = null
     ) {
         // Cancel any in-flight load bound to this view.
-        (imageView.getTag(LOAD_TAG) as? Job)?.cancel()
-        imageView.setTag(LOAD_TAG, null)
+        (imageView.getTag(R.id.tag_image_load_job) as? Job)?.cancel()
+        imageView.setTag(R.id.tag_image_load_job, null)
 
         val job = scope.launch {
             val bitmap = runCatching { decode(context, source) }.getOrNull()
             withContext(Dispatchers.Main) {
-                imageView.setTag(LOAD_TAG, null)
+                imageView.setTag(R.id.tag_image_load_job, null)
                 if (bitmap == null) {
                     onError?.invoke()
                     return@withContext
@@ -54,7 +55,7 @@ object ImageLoadHelper {
                 }
             }
         }
-        imageView.setTag(LOAD_TAG, job)
+        imageView.setTag(R.id.tag_image_load_job, job)
     }
 
     private fun decode(context: Context, source: String): Bitmap? {
@@ -136,6 +137,4 @@ object ImageLoadHelper {
         }
         return connection.inputStream.use { BitmapFactory.decodeStream(it) }
     }
-
-    private const val LOAD_TAG = 0x0101_0001
 }

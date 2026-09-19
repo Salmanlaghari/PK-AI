@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <item name="tag_sticker_motion" type="id" />
+    <item name="tag_image_load_job" type="id" />
 </resources>

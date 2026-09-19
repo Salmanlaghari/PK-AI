@@ -16,10 +16,15 @@ import com.salmanlaghari.pkai.data.repository.CodeExecutionResult
 import com.salmanlaghari.pkai.data.repository.CodeRunnerRepository
 import com.salmanlaghari.pkai.data.repository.PollinationsImageRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
+import java.io.File
+import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -31,6 +36,7 @@ import android.util.Base64
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val appRepository: AppRepository,
     private val authRepository: AuthRepository,
     private val chatMessageDao: ChatMessageDao,
@@ -43,6 +49,7 @@ class HomeViewModel @Inject constructor(
     /** Hugging Face text-to-image model used by the dedicated Image Generation tab. */
     private companion object {
         const val IMAGE_PROVIDER_LABEL = "PK AI Image"
+        const val TAG = "HomeViewModel"
     }
 
     private val _isFreeMode = MutableStateFlow(false)
@@ -52,21 +59,25 @@ class HomeViewModel @Inject constructor(
     val isImageMode: StateFlow<Boolean> = _isImageMode.asStateFlow()
 
     val chatMessages: StateFlow<List<ChatMessage>> = chatMessageDao.getAllMessagesFlow()
-        .combine(_isFreeMode) { messages, freeMode ->
-            // Free-tier messages are tagged with a "Free…" label so the two tabs keep
-            // separate conversations (legacy "Free Public AI" history still matches).
-            if (freeMode) {
-                messages.filter { FreeAiModel.isFreeLabel(it.modelUsed) }
-            } else {
-                messages.filter { !FreeAiModel.isFreeLabel(it.modelUsed) }
-            }
+        .catch { e ->
+            Log.e(TAG, "Failed reading chat messages from database", e)
+            emit(emptyList())
         }
         .combine(_isImageMode) { messages, imageMode ->
-            if (imageMode) {
-                // Image tab keeps its own thread: any message labelled with the image
-                // provider (prompts + generated pictures) belongs here.
-                messages.filter { it.modelUsed == IMAGE_PROVIDER_LABEL || it.content.startsWith("🖼 Generate image:") }
-            } else messages
+            imageMode to messages
+        }
+        .combine(_isFreeMode) { (imageMode, messages), freeMode ->
+            when {
+                imageMode -> messages.filter {
+                    it.modelUsed == IMAGE_PROVIDER_LABEL || it.content.startsWith("🖼 Generate image:")
+                }
+                freeMode -> messages.filter {
+                    FreeAiModel.isFreeLabel(it.modelUsed) && it.modelUsed != IMAGE_PROVIDER_LABEL && !it.content.startsWith("🖼 Generate image:")
+                }
+                else -> messages.filter {
+                    !FreeAiModel.isFreeLabel(it.modelUsed) && it.modelUsed != IMAGE_PROVIDER_LABEL && !it.content.startsWith("🖼 Generate image:")
+                }
+            }
         }
         .stateIn(
             scope = viewModelScope,
@@ -131,6 +142,32 @@ class HomeViewModel @Inject constructor(
         }
         viewModelScope.launch {
             preferencesManager.selectedFreeModelId.collect { _selectedFreeModelId.value = it }
+        }
+        sanitizeOldBase64Messages()
+    }
+
+    private fun sanitizeOldBase64Messages() {
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching {
+                val all = chatMessageDao.getAllMessages()
+                val imagesDir = File(context.filesDir, "generated_images").apply { mkdirs() }
+                for (msg in all) {
+                    if (msg.content.contains("data:image/") && msg.content.contains(";base64,")) {
+                        val startIndex = msg.content.indexOf(";base64,") + 8
+                        val endIndex = msg.content.indexOf(")", startIndex).takeIf { it > 0 } ?: msg.content.length
+                        val b64 = msg.content.substring(startIndex, endIndex).trim()
+                        val bytes = runCatching { Base64.decode(b64, Base64.DEFAULT) }.getOrNull()
+                        if (bytes != null && bytes.isNotEmpty()) {
+                            val file = File(imagesDir, "migrated_${msg.id.take(8)}.jpg")
+                            file.writeBytes(bytes)
+                            val newContent = "![Generated image](file://${file.absolutePath})"
+                            chatMessageDao.insertMessage(msg.copy(content = newContent))
+                        } else {
+                            chatMessageDao.insertMessage(msg.copy(content = "🖼 [Generated image]"))
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -396,16 +433,18 @@ class HomeViewModel @Inject constructor(
             _isGenerating.value = true
             _generatingLabel.value = "Generating image, please wait…"
             try {
-                val (base64, markdown) = withContext(Dispatchers.IO) {
+                val markdown = withContext(Dispatchers.IO) {
                     val bytes = pollinationsImageRepository.generateImage(prompt)
-                    val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
-                    val markdown = "![Generated image](data:image/png;base64,$base64)"
-                    base64 to markdown
+                    val imagesDir = File(context.filesDir, "generated_images").apply { mkdirs() }
+                    val imageFile = File(imagesDir, "img_${System.currentTimeMillis()}.jpg")
+                    imageFile.writeBytes(bytes)
+                    "![Generated image](file://${imageFile.absolutePath})"
                 }
                 chatMessageDao.insertMessage(
                     ChatMessage(content = markdown, isUser = false, modelUsed = IMAGE_PROVIDER_LABEL)
                 )
             } catch (e: Exception) {
+                Log.e(TAG, "Error generating image", e)
                 chatMessageDao.insertMessage(
                     ChatMessage(
                         content = "🖼 I couldn't generate that image (${e.localizedMessage ?: "unknown error"}). " +
@@ -423,7 +462,7 @@ class HomeViewModel @Inject constructor(
 
     /**
      * Generates a real image via Pollinations' key-less image endpoint (Free AI tab only).
-     * The resulting PNG is embedded as a base64 markdown image so the chat renders it inline.
+     * The resulting PNG is stored in internal storage so the chat renders it inline safely.
      */
     fun generateImage(prompt: String) {
         if (prompt.trim().isEmpty()) return
@@ -440,16 +479,18 @@ class HomeViewModel @Inject constructor(
 
             _isGenerating.value = true
             try {
-                val (base64, markdown) = withContext(Dispatchers.IO) {
+                val markdown = withContext(Dispatchers.IO) {
                     val bytes = pollinationsImageRepository.generateImage(prompt.trim())
-                    val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
-                    val markdown = "![Generated image](data:image/png;base64,$base64)"
-                    base64 to markdown
+                    val imagesDir = File(context.filesDir, "generated_images").apply { mkdirs() }
+                    val imageFile = File(imagesDir, "img_${System.currentTimeMillis()}.jpg")
+                    imageFile.writeBytes(bytes)
+                    "![Generated image](file://${imageFile.absolutePath})"
                 }
                 chatMessageDao.insertMessage(
                     ChatMessage(content = markdown, isUser = false, modelUsed = providerLabel)
                 )
             } catch (e: Exception) {
+                Log.e(TAG, "Error generating free image", e)
                 chatMessageDao.insertMessage(
                     ChatMessage(
                         content = "🖼 I couldn't generate that image (${e.localizedMessage ?: "unknown error"}). " +

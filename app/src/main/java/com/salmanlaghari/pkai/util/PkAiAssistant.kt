@@ -5,15 +5,15 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Dola AI (dola.ai) Smart Calendar, Scheduling & Executive Assistant Engine.
+ * PK AI Smart Calendar, Scheduling & Executive Assistant Engine.
  * Integrated safely and securely into PK AI Super Chat.
  */
-object DolaAiAssistant {
+object PkAiAssistant {
 
-    const val DOLA_LABEL = "Dola.ai Calendar Assistant"
+    const val PK_AI_LABEL = "PK AI Calendar Assistant"
 
     const val SYSTEM_INSTRUCTION =
-        "You are Dola AI (dola.ai), an intelligent AI calendar and personal assistant in PK AI Super Chat. " +
+        "You are PK AI, an intelligent AI calendar and personal assistant in PK AI Super Chat. " +
         "You help users manage schedules, organize events, set smart reminders, and plan their day with clear, friendly, and structured responses. " +
         "Use formatting and emojis where appropriate."
 
@@ -29,16 +29,16 @@ object DolaAiAssistant {
     }
 
     /**
-     * Prepares an enriched prompt for the LLM that maintains the Dola.ai persona.
+     * Prepares an enriched prompt for the LLM that maintains the PK AI persona.
      */
-    fun buildDolaPrompt(userMessage: String): String {
+    fun buildPkAiPrompt(userMessage: String): String {
         return "$SYSTEM_INSTRUCTION\n\nUser request: $userMessage"
     }
 
     /**
-     * Generates a structured Dola.ai smart schedule response when offline or as a fallback.
+     * Generates a structured PK AI smart schedule response when offline or as a fallback.
      */
-    fun formatDolaSmartPlan(input: String): String {
+    fun formatPkAiSmartPlan(input: String): String {
         val dateFormat = SimpleDateFormat("EEEE, MMM d, yyyy", Locale.getDefault())
         val timeFormat = SimpleDateFormat("h:mm a", Locale.getDefault())
         val currentDate = dateFormat.format(Date())
@@ -51,15 +51,15 @@ object DolaAiAssistant {
             .ifBlank { "Smart Scheduled Task" }
 
         return buildString {
-            appendLine("✨ **Dola.ai Smart Calendar & Planner**")
+            appendLine("✨ **PK AI Smart Calendar & Planner**")
             appendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
             appendLine("📌 **Event:** $cleanTitle")
             appendLine("📅 **Date:** $currentDate")
             appendLine("⏰ **Time Slot:** $currentTime")
             appendLine("🔔 **Notification:** 15 minutes before event")
-            appendLine("📋 **Status:** Confirmed & Synced in Dola.ai")
+            appendLine("📋 **Status:** Confirmed & Synced in PK AI")
             appendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-            appendLine("💡 *Tip: You can ask Dola.ai to adjust the time, add attendees, or create daily habits anytime!*")
+            appendLine("💡 *Tip: You can ask PK AI to adjust the time, add attendees, or create daily habits anytime!*")
         }
     }
 }

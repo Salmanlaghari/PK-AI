@@ -60,15 +60,15 @@
         </LinearLayout>
 
         <TextView
-            android:id="@+id/chipDola"
+            android:id="@+id/chipPkAi"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginEnd="6dp"
-            android:background="@drawable/bg_dola_badge_active"
+            android:background="@drawable/bg_pkai_badge_active"
             android:clickable="true"
             android:focusable="true"
             android:fontFamily="@font/poppins"
-            android:text="✨ Dola.ai"
+            android:text="✨ PK AI"
             android:textColor="#FFFFFF"
             android:textSize="11sp"
             android:textStyle="bold" />

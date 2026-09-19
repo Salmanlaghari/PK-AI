@@ -41,13 +41,12 @@ class PollinationsImageRepository @Inject constructor() {
         var attempt = 0
         var backoffMs = INITIAL_BACKOFF_MS
         var lastError: String? = null
-        val modelsToTry = listOf("flux", "turbo", "")
+        val modelsToTry = listOf("flux")
 
         while (attempt < MAX_ATTEMPTS) {
-            val currentModel = modelsToTry.getOrElse(attempt) { "turbo" }
             attempt++
             try {
-                val url = buildImageUrl(prompt, model = currentModel)
+                val url = buildImageUrl(prompt, model = "flux")
                 val request = Request.Builder().url(url).get().build()
                 val response = okHttpClient.newCall(request).execute()
                 response.use { resp ->
@@ -57,9 +56,16 @@ class PollinationsImageRepository @Inject constructor() {
                         lastError = "The image service returned an empty image."
                     } else {
                         lastError = "Image request failed (HTTP ${resp.code})."
+                        if (resp.code == 402) {
+                            throw IllegalStateException("This image model requires Pollen credits. Please try again later or contact support.")
+                        }
+                        if (resp.code !in 500..599) {
+                            throw IllegalStateException(lastError)
+                        }
                     }
                 }
             } catch (e: Exception) {
+                if (e is IllegalStateException) throw e
                 val errorType = when (e) {
                     is SocketTimeoutException -> "SocketTimeoutException"
                     is UnknownHostException -> "UnknownHostException"

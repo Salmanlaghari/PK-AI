@@ -9,19 +9,30 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class CrashHandler @Inject constructor(
-    private val crashDiagnosticsManager: CrashDiagnosticsManager
+class CrashHandler private constructor(
+    private val crashDiagnosticsManager: CrashDiagnosticsManager?
 ) : Thread.UncaughtExceptionHandler {
 
     companion object {
         private const val TAG = "CrashHandler"
         private var defaultHandler: Thread.UncaughtExceptionHandler? = null
+        private var isInitialized = false
 
-        fun initialize(crashDiagnosticsManager: CrashDiagnosticsManager) {
-            defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
-            Thread.setDefaultUncaughtExceptionHandler(
-                CrashHandler(crashDiagnosticsManager)
-            )
+        fun initialize(crashDiagnosticsManager: CrashDiagnosticsManager?) {
+            if (isInitialized) {
+                Log.w(TAG, "CrashHandler already initialized, skipping")
+                return
+            }
+            try {
+                defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
+                Thread.setDefaultUncaughtExceptionHandler(
+                    CrashHandler(crashDiagnosticsManager)
+                )
+                isInitialized = true
+                Log.i(TAG, "CrashHandler initialized successfully")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to initialize CrashHandler", e)
+            }
         }
     }
 
@@ -47,8 +58,20 @@ class CrashHandler @Inject constructor(
 
         Log.e(TAG, "Uncaught exception captured:\n$log")
 
-        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-            crashDiagnosticsManager.saveCrashLog(log)
+        try {
+            if (crashDiagnosticsManager != null) {
+                CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+                    try {
+                        crashDiagnosticsManager.saveCrashLog(log)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to save crash log", e)
+                    }
+                }
+            } else {
+                Log.w(TAG, "CrashDiagnosticsManager is null, skipping crash log save")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in crash handler", e)
         }
 
         defaultHandler?.uncaughtException(thread, exception)

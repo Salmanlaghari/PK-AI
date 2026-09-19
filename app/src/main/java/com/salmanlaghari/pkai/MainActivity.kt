@@ -15,7 +15,6 @@ import com.salmanlaghari.pkai.R
 import com.salmanlaghari.pkai.data.local.datastore.PreferencesManager
 import com.salmanlaghari.pkai.data.repository.AuthRepository
 import com.salmanlaghari.pkai.databinding.ActivityMainBinding
-import com.salmanlaghari.pkai.util.CrashDiagnosticsManager
 import com.salmanlaghari.pkai.util.CrashHandler
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -34,9 +33,6 @@ class MainActivity : AppCompatActivity() {
     @Inject
     lateinit var authRepository: AuthRepository
 
-    @Inject
-    lateinit var crashDiagnosticsManager: CrashDiagnosticsManager
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -47,7 +43,7 @@ class MainActivity : AppCompatActivity() {
         // Install global crash handler after app startup completes.
         // This avoids any startup-time Hilt/DataStore initialization race.
         try {
-            CrashHandler.initialize(crashDiagnosticsManager)
+            CrashHandler.initialize(this)
         } catch (e: Throwable) {
             android.util.Log.e("MainActivity", "Failed to install CrashHandler", e)
         }

@@ -223,21 +223,31 @@ class HomeFragment : Fragment() {
         binding.btnTabFree.setTextColor(resources.getColor(if (isFree) activeText else idleText, null))
     }
 
-    /** Updates the Chat / Image segmented control to match the current mode. */
+    /** Updates the Chat / Image segmented control to match the current mode with stylish 8K HD styling. */
     private fun updateImageModeToggle() {
         val isImage = viewModel.isImageMode.value
         binding.layoutImageModeToggle.visibility = View.VISIBLE
 
-        val selectedBg = R.drawable.bg_pill_chip_selected
-        val transparent = android.R.color.transparent
-        val activeText = R.color.white
-        val idleText = R.color.outline
+        val activeText = ContextCompat.getColor(requireContext(), R.color.white)
+        val idleText = ContextCompat.getColor(requireContext(), R.color.outline)
 
-        binding.btnTabChat.setBackgroundResource(if (!isImage) selectedBg else transparent)
-        binding.btnTabChat.setTextColor(resources.getColor(if (!isImage) activeText else idleText, null))
+        if (!isImage) {
+            binding.btnTabChat.setBackgroundResource(R.drawable.bg_mode_button_chat_active)
+            binding.tvTabChatTitle.setTextColor(activeText)
+            binding.tvTabChatTitle.setTypeface(null, android.graphics.Typeface.BOLD)
 
-        binding.btnTabImage.setBackgroundResource(if (isImage) selectedBg else transparent)
-        binding.btnTabImage.setTextColor(resources.getColor(if (isImage) activeText else idleText, null))
+            binding.btnTabImage.setBackgroundResource(R.drawable.bg_mode_button_inactive)
+            binding.tvTabImageTitle.setTextColor(idleText)
+            binding.tvTabImageTitle.setTypeface(null, android.graphics.Typeface.NORMAL)
+        } else {
+            binding.btnTabChat.setBackgroundResource(R.drawable.bg_mode_button_inactive)
+            binding.tvTabChatTitle.setTextColor(idleText)
+            binding.tvTabChatTitle.setTypeface(null, android.graphics.Typeface.NORMAL)
+
+            binding.btnTabImage.setBackgroundResource(R.drawable.bg_mode_button_image_active)
+            binding.tvTabImageTitle.setTextColor(activeText)
+            binding.tvTabImageTitle.setTypeface(null, android.graphics.Typeface.BOLD)
+        }
     }
 
     private fun onSendClicked() {

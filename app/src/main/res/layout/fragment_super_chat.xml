@@ -60,6 +60,20 @@
         </LinearLayout>
 
         <TextView
+            android:id="@+id/chipDola"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="6dp"
+            android:background="@drawable/bg_dola_badge_active"
+            android:clickable="true"
+            android:focusable="true"
+            android:fontFamily="@font/poppins"
+            android:text="✨ Dola.ai"
+            android:textColor="#FFFFFF"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <TextView
             android:id="@+id/chipPro"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

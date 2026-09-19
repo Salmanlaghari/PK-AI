@@ -2,6 +2,7 @@ package com.salmanlaghari.pkai.util
 
 import android.content.Context
 import android.util.Log
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -22,12 +23,13 @@ class CrashDiagnosticsManager @Inject constructor(
         private val CRASH_LOG_KEY = stringPreferencesKey("crash_log")
         private val CRASH_TIMESTAMP_KEY = stringPreferencesKey("crash_timestamp")
         private const val TAG = "CrashDiagnosticsManager"
+        private val EMPTY_PREFERENCES = Preferences.emptyPreferences()
     }
 
     val crashLog: Flow<String?> = context.crashDataStore.data
         .catch { e ->
             Log.e(TAG, "Error reading crash log from DataStore", e)
-            emit(androidx.datastore.preferences.core.Preferences.emptyPreferences())
+            emit(EMPTY_PREFERENCES)
         }
         .map { preferences ->
             preferences[CRASH_LOG_KEY]
@@ -36,7 +38,7 @@ class CrashDiagnosticsManager @Inject constructor(
     val crashTimestamp: Flow<String?> = context.crashDataStore.data
         .catch { e ->
             Log.e(TAG, "Error reading crash timestamp from DataStore", e)
-            emit(androidx.datastore.preferences.core.Preferences.emptyPreferences())
+            emit(EMPTY_PREFERENCES)
         }
         .map { preferences ->
             preferences[CRASH_TIMESTAMP_KEY]

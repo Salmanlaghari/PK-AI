@@ -9,8 +9,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class CrashHandler @Inject constructor(
-    private val crashDiagnosticsManager: CrashDiagnosticsManager
+class CrashHandler private constructor(
+    private val crashDiagnosticsManager: CrashDiagnosticsManager?
 ) : Thread.UncaughtExceptionHandler {
 
     companion object {

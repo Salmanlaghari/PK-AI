@@ -38,22 +38,31 @@ object AdManager {
     const val PROD_APP_OPEN_ID = "ca-app-pub-8178045957849630/1244626412"
 
     fun isEmulator(): Boolean {
-        return (android.os.Build.BRAND.startsWith("generic") && android.os.Build.DEVICE.startsWith("generic"))
-                || android.os.Build.FINGERPRINT.startsWith("generic")
-                || android.os.Build.FINGERPRINT.startsWith("unknown")
-                || android.os.Build.HARDWARE.contains("goldfish")
-                || android.os.Build.HARDWARE.contains("ranchu")
-                || android.os.Build.MODEL.contains("google_sdk")
-                || android.os.Build.MODEL.contains("Emulator")
-                || android.os.Build.MODEL.contains("Android SDK built for x86")
-                || android.os.Build.MANUFACTURER.contains("Genymotion")
-                || android.os.Build.PRODUCT.contains("sdk_google")
-                || android.os.Build.PRODUCT.contains("google_sdk")
-                || android.os.Build.PRODUCT.contains("sdk")
-                || android.os.Build.PRODUCT.contains("sdk_x86")
-                || android.os.Build.PRODUCT.contains("vbox86p")
-                || android.os.Build.PRODUCT.contains("emulator")
-                || android.os.Build.PRODUCT.contains("simulator")
+        val brand = android.os.Build.BRAND.lowercase()
+        val device = android.os.Build.DEVICE.lowercase()
+        val fingerprint = android.os.Build.FINGERPRINT.lowercase()
+        val hardware = android.os.Build.HARDWARE.lowercase()
+        val model = android.os.Build.MODEL.lowercase()
+        val manufacturer = android.os.Build.MANUFACTURER.lowercase()
+        val product = android.os.Build.PRODUCT.lowercase()
+        val board = android.os.Build.BOARD.lowercase()
+
+        return fingerprint.startsWith("generic")
+                || fingerprint.startsWith("unknown")
+                || model.contains("google_sdk")
+                || model.contains("emulator")
+                || model.contains("android sdk built for")
+                || model.contains("sdk")
+                || hardware.contains("goldfish")
+                || hardware.contains("ranchu")
+                || manufacturer.contains("genymotion")
+                || brand.contains("generic")
+                || device.contains("generic")
+                || product.contains("sdk")
+                || product.contains("emulator")
+                || product.contains("simulator")
+                || board.contains("goldfish")
+                || board.contains("ranchu")
     }
 
     val isTestMode: Boolean
@@ -165,6 +174,10 @@ object AdManager {
     // ========================
 
     fun loadRewarded(context: Context) {
+        if (isTestMode) {
+            Log.d(TAG, "Skipping Rewarded ad video loading in test/emulator mode to avoid Codec2 bufferpool and player errors")
+            return
+        }
         try {
             RewardedAd.load(context, REWARDED_UNLOCK_ID, AdRequest.Builder().build(),
                 object : RewardedAdLoadCallback() {
@@ -184,6 +197,12 @@ object AdManager {
     }
 
     fun showRewarded(activity: Activity, onRewarded: (() -> Unit)? = null, onDismissed: (() -> Unit)? = null) {
+        if (isTestMode) {
+            Log.d(TAG, "Test/emulator mode: auto-granting reward")
+            onRewarded?.invoke()
+            onDismissed?.invoke()
+            return
+        }
         val ad = rewardedAd
         if (ad != null) {
             ad.fullScreenContentCallback = object : FullScreenContentCallback() {
@@ -207,15 +226,15 @@ object AdManager {
         }
     }
 
-    fun isRewardedReady(): Boolean = rewardedAd != null
+    fun isRewardedReady(): Boolean = if (isTestMode) true else rewardedAd != null
 
     // ========================
     // APP OPEN AD
     // ========================
 
     fun loadAppOpenAd(context: Context) {
-        if (isEmulator()) {
-            Log.d(TAG, "Skipping App Open ad on emulator to avoid video decoding errors")
+        if (isTestMode) {
+            Log.d(TAG, "Skipping App Open ad in test/emulator mode to avoid video decoding errors")
             return
         }
         try {
@@ -237,7 +256,7 @@ object AdManager {
     }
 
     fun showAppOpenAdIfAvailable(activity: Activity) {
-        if (isEmulator() || isAppOpenAdShowing) return
+        if (isTestMode || isAppOpenAdShowing) return
         val currentTime = System.currentTimeMillis()
         if (lastAppOpenShowTime > 0 && (currentTime - lastAppOpenShowTime) < MIN_APP_OPEN_INTERVAL_MS) {
             return

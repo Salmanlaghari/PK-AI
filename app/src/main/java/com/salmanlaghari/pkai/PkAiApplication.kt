@@ -32,15 +32,21 @@ class PkAiApplication : Application(), Application.ActivityLifecycleCallbacks {
             Log.e("PkAiApplication", "Failed to install CrashHandler", e)
         }
 
-        // Initialize AdMob SDK safely
+        // Initialize AdMob SDK safely on background thread
         try {
-            AdManager.initialize(this)
-            if (!AdManager.isTestMode) {
-                AdManager.loadAppOpenAd(this)
-                AdManager.loadRewarded(this)
-            }
+            Thread {
+                try {
+                    AdManager.initialize(this)
+                    if (!AdManager.isTestMode) {
+                        AdManager.loadAppOpenAd(this)
+                        AdManager.loadRewarded(this)
+                    }
+                } catch (e: Throwable) {
+                    Log.w("PkAiApplication", "Failed to initialize AdManager in background", e)
+                }
+            }.start()
         } catch (e: Throwable) {
-            Log.w("PkAiApplication", "Failed to initialize AdManager", e)
+            Log.w("PkAiApplication", "Failed to start AdManager init thread", e)
         }
 
         registerActivityLifecycleCallbacks(this)

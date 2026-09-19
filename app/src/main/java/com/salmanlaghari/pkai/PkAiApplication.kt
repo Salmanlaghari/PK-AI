@@ -35,8 +35,10 @@ class PkAiApplication : Application(), Application.ActivityLifecycleCallbacks {
         // Initialize AdMob SDK safely
         try {
             AdManager.initialize(this)
-            AdManager.loadAppOpenAd(this)
-            AdManager.loadRewarded(this)
+            if (!AdManager.isTestMode) {
+                AdManager.loadAppOpenAd(this)
+                AdManager.loadRewarded(this)
+            }
         } catch (e: Throwable) {
             Log.w("PkAiApplication", "Failed to initialize AdManager", e)
         }
@@ -51,10 +53,12 @@ class PkAiApplication : Application(), Application.ActivityLifecycleCallbacks {
         currentActivity = activity
 
         // Show App Open Ad when app comes to foreground safely
-        try {
-            AdManager.showAppOpenAdIfAvailable(activity)
-        } catch (e: Throwable) {
-            Log.w("PkAiApplication", "Failed to show App Open Ad", e)
+        if (!AdManager.isTestMode) {
+            try {
+                AdManager.showAppOpenAdIfAvailable(activity)
+            } catch (e: Throwable) {
+                Log.w("PkAiApplication", "Failed to show App Open Ad", e)
+            }
         }
     }
 

@@ -84,6 +84,11 @@ class SuperChatFragment : Fragment() {
         binding.btnBack.setOnClickListener { findNavController().popBackStack() }
         binding.navBackToChat.setOnClickListener { findNavController().popBackStack() }
         binding.btnSuperSend.setOnClickListener { onSendClicked() }
+        binding.chipPkAi.setOnClickListener {
+            viewModel.togglePkAiMode()
+            val state = if (viewModel.isPkAiMode.value) "PK AI Calendar Assistant Active" else "PK AI Mode Paused"
+            Toast.makeText(requireContext(), state, Toast.LENGTH_SHORT).show()
+        }
         binding.etSuperChatInput.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEND) {
                 onSendClicked(); true
@@ -116,6 +121,19 @@ class SuperChatFragment : Fragment() {
                 launch {
                     viewModel.isGenerating.collect { generating ->
                         binding.btnSuperSend.isEnabled = !generating
+                    }
+                }
+                launch {
+                    viewModel.isPkAiMode.collect { active ->
+                        binding.chipPkAi.setBackgroundResource(
+                            if (active) R.drawable.bg_pkai_badge_active else R.drawable.bg_pkai_badge_inactive
+                        )
+                        binding.chipPkAi.text = if (active) "✨ PK AI" else "PK AI Off"
+                        binding.etSuperChatInput.hint = if (active) {
+                            "Ask PK AI to schedule, remind, or chat…"
+                        } else {
+                            getString(R.string.superchat_hint)
+                        }
                     }
                 }
                 launch {

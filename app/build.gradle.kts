@@ -129,6 +129,12 @@ android {
             // Let JVM unit tests call framework stubs (e.g. android.util.Log used by the
             // provider debug logging) instead of throwing "not mocked".
             isReturnDefaultValues = true
+            all {
+                (this as? org.gradle.api.tasks.testing.Test)?.jvmArgs(
+                    "-Djdk.attach.allowAttachSelf=true",
+                    "-XX:+EnableDynamicAgentLoading"
+                )
+            }
         }
     }
 }

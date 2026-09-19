@@ -38,4 +38,20 @@ class MarkdownImageParserTest {
         val parsed = MarkdownImageParser.parse(content)
         assertEquals(2, parsed.images.size)
     }
+
+    @Test
+    fun `strips file uri image markdown`() {
+        val content = "Here is the image:\n![Generated image](file:///data/user/0/com.salmanlaghari.pkai/files/img_123.jpg)"
+        val parsed = MarkdownImageParser.parse(content)
+        assertEquals(1, parsed.images.size)
+        assertEquals("file:///data/user/0/com.salmanlaghari.pkai/files/img_123.jpg", parsed.images[0].source)
+        assertEquals("Here is the image:", parsed.text.trim())
+    }
+
+    @Test
+    fun `handles malformed and empty image tags without crashing`() {
+        val content = "![broken]() and ![]() and ![no close(http://foo.com"
+        val parsed = MarkdownImageParser.parse(content)
+        assertEquals(0, parsed.images.size)
+    }
 }

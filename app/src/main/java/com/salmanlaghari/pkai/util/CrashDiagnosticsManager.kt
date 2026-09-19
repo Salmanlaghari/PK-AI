@@ -22,8 +22,6 @@ class CrashDiagnosticsManager @Inject constructor(
         private const val TAG = "CrashDiagnosticsManager"
     }
 
-    constructor(context: Context) : this(context.applicationContext)
-
     val crashLog: Flow<String?> = context.crashDataStore.data.map { preferences ->
         preferences[CRASH_LOG_KEY]
     }

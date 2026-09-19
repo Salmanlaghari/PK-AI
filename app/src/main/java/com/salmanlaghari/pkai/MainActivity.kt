@@ -34,6 +34,9 @@ class MainActivity : AppCompatActivity() {
     @Inject
     lateinit var authRepository: AuthRepository
 
+    @Inject
+    lateinit var crashDiagnosticsManager: CrashDiagnosticsManager
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -44,7 +47,6 @@ class MainActivity : AppCompatActivity() {
         // Install global crash handler after app startup completes.
         // This avoids any startup-time Hilt/DataStore initialization race.
         try {
-            val crashDiagnosticsManager = CrashDiagnosticsManager(this)
             CrashHandler.initialize(crashDiagnosticsManager)
         } catch (e: Throwable) {
             android.util.Log.e("MainActivity", "Failed to install CrashHandler", e)

@@ -43,6 +43,11 @@
             android:name="com.google.android.gms.ads.flag.OPTIMIZE_AD_LOADING"
             android:value="true" />
 
+        <property
+            android:name="android.adservices.AD_SERVICES_CONFIG"
+            tools:replace="android:resource"
+            android:resource="@xml/gma_ad_services_config" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

@@ -17,26 +17,60 @@ object MarkdownImageParser {
     data class ParsedContent(val text: String, val images: List<MarkdownImage>)
 
     fun parse(content: String): ParsedContent {
-        val images = IMAGE_PATTERN.findAll(content).mapNotNull { match ->
-            val source = match.groupValues[2].trim()
-            if (source.isBlank() || !isSupportedSource(source)) return@mapNotNull null
-            MarkdownImage(alt = match.groupValues[1].trim(), source = source)
-        }.toList()
-
-        // Remove every matched image markdown span from the visible text.
-        val text = if (images.isEmpty()) {
-            content
-        } else {
-            IMAGE_PATTERN.replace(content) { "" }.trim()
+        if (!content.contains("![")) {
+            return ParsedContent(text = content, images = emptyList())
         }
 
-        return ParsedContent(text = text, images = images)
+        val images = mutableListOf<MarkdownImage>()
+        val textBuilder = StringBuilder()
+        var cursor = 0
+
+        while (cursor < content.length) {
+            val startIdx = content.indexOf("![", cursor)
+            if (startIdx < 0) {
+                textBuilder.append(content.substring(cursor))
+                break
+            }
+
+            val altEndIdx = content.indexOf("](", startIdx + 2)
+            if (altEndIdx < 0) {
+                textBuilder.append(content.substring(cursor))
+                break
+            }
+
+            val sourceEndIdx = content.indexOf(")", altEndIdx + 2)
+            if (sourceEndIdx < 0) {
+                textBuilder.append(content.substring(cursor))
+                break
+            }
+
+            // Append preceding text
+            if (startIdx > cursor) {
+                textBuilder.append(content.substring(cursor, startIdx))
+            }
+
+            val alt = content.substring(startIdx + 2, altEndIdx).trim()
+            val source = content.substring(altEndIdx + 2, sourceEndIdx).trim()
+
+            if (isSupportedSource(source)) {
+                images.add(MarkdownImage(alt = alt, source = source))
+            } else {
+                // If not a valid image source, preserve literal text
+                textBuilder.append(content.substring(startIdx, sourceEndIdx + 1))
+            }
+
+            cursor = sourceEndIdx + 1
+        }
+
+        return ParsedContent(text = textBuilder.toString().trim(), images = images)
     }
 
     private fun isSupportedSource(source: String): Boolean {
-        return source.startsWith("data:image/") ||
+        return source.startsWith("file://") ||
+            source.startsWith("/") ||
             source.startsWith("http://") ||
             source.startsWith("https://") ||
-            source.startsWith("content://")
+            source.startsWith("content://") ||
+            source.startsWith("data:image/")
     }
 }

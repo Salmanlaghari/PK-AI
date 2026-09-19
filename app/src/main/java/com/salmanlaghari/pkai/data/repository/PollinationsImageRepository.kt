@@ -22,41 +22,44 @@ class PollinationsImageRepository @Inject constructor() {
 
     private val okHttpClient: OkHttpClient = OkHttpClient.Builder()
         .addInterceptor(HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
+            level = HttpLoggingInterceptor.Level.HEADERS
         })
         .connectTimeout(TIMEOUT_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
         .readTimeout(TIMEOUT_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
         .build()
 
-    fun buildImageUrl(prompt: String, width: Int = DEFAULT_WIDTH, height: Int = DEFAULT_HEIGHT): String {
+    fun buildImageUrl(prompt: String, width: Int = DEFAULT_WIDTH, height: Int = DEFAULT_HEIGHT, model: String = "flux"): String {
         val encodedPrompt = java.net.URLEncoder.encode(prompt, "UTF-8")
-        return "https://image.pollinations.ai/prompt/$encodedPrompt" +
-                "?width=$width&height=$height&nologo=true&model=flux&enhance=true"
+        return if (model.isNotBlank()) {
+            "https://image.pollinations.ai/prompt/$encodedPrompt?width=$width&height=$height&nologo=true&model=$model&enhance=true"
+        } else {
+            "https://image.pollinations.ai/prompt/$encodedPrompt?width=$width&height=$height&nologo=true"
+        }
     }
 
     suspend fun generateImage(prompt: String): ByteArray = withContext(Dispatchers.IO) {
         var attempt = 0
         var backoffMs = INITIAL_BACKOFF_MS
         var lastError: String? = null
+        val modelsToTry = listOf("flux", "turbo", "")
 
         while (attempt < MAX_ATTEMPTS) {
+            val currentModel = modelsToTry.getOrElse(attempt) { "turbo" }
             attempt++
             try {
-                val url = buildImageUrl(prompt)
+                val url = buildImageUrl(prompt, model = currentModel)
                 val request = Request.Builder().url(url).get().build()
                 val response = okHttpClient.newCall(request).execute()
-                if (response.isSuccessful) {
-                    val bytes = response.body?.bytes()
-                    if (bytes != null && bytes.isNotEmpty()) return@withContext bytes
-                    lastError = "The image service returned an empty image."
-                } else {
-                    lastError = "Image request failed (HTTP ${response.code})."
-                    if (response.code != 429 && response.code !in 500..599) {
-                        throw IllegalStateException(lastError)
+                response.use { resp ->
+                    if (resp.isSuccessful) {
+                        val bytes = resp.body?.bytes()
+                        if (bytes != null && bytes.isNotEmpty()) return@withContext bytes
+                        lastError = "The image service returned an empty image."
+                    } else {
+                        lastError = "Image request failed (HTTP ${resp.code})."
                     }
                 }
             } catch (e: Exception) {
-                if (e is IllegalStateException) throw e
                 val errorType = when (e) {
                     is SocketTimeoutException -> "SocketTimeoutException"
                     is UnknownHostException -> "UnknownHostException"

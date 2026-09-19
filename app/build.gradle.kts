@@ -44,6 +44,7 @@ android {
         val hackerEarthClientId = System.getenv("HACKEREARTH_CLIENT_ID") ?: localProperties.getProperty("HACKEREARTH_CLIENT_ID") ?: ""
         val hackerEarthClientSecret = System.getenv("HACKEREARTH_CLIENT_SECRET") ?: localProperties.getProperty("HACKEREARTH_CLIENT_SECRET") ?: ""
         val codeRunnerProxyUrl = System.getenv("CODE_RUNNER_PROXY_URL") ?: localProperties.getProperty("CODE_RUNNER_PROXY_URL") ?: ""
+        val pollinationsApiKey = System.getenv("POLLINATIONS_API_KEY") ?: localProperties.getProperty("POLLINATIONS_API_KEY") ?: ""
 
         buildConfigField("String", "GROQ_API_KEY", "\"$groqApiKey\"")
         buildConfigField("String", "GROQ_MODEL", "\"$groqModel\"")
@@ -58,6 +59,7 @@ android {
         buildConfigField("String", "HACKEREARTH_CLIENT_ID", "\"$hackerEarthClientId\"")
         buildConfigField("String", "HACKEREARTH_CLIENT_SECRET", "\"$hackerEarthClientSecret\"")
         buildConfigField("String", "CODE_RUNNER_PROXY_URL", "\"$codeRunnerProxyUrl\"")
+        buildConfigField("String", "POLLINATIONS_API_KEY", "\"$pollinationsApiKey\"")
     }
 
     signingConfigs {

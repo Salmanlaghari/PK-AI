@@ -3,6 +3,7 @@ package com.salmanlaghari.pkai.data.repository
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.logging.HttpLoggingInterceptor
+import com.salmanlaghari.pkai.BuildConfig
 import javax.inject.Inject
 import javax.inject.Singleton
 import java.net.SocketTimeoutException
@@ -30,10 +31,12 @@ class PollinationsImageRepository @Inject constructor() {
 
     fun buildImageUrl(prompt: String, width: Int = DEFAULT_WIDTH, height: Int = DEFAULT_HEIGHT, model: String = "flux"): String {
         val encodedPrompt = java.net.URLEncoder.encode(prompt, "UTF-8")
+        val apiKey = BuildConfig.POLLINATIONS_API_KEY
+        val tokenParam = if (apiKey.isNotBlank()) "&token=$apiKey" else ""
         return if (model.isNotBlank()) {
-            "https://image.pollinations.ai/prompt/$encodedPrompt?width=$width&height=$height&nologo=true&model=$model&enhance=true"
+            "https://image.pollinations.ai/prompt/$encodedPrompt?width=$width&height=$height&nologo=true&model=$model&enhance=true$tokenParam"
         } else {
-            "https://image.pollinations.ai/prompt/$encodedPrompt?width=$width&height=$height&nologo=true"
+            "https://image.pollinations.ai/prompt/$encodedPrompt?width=$width&height=$height&nologo=true$tokenParam"
         }
     }
 

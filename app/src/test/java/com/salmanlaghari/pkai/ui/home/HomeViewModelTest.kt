@@ -1,5 +1,7 @@
 package com.salmanlaghari.pkai.ui.home
 
+import android.content.Context
+import java.io.File
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import com.salmanlaghari.pkai.data.local.datastore.PreferencesManager
 import com.salmanlaghari.pkai.data.local.room.ChatMessageDao
@@ -43,6 +45,7 @@ class HomeViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
 
+    private lateinit var mockContext: Context
     private lateinit var fakeAuthRepository: AuthRepository
     private lateinit var fakeAppRepository: AppRepository
     private lateinit var fakeChatMessageDao: ChatMessageDao
@@ -59,6 +62,10 @@ class HomeViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
+
+        mockContext = mock(Context::class.java)
+        val tempDir = File(System.getProperty("java.io.tmpdir", "/tmp"), "pkai_test_${System.currentTimeMillis()}").apply { mkdirs() }
+        whenever(mockContext.filesDir).thenReturn(tempDir)
 
         fakeAuthRepository = mock(AuthRepository::class.java)
         fakeAppRepository = mock(AppRepository::class.java)
@@ -114,6 +121,7 @@ class HomeViewModelTest {
         whenever(mockAiProviderFactory.getFreeProvider(anyString())).thenReturn(mockFreeAiProvider)
 
         viewModel = HomeViewModel(
+            context = mockContext,
             appRepository = fakeAppRepository,
             authRepository = fakeAuthRepository,
             chatMessageDao = fakeChatMessageDao,

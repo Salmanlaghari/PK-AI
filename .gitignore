@@ -20,10 +20,14 @@ local.properties.example
 # Keystore / signing files (NEVER commit these)
 *.jks
 *.keystore
+*.keystore.*
+debug.keystore*
 *_upload_key_*.txt
 *.pem
 
-# OS files
-.DS_Store
-Thumbs.db
+# Build artifacts
+.build-outputs/
 apk-output/
+app/src/test/screenshots/
+.kotlin/
+*.attach_pid*

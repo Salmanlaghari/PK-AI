@@ -26,8 +26,17 @@ class PkAiApplication : Application(), Application.ActivityLifecycleCallbacks {
 
         registerActivityLifecycleCallbacks(this)
 
-        // Install global crash handler
-        CrashHandler.initialize(crashDiagnosticsManager)
+        // Install global crash handler after Hilt injection is complete.
+        // Wrap in try/catch so a failure here never prevents the app from starting.
+        try {
+            if (::crashDiagnosticsManager.isInitialized) {
+                CrashHandler.initialize(crashDiagnosticsManager)
+            } else {
+                android.util.Log.w("PkAiApplication", "crashDiagnosticsManager not initialized; skipping CrashHandler setup")
+            }
+        } catch (e: Throwable) {
+            android.util.Log.e("PkAiApplication", "Failed to install CrashHandler", e)
+        }
     }
 
     // ========================

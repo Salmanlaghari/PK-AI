@@ -4,7 +4,10 @@ import android.app.Activity
 import android.app.Application
 import android.os.Bundle
 import com.salmanlaghari.pkai.ads.AdManager
+import com.salmanlaghari.pkai.util.CrashDiagnosticsManager
+import com.salmanlaghari.pkai.util.CrashHandler
 import dagger.hilt.android.HiltAndroidApp
+import javax.inject.Inject
 
 @HiltAndroidApp
 class PkAiApplication : Application(), Application.ActivityLifecycleCallbacks {
@@ -22,6 +25,9 @@ class PkAiApplication : Application(), Application.ActivityLifecycleCallbacks {
         AdManager.loadRewarded(this)
 
         registerActivityLifecycleCallbacks(this)
+
+        // Install global crash handler
+        CrashHandler.initialize(crashDiagnosticsManager)
     }
 
     // ========================
@@ -30,7 +36,7 @@ class PkAiApplication : Application(), Application.ActivityLifecycleCallbacks {
 
     override fun onActivityResumed(activity: Activity) {
         currentActivity = activity
-        // Show App Open Ad when app comes to foreground
+        // Show App Open Ad when app comes to the foreground
         AdManager.showAppOpenAdIfAvailable(activity)
     }
 
@@ -42,4 +48,7 @@ class PkAiApplication : Application(), Application.ActivityLifecycleCallbacks {
         if (currentActivity == activity) currentActivity = null
     }
     override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
+
+    @Inject
+    lateinit var crashDiagnosticsManager: CrashDiagnosticsManager
 }

@@ -111,6 +111,11 @@ class SettingsFragment : Fragment() {
             findNavController().navigate(R.id.action_settingsFragment_to_aboutFragment)
         }
 
+        // Navigate to Crash Diagnostics
+        binding.rowCrashDiagnostics.setOnClickListener {
+            findNavController().navigate(R.id.action_settingsFragment_to_crashDiagnosticsFragment)
+        }
+
         // AI provider selector (premium cards)
         val providerAdapter = ProviderSelectorAdapter { provider ->
             viewModel.selectProvider(provider.id)

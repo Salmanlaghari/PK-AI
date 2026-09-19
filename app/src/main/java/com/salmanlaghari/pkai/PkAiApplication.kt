@@ -4,10 +4,7 @@ import android.app.Activity
 import android.app.Application
 import android.os.Bundle
 import com.salmanlaghari.pkai.ads.AdManager
-import com.salmanlaghari.pkai.util.CrashDiagnosticsManager
-import com.salmanlaghari.pkai.util.CrashHandler
 import dagger.hilt.android.HiltAndroidApp
-import javax.inject.Inject
 
 @HiltAndroidApp
 class PkAiApplication : Application(), Application.ActivityLifecycleCallbacks {
@@ -25,18 +22,6 @@ class PkAiApplication : Application(), Application.ActivityLifecycleCallbacks {
         AdManager.loadRewarded(this)
 
         registerActivityLifecycleCallbacks(this)
-
-        // Install global crash handler after Hilt injection is complete.
-        // Wrap in try/catch so a failure here never prevents the app from starting.
-        try {
-            if (::crashDiagnosticsManager.isInitialized) {
-                CrashHandler.initialize(crashDiagnosticsManager)
-            } else {
-                android.util.Log.w("PkAiApplication", "crashDiagnosticsManager not initialized; skipping CrashHandler setup")
-            }
-        } catch (e: Throwable) {
-            android.util.Log.e("PkAiApplication", "Failed to install CrashHandler", e)
-        }
     }
 
     // ========================
@@ -57,7 +42,4 @@ class PkAiApplication : Application(), Application.ActivityLifecycleCallbacks {
         if (currentActivity == activity) currentActivity = null
     }
     override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
-
-    @Inject
-    lateinit var crashDiagnosticsManager: CrashDiagnosticsManager
 }

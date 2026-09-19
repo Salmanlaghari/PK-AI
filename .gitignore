@@ -29,3 +29,5 @@ debug.keystore*
 .build-outputs/
 apk-output/
 app/src/test/screenshots/
+.kotlin/
+*.attach_pid*

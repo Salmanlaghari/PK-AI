@@ -41,8 +41,18 @@ object AdManager {
     // ========================
 
     fun initialize(context: Context) {
-        MobileAds.initialize(context) { initializationStatus ->
-            Log.d(TAG, "AdMob initialized: ${initializationStatus.adapterStatusMap}")
+        try {
+            val requestConfiguration = MobileAds.getRequestConfiguration()
+                .toBuilder()
+                .setTestDeviceIds(listOf(AdRequest.DEVICE_ID_EMULATOR))
+                .build()
+            MobileAds.setRequestConfiguration(requestConfiguration)
+
+            MobileAds.initialize(context) { initializationStatus ->
+                Log.d(TAG, "AdMob initialized: ${initializationStatus.adapterStatusMap}")
+            }
+        } catch (e: Throwable) {
+            Log.w(TAG, "AdMob initialization warning", e)
         }
     }
 
@@ -113,18 +123,22 @@ object AdManager {
     // ========================
 
     fun loadRewarded(context: Context) {
-        RewardedAd.load(context, REWARDED_UNLOCK_ID, AdRequest.Builder().build(),
-            object : RewardedAdLoadCallback() {
-                override fun onAdLoaded(ad: RewardedAd) {
-                    rewardedAd = ad
-                    Log.d(TAG, "Rewarded loaded")
-                }
+        try {
+            RewardedAd.load(context, REWARDED_UNLOCK_ID, AdRequest.Builder().build(),
+                object : RewardedAdLoadCallback() {
+                    override fun onAdLoaded(ad: RewardedAd) {
+                        rewardedAd = ad
+                        Log.d(TAG, "Rewarded loaded")
+                    }
 
-                override fun onAdFailedToLoad(error: LoadAdError) {
-                    rewardedAd = null
-                    Log.e(TAG, "Rewarded failed: ${error.message}")
-                }
-            })
+                    override fun onAdFailedToLoad(error: LoadAdError) {
+                        rewardedAd = null
+                        Log.e(TAG, "Rewarded failed: ${error.message}")
+                    }
+                })
+        } catch (e: Throwable) {
+            Log.w(TAG, "Error loading rewarded ad", e)
+        }
     }
 
     fun showRewarded(activity: Activity, onRewarded: (() -> Unit)? = null, onDismissed: (() -> Unit)? = null) {
@@ -158,18 +172,22 @@ object AdManager {
     // ========================
 
     fun loadAppOpenAd(context: Context) {
-        AppOpenAd.load(context, APP_OPEN_ID, AdRequest.Builder().build(),
-            object : AppOpenAd.AppOpenAdLoadCallback() {
-                override fun onAdLoaded(ad: AppOpenAd) {
-                    appOpenAd = ad
-                    Log.d(TAG, "App Open loaded")
-                }
+        try {
+            AppOpenAd.load(context, APP_OPEN_ID, AdRequest.Builder().build(),
+                object : AppOpenAd.AppOpenAdLoadCallback() {
+                    override fun onAdLoaded(ad: AppOpenAd) {
+                        appOpenAd = ad
+                        Log.d(TAG, "App Open loaded")
+                    }
 
-                override fun onAdFailedToLoad(error: LoadAdError) {
-                    appOpenAd = null
-                    Log.e(TAG, "App Open failed: ${error.message}")
-                }
-            })
+                    override fun onAdFailedToLoad(error: LoadAdError) {
+                        appOpenAd = null
+                        Log.e(TAG, "App Open failed: ${error.message}")
+                    }
+                })
+        } catch (e: Throwable) {
+            Log.w(TAG, "Error loading App Open ad", e)
+        }
     }
 
     fun showAppOpenAdIfAvailable(activity: Activity) {

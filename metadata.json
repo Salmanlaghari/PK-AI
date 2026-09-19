@@ -1,0 +1,6 @@
+{
+  "name": "PK AI",
+  "description": "PK AI - Smart AI Chat, Super Chat with Dola.ai, and Image Generation",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

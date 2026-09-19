@@ -59,11 +59,36 @@ object ImageLoadHelper {
 
     private fun decode(context: Context, source: String): Bitmap? {
         return when {
+            source.startsWith("file://") -> decodeFile(source.removePrefix("file://"))
+            source.startsWith("/") -> decodeFile(source)
             source.startsWith("data:") -> decodeDataUri(source)
             source.startsWith("content://") -> decodeContent(context, source)
             source.startsWith("http://") || source.startsWith("https://") -> decodeRemote(source)
             else -> null
         }
+    }
+
+    private fun decodeFile(filePath: String): Bitmap? {
+        return runCatching {
+            val file = java.io.File(filePath)
+            if (!file.exists() || !file.canRead()) return null
+
+            val boundsOptions = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(file.absolutePath, boundsOptions)
+
+            var sample = 1
+            val maxDimension = 1200
+            val maxOut = maxOf(boundsOptions.outWidth, boundsOptions.outHeight)
+            while (maxOut / sample > maxDimension) {
+                sample *= 2
+            }
+
+            val opts = BitmapFactory.Options().apply {
+                inSampleSize = sample
+                inPreferredConfig = Bitmap.Config.ARGB_8888
+            }
+            BitmapFactory.decodeFile(file.absolutePath, opts)
+        }.getOrNull()
     }
 
     private fun decodeDataUri(source: String): Bitmap? {
@@ -73,8 +98,24 @@ object ImageLoadHelper {
         // Only image payloads are supported.
         if (!meta.contains("image")) return null
         val payload = source.substring(comma + 1)
-        val bytes = android.util.Base64.decode(payload, android.util.Base64.DEFAULT)
-        return BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+        val bytes = runCatching {
+            android.util.Base64.decode(payload, android.util.Base64.DEFAULT)
+        }.getOrNull() ?: return null
+
+        val boundsOptions = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, boundsOptions)
+
+        var sample = 1
+        val maxDimension = 1200
+        val maxOut = maxOf(boundsOptions.outWidth, boundsOptions.outHeight)
+        while (maxOut / sample > maxDimension) {
+            sample *= 2
+        }
+
+        val opts = BitmapFactory.Options().apply {
+            inSampleSize = sample
+        }
+        return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts)
     }
 
     private fun decodeContent(context: Context, source: String): Bitmap? {

@@ -16,6 +16,15 @@ class PkAiApplication : Application(), Application.ActivityLifecycleCallbacks {
     override fun onCreate() {
         super.onCreate()
 
+        // Pre-create Chromium WebView Code Cache directories to prevent simple_file_enumerator crashes
+        try {
+            val webViewCacheDir = java.io.File(cacheDir, "WebView/Default/HTTP Cache/Code Cache")
+            java.io.File(webViewCacheDir, "js").mkdirs()
+            java.io.File(webViewCacheDir, "wasm").mkdirs()
+        } catch (e: Throwable) {
+            Log.w("PkAiApplication", "Failed to pre-create WebView cache directories", e)
+        }
+
         // Install global crash handler safely with application context
         try {
             CrashHandler.initialize(this)
@@ -23,12 +32,22 @@ class PkAiApplication : Application(), Application.ActivityLifecycleCallbacks {
             Log.e("PkAiApplication", "Failed to install CrashHandler", e)
         }
 
-        // Initialize AdMob SDK
-        AdManager.initialize(this)
-
-        // Pre-load ads
-        AdManager.loadAppOpenAd(this)
-        AdManager.loadRewarded(this)
+        // Initialize AdMob SDK safely on background thread
+        try {
+            Thread {
+                try {
+                    AdManager.initialize(this)
+                    if (!AdManager.isTestMode) {
+                        AdManager.loadAppOpenAd(this)
+                        AdManager.loadRewarded(this)
+                    }
+                } catch (e: Throwable) {
+                    Log.w("PkAiApplication", "Failed to initialize AdManager in background", e)
+                }
+            }.start()
+        } catch (e: Throwable) {
+            Log.w("PkAiApplication", "Failed to start AdManager init thread", e)
+        }
 
         registerActivityLifecycleCallbacks(this)
     }
@@ -39,8 +58,14 @@ class PkAiApplication : Application(), Application.ActivityLifecycleCallbacks {
     override fun onActivityResumed(activity: Activity) {
         currentActivity = activity
 
-        // Show App Open Ad when app comes to foreground
-        AdManager.showAppOpenAdIfAvailable(activity)
+        // Show App Open Ad when app comes to foreground safely
+        if (!AdManager.isTestMode) {
+            try {
+                AdManager.showAppOpenAdIfAvailable(activity)
+            } catch (e: Throwable) {
+                Log.w("PkAiApplication", "Failed to show App Open Ad", e)
+            }
+        }
     }
 
     override fun onActivityPaused(activity: Activity) {}

@@ -52,12 +52,26 @@ class ChatAdapter(
                 .setView(imageView)
                 .setPositiveButton("Close") { d, _ -> d.dismiss() }
                 .setNegativeButton("Share") { _, _ ->
-                    val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(android.content.Intent.EXTRA_TEXT, source)
-                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    runCatching {
+                        val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                            if (source.startsWith("http://") || source.startsWith("https://")) {
+                                type = "text/plain"
+                                putExtra(android.content.Intent.EXTRA_TEXT, source)
+                            } else {
+                                type = "image/*"
+                                val uri = if (source.startsWith("file://")) {
+                                    android.net.Uri.parse(source)
+                                } else {
+                                    android.net.Uri.parse(source.take(200))
+                                }
+                                putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                            }
+                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        context.startActivity(android.content.Intent.createChooser(shareIntent, "Share image"))
+                    }.onFailure {
+                        Toast.makeText(context, "Could not share image", Toast.LENGTH_SHORT).show()
                     }
-                    context.startActivity(android.content.Intent.createChooser(shareIntent, "Share image"))
                 }
                 .create()
 

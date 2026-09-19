@@ -69,16 +69,12 @@ class PkAiApplication : Application(), Application.ActivityLifecycleCallbacks {
     }
 
     override fun onActivityPaused(activity: Activity) {}
-
     override fun onActivityStarted(activity: Activity) {}
-
     override fun onActivityStopped(activity: Activity) {}
-
     override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
 
     override fun onActivityDestroyed(activity: Activity) {
         if (currentActivity == activity) currentActivity = null
     }
-
     override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
 }

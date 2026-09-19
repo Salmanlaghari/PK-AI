@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.salmanlaghari.pkai.data.model.ChatMessage
 import com.salmanlaghari.pkai.data.remote.provider.AiProviderFactory
 import com.salmanlaghari.pkai.data.remote.provider.AiResponse
-import com.salmanlaghari.pkai.util.DolaAiAssistant
+import com.salmanlaghari.pkai.util.PkAiAssistant
 import com.salmanlaghari.pkai.util.Mood
 import com.salmanlaghari.pkai.util.MoodDetector
 import com.salmanlaghari.pkai.util.PoseRegistry
@@ -18,7 +18,7 @@ import javax.inject.Inject
 
 /**
  * Backing state for the Super Chat session — an avatar-companion chat with
- * mood-reactive pose changes and integrated Dola.ai Smart Calendar Assistant.
+ * mood-reactive pose changes and integrated PK AI Smart Calendar Assistant.
  *
  * Messages live in memory only (a Super Chat is a session, not saved history).
  * Replies come from the user's default AI provider; when no provider is
@@ -42,8 +42,8 @@ class SuperChatViewModel @Inject constructor(
     private val _isGenerating = MutableStateFlow(false)
     val isGenerating: StateFlow<Boolean> = _isGenerating.asStateFlow()
 
-    private val _isDolaMode = MutableStateFlow(true)
-    val isDolaMode: StateFlow<Boolean> = _isDolaMode.asStateFlow()
+    private val _isPkAiMode = MutableStateFlow(true)
+    val isPkAiMode: StateFlow<Boolean> = _isPkAiMode.asStateFlow()
 
     private val _currentSticker = MutableStateFlow(PoseRegistry.defaultSticker)
     val currentSticker: StateFlow<Int> = _currentSticker.asStateFlow()
@@ -69,12 +69,12 @@ class SuperChatViewModel @Inject constructor(
     private val moodRotations = mutableMapOf<Mood, Int>()
     private var lastSticker: Int = PoseRegistry.defaultSticker
 
-    fun toggleDolaMode() {
-        _isDolaMode.value = !_isDolaMode.value
+    fun togglePkAiMode() {
+        _isPkAiMode.value = !_isPkAiMode.value
     }
 
-    fun setDolaMode(enabled: Boolean) {
-        _isDolaMode.value = enabled
+    fun setPkAiMode(enabled: Boolean) {
+        _isPkAiMode.value = enabled
     }
 
     fun setFavorites(favorites: Set<Int>) {
@@ -164,7 +164,7 @@ class SuperChatViewModel @Inject constructor(
             val replyMessage = ChatMessage(
                 content = reply,
                 isUser = false,
-                modelUsed = if (_isDolaMode.value) DolaAiAssistant.DOLA_LABEL else "Super Chat",
+                modelUsed = if (_isPkAiMode.value) PkAiAssistant.PK_AI_LABEL else "Super Chat",
                 timestamp = System.currentTimeMillis()
             )
             // React to the reply with a fresh pose too, so every exchange
@@ -179,7 +179,7 @@ class SuperChatViewModel @Inject constructor(
     }
 
     private suspend fun tryRequest(prompt: String): String? {
-        val finalPrompt = if (_isDolaMode.value) DolaAiAssistant.buildDolaPrompt(prompt) else prompt
+        val finalPrompt = if (_isPkAiMode.value) PkAiAssistant.buildPkAiPrompt(prompt) else prompt
         // 1. Try default provider
         try {
             var text: String? = null
@@ -204,10 +204,10 @@ class SuperChatViewModel @Inject constructor(
         } catch (_: Exception) {
         }
 
-        // 3. Fallback for Dola.ai smart schedule if offline
-        if (_isDolaMode.value) {
-            if (DolaAiAssistant.isSchedulingQuery(prompt)) {
-                return DolaAiAssistant.formatDolaSmartPlan(prompt)
+        // 3. Fallback for PK AI smart schedule if offline
+        if (_isPkAiMode.value) {
+            if (PkAiAssistant.isSchedulingQuery(prompt)) {
+                return PkAiAssistant.formatPkAiSmartPlan(prompt)
             }
         }
         return null
@@ -215,8 +215,8 @@ class SuperChatViewModel @Inject constructor(
 
     /** Warm canned replies so the session never feels broken offline. */
     private fun offlineReply(): String {
-        if (_isDolaMode.value) {
-            return "✨ Dola.ai Assistant: I'm here to help you organize your schedule, meetings, reminders, and daily productivity. What would you like to plan today?"
+        if (_isPkAiMode.value) {
+            return "✨ PK AI Assistant: I'm here to help you organize your schedule, meetings, reminders, and daily productivity. What would you like to plan today?"
         }
         val mood = _currentMood.value
         val replies = when (mood) {

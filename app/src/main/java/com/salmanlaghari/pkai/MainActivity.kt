@@ -15,6 +15,7 @@ import com.salmanlaghari.pkai.R
 import com.salmanlaghari.pkai.data.local.datastore.PreferencesManager
 import com.salmanlaghari.pkai.data.repository.AuthRepository
 import com.salmanlaghari.pkai.databinding.ActivityMainBinding
+import com.salmanlaghari.pkai.util.CrashHandler
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -38,6 +39,14 @@ class MainActivity : AppCompatActivity() {
         // Apply the user-selected theme before inflating the layout
         val themeId = runBlocking { preferencesManager.getAppTheme() }
         setTheme(themeResId(themeId))
+
+        // Install global crash handler after app startup completes.
+        // This avoids any startup-time Hilt/DataStore initialization race.
+        try {
+            CrashHandler.initialize(this)
+        } catch (e: Throwable) {
+            android.util.Log.e("MainActivity", "Failed to install CrashHandler", e)
+        }
 
         // Observe and apply theme/localization settings as early as possible
         lifecycleScope.launch {

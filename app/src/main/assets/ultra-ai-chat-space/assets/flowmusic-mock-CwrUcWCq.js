@@ -1,0 +1,1 @@
+function e(e){return{load:async()=>{},generateTrack:async()=>``,destroy:()=>{}}}var t={createFlowStudio:e};export{e as createFlowStudio,t as default};

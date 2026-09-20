@@ -7,8 +7,14 @@ interface FlowAuthModalProps {
   onAuthSuccess: (token: string, user: { name: string; email: string; picture: string }) => void;
 }
 
-const GOOGLE_CLIENT_ID = (import.meta.env as any)?.VITE_GOOGLE_CLIENT_ID || (window as any)?.GOOGLE_CLIENT_ID || "";
-const REDIRECT_URI = (import.meta.env as any)?.VITE_GOOGLE_REDIRECT_URI || (window as any)?.GOOGLE_REDIRECT_URI || window.location.origin;
+const GOOGLE_CLIENT_ID =
+  (import.meta.env as any)?.VITE_GOOGLE_CLIENT_ID ||
+  (window as any)?.GOOGLE_CLIENT_ID ||
+  "";
+const REDIRECT_URI =
+  (import.meta.env as any)?.VITE_GOOGLE_REDIRECT_URI ||
+  (window as any)?.GOOGLE_REDIRECT_URI ||
+  window.location.origin;
 
 export default function FlowAuthModal({ isOpen, onClose, onAuthSuccess }: FlowAuthModalProps) {
   const [isSigningIn, setIsSigningIn] = useState(false);
@@ -21,33 +27,62 @@ export default function FlowAuthModal({ isOpen, onClose, onAuthSuccess }: FlowAu
     }
   }, [isOpen]);
 
-  const handleGoogleSignIn = useCallback(() => {
-    if (!GOOGLE_CLIENT_ID) {
-      setError("Google OAuth is not configured. Set VITE_GOOGLE_CLIENT_ID in your environment.");
-      return;
-    }
+  // Listen for native events dispatched from Android WebView
+  useEffect(() => {
+    const handleAuthSuccessEvent = (e: any) => {
+      if (e.detail?.token && e.detail?.user) {
+        onAuthSuccess(e.detail.token, e.detail.user);
+        setIsSigningIn(false);
+      }
+    };
+    const handleAuthErrorEvent = (e: any) => {
+      setError(e.detail?.error || "Google Sign-In failed");
+      setIsSigningIn(false);
+    };
 
+    window.addEventListener("pkai:auth_success", handleAuthSuccessEvent);
+    window.addEventListener("pkai:auth_error", handleAuthErrorEvent);
+
+    return () => {
+      window.removeEventListener("pkai:auth_success", handleAuthSuccessEvent);
+      window.removeEventListener("pkai:auth_error", handleAuthErrorEvent);
+    };
+  }, [onAuthSuccess]);
+
+  const handleGoogleSignIn = useCallback(() => {
     const androidOAuth = (window as any).AndroidOAuth;
-    if (androidOAuth?.startGoogleSignIn) {
+
+    // 1. Android App Native Flow via CredentialManager
+    if (androidOAuth && typeof androidOAuth.startGoogleSignIn === "function") {
       setIsSigningIn(true);
       setError(null);
+
+      (window as any).__onGoogleAuthSuccess = (
+        token: string,
+        user: { name: string; email: string; picture: string }
+      ) => {
+        onAuthSuccess(token, user);
+        setIsSigningIn(false);
+      };
+
+      (window as any).__onGoogleAuthError = (err: string) => {
+        setError(err || "Google Sign-In failed");
+        setIsSigningIn(false);
+      };
+
       try {
-        androidOAuth.startGoogleSignIn(
-          GOOGLE_CLIENT_ID,
-          REDIRECT_URI,
-          (token: string, user: { name: string; email: string; picture: string }) => {
-            onAuthSuccess(token, user);
-            setIsSigningIn(false);
-          },
-          (err: string) => {
-            setError(err);
-            setIsSigningIn(false);
-          }
-        );
+        androidOAuth.startGoogleSignIn();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to start Google Sign-In");
         setIsSigningIn(false);
       }
+      return;
+    }
+
+    // 2. Web Browser Fallback (Popup flow)
+    const effectiveClientId = GOOGLE_CLIENT_ID || (window as any).GOOGLE_CLIENT_ID;
+    if (!effectiveClientId) {
+      setError("Google OAuth is not configured. Set VITE_GOOGLE_CLIENT_ID in your environment.");
       return;
     }
 
@@ -57,7 +92,7 @@ export default function FlowAuthModal({ isOpen, onClose, onAuthSuccess }: FlowAu
     const scope = encodeURIComponent("openid email profile");
     const state = Math.random().toString(36).slice(2);
     const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
-    authUrl.searchParams.set("client_id", GOOGLE_CLIENT_ID);
+    authUrl.searchParams.set("client_id", effectiveClientId);
     authUrl.searchParams.set("redirect_uri", REDIRECT_URI);
     authUrl.searchParams.set("response_type", "token");
     authUrl.searchParams.set("scope", scope);
@@ -68,7 +103,6 @@ export default function FlowAuthModal({ isOpen, onClose, onAuthSuccess }: FlowAu
     const height = 600;
     const left = window.screenX + (window.outerWidth - width) / 2;
     const top = window.screenY + (window.outerHeight - height) / 2;
-
     const popup = window.open(
       authUrl.toString(),
       "Google OAuth",
@@ -88,30 +122,25 @@ export default function FlowAuthModal({ isOpen, onClose, onAuthSuccess }: FlowAu
           setIsSigningIn(false);
           return;
         }
-
         const popupUrl = popup.location.href;
         if (popupUrl.includes(REDIRECT_URI)) {
           clearInterval(pollTimer);
           popup.close();
-
           const url = new URL(popupUrl);
           const fragment = url.hash.slice(1);
           const params = new URLSearchParams(fragment);
           const accessToken = params.get("access_token");
           const returnedState = params.get("state");
-
           if (returnedState !== state) {
             setError("Invalid OAuth state. Please try again.");
             setIsSigningIn(false);
             return;
           }
-
           if (!accessToken) {
             setError("No access token received.");
             setIsSigningIn(false);
             return;
           }
-
           fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
             headers: { Authorization: `Bearer ${accessToken}` },
           })
@@ -133,7 +162,7 @@ export default function FlowAuthModal({ isOpen, onClose, onAuthSuccess }: FlowAu
             });
         }
       } catch {
-        // Cross-origin access is blocked until redirect completes
+        // Cross-origin access check
       }
     }, 500);
   }, [onAuthSuccess]);

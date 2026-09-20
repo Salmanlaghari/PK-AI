@@ -7,8 +7,8 @@ interface FlowAuthModalProps {
   onAuthSuccess: (token: string, user: { name: string; email: string; picture: string }) => void;
 }
 
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
-const REDIRECT_URI = import.meta.env.VITE_GOOGLE_REDIRECT_URI || window.location.origin;
+const GOOGLE_CLIENT_ID = (import.meta.env as any)?.VITE_GOOGLE_CLIENT_ID || (window as any)?.GOOGLE_CLIENT_ID || "";
+const REDIRECT_URI = (import.meta.env as any)?.VITE_GOOGLE_REDIRECT_URI || (window as any)?.GOOGLE_REDIRECT_URI || window.location.origin;
 
 export default function FlowAuthModal({ isOpen, onClose, onAuthSuccess }: FlowAuthModalProps) {
   const [isSigningIn, setIsSigningIn] = useState(false);
@@ -24,6 +24,30 @@ export default function FlowAuthModal({ isOpen, onClose, onAuthSuccess }: FlowAu
   const handleGoogleSignIn = useCallback(() => {
     if (!GOOGLE_CLIENT_ID) {
       setError("Google OAuth is not configured. Set VITE_GOOGLE_CLIENT_ID in your environment.");
+      return;
+    }
+
+    const androidOAuth = (window as any).AndroidOAuth;
+    if (androidOAuth?.startGoogleSignIn) {
+      setIsSigningIn(true);
+      setError(null);
+      try {
+        androidOAuth.startGoogleSignIn(
+          GOOGLE_CLIENT_ID,
+          REDIRECT_URI,
+          (token: string, user: { name: string; email: string; picture: string }) => {
+            onAuthSuccess(token, user);
+            setIsSigningIn(false);
+          },
+          (err: string) => {
+            setError(err);
+            setIsSigningIn(false);
+          }
+        );
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to start Google Sign-In");
+        setIsSigningIn(false);
+      }
       return;
     }
 

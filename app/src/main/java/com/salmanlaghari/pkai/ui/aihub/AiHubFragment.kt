@@ -137,11 +137,13 @@ class AiHubFragment : Fragment() {
                                     if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
                                         val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
                                         val token = googleIdTokenCredential.idToken
-                                        val profile = googleIdTokenCredential.profile
+                                        val name = googleIdTokenCredential.displayName ?: ""
+                                        val email = googleIdTokenCredential.id ?: ""
+                                        val picture = googleIdTokenCredential.profilePictureUri?.toString() ?: ""
                                         val user = UserInfo(
-                                            name = profile?.name ?: "",
-                                            email = profile?.email ?: "",
-                                            picture = profile?.profilePictureUri?.toString() ?: ""
+                                            name = name,
+                                            email = email,
+                                            picture = picture
                                         )
                                         onSuccess(token, user)
                                     } else {

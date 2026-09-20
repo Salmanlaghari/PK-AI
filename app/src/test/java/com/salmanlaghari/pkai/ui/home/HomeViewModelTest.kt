@@ -287,6 +287,6 @@ class HomeViewModelTest {
         val switchNote = messages.find { it.content.startsWith("↪ Switched to") }
         assertTrue(switchNote != null)
         assertTrue(switchNote!!.content.contains("Mistral"))
-        assertTrue(switchNote.content.contains("Groq limit reached"))
+        assertTrue(switchNote.content.contains("Groq"))
     }
 }

@@ -1,0 +1,63 @@
+import type { AIModel } from '../types';
+
+export const models: AIModel[] = [
+  {
+    id: 'ultra-4',
+    name: 'Ultra AI 4',
+    badge: 'Turbo',
+    description: 'Fastest creative studio engine',
+    icon: 'Zap',
+    color: 'text-cyan-400',
+    gradient: 'from-cyan-500 to-blue-500',
+    speed: '12ms',
+    intelligence: 'High',
+  },
+  {
+    id: 'ultra-4-pro',
+    name: 'Ultra AI 4 Pro',
+    badge: 'Pro',
+    description: 'Deep reasoning & complex tasks',
+    icon: 'BrainCircuit',
+    color: 'text-violet-400',
+    gradient: 'from-violet-500 to-purple-600',
+    speed: '24ms',
+    intelligence: 'Very High',
+    isRealGenerator: true,
+  },
+  {
+    id: 'ultra-voice',
+    name: 'Ultra Voice AI',
+    badge: 'Live',
+    description: 'Real-time voice synthesis',
+    icon: 'Mic',
+    color: 'text-emerald-400',
+    gradient: 'from-emerald-500 to-teal-600',
+    speed: '8ms',
+    intelligence: 'Medium',
+  },
+  {
+    id: 'ultra-image',
+    name: 'Ultra Image AI',
+    badge: 'HD',
+    description: 'Photorealistic image generation',
+    icon: 'Image',
+    color: 'text-pink-400',
+    gradient: 'from-pink-500 to-rose-600',
+    speed: '1.2s',
+    intelligence: 'High',
+    isRealGenerator: true,
+  },
+  {
+    id: 'ultra-code',
+    name: 'Ultra Code AI',
+    badge: 'Dev',
+    description: 'Full-stack code generation',
+    icon: 'Code',
+    color: 'text-amber-400',
+    gradient: 'from-amber-500 to-orange-600',
+    speed: '18ms',
+    intelligence: 'Very High',
+  },
+];
+
+export const defaultModel = models[0];

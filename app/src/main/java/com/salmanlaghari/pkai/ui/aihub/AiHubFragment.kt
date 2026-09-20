@@ -13,10 +13,13 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.credentials.CredentialManager
-import androidx.credentials.GetGoogleIdTokenRequest
+import androidx.credentials.CustomCredential
+import androidx.credentials.GetCredentialRequest
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.salmanlaghari.pkai.R
 import com.salmanlaghari.pkai.databinding.FragmentAiHubBinding
 import dagger.hilt.android.AndroidEntryPoint
@@ -113,23 +116,37 @@ class AiHubFragment : Fragment() {
                     Log.d("AiHubFragment", "startGoogleSignIn called from JS")
                     activity?.runOnUiThread {
                         try {
-                            val credentialManager = androidx.credentials.CredentialManager.create(requireContext())
-                            val request = androidx.credentials.GetGoogleIdTokenRequest.Builder()
+                            val credentialManager = CredentialManager.create(requireContext())
+                            val googleIdOption = GetGoogleIdOption.Builder()
+                                .setFilterByAuthorizedAccounts(false)
                                 .setServerClientId(clientId)
+                                .setAutoSelectEnabled(true)
+                                .build()
+
+                            val request = GetCredentialRequest.Builder()
+                                .addCredentialOption(googleIdOption)
                                 .build()
 
                             lifecycleScope.launch {
                                 try {
-                                    val result = credentialManager.getCredential(requireContext(), request)
-                                    val googleIdTokenCredential = androidx.credentials.GetGoogleIdTokenCredential.create(result.data)
-                                    val token = googleIdTokenCredential.idToken
-                                    val profile = googleIdTokenCredential.profile
-                                    val user = UserInfo(
-                                        name = profile?.name ?: "",
-                                        email = profile?.email ?: "",
-                                        picture = profile?.profilePictureUri?.toString() ?: ""
+                                    val result = credentialManager.getCredential(
+                                        request = request,
+                                        context = requireContext()
                                     )
-                                    onSuccess(token, user)
+                                    val credential = result.credential
+                                    if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+                                        val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
+                                        val token = googleIdTokenCredential.idToken
+                                        val profile = googleIdTokenCredential.profile
+                                        val user = UserInfo(
+                                            name = profile?.name ?: "",
+                                            email = profile?.email ?: "",
+                                            picture = profile?.profilePictureUri?.toString() ?: ""
+                                        )
+                                        onSuccess(token, user)
+                                    } else {
+                                        onError("Unsupported credential type: ${credential.type}")
+                                    }
                                 } catch (e: Exception) {
                                     onError("Google Sign-In failed: ${e.message}")
                                 }

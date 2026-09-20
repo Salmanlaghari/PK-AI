@@ -182,6 +182,7 @@ dependencies {
     // Credential Manager & Google ID Services
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play.services.auth)
+    implementation("androidx.webkit:webkit:1.12.1")
     implementation(libs.google.identity.googleid)
 
     // Google AdMob

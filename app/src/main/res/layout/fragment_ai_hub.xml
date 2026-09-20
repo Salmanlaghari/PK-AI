@@ -31,25 +31,15 @@
             app:layout_constraintTop_toTopOf="parent" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- Scrollable Content -->
-    <ScrollView
+    <!-- Ultra AI Chat Space WebView -->
+    <WebView
+        android:id="@+id/webview_ultra_ai"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:clipToPadding="false"
-        android:paddingBottom="24dp"
-        android:scrollbars="none"
+        android:layout_marginTop="4dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/layout_header">
-
-        <LinearLayout
-            android:id="@+id/layout_cards_container"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="16dp" />
-
-    </ScrollView>
+        app:layout_constraintTop_toBottomOf="@id/layout_header" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

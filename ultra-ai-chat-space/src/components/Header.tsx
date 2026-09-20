@@ -3,6 +3,7 @@ import {
   Mic,
   Sliders,
   Activity,
+  Music2,
 } from "lucide-react";
 import type { AIModel } from "../types";
 
@@ -11,6 +12,7 @@ interface HeaderProps {
   selectedModel: AIModel;
   onOpenVoice: () => void;
   onOpenSettings: () => void;
+  onOpenFlowStudio: () => void;
 }
 
 export default function Header({
@@ -18,6 +20,7 @@ export default function Header({
   selectedModel,
   onOpenVoice,
   onOpenSettings,
+  onOpenFlowStudio,
 }: HeaderProps) {
   return (
     <header className="h-16 border-b border-slate-800/60 bg-slate-950/60 backdrop-blur-2xl px-4 flex items-center justify-between shrink-0 z-30">
@@ -46,6 +49,14 @@ export default function Header({
       </div>
 
       <div className="flex items-center gap-2">
+        <button
+          onClick={onOpenFlowStudio}
+          className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-pink-500/20 via-rose-500/20 to-orange-500/20 border border-pink-500/40 hover:border-pink-400 text-pink-200 hover:text-white text-xs font-semibold shadow-lg shadow-pink-500/10 transition-all active:scale-95"
+        >
+          <Music2 className="w-3.5 h-3.5 text-pink-400 animate-pulse" />
+          <span className="hidden md:inline">Flow Studio</span>
+        </button>
+
         <button
           onClick={onOpenVoice}
           className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500/20 via-indigo-500/20 to-purple-500/20 border border-cyan-500/40 hover:border-cyan-400 text-cyan-200 hover:text-white text-xs font-semibold shadow-lg shadow-cyan-500/10 transition-all active:scale-95"

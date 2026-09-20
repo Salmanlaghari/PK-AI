@@ -1,0 +1,1 @@
+import{t as e}from"./index-DV0CKTua.js";var t=e((e=>{Object.defineProperty(e,"__esModule",{value:!0});function t(){throw Error(`@flowmusic/sdk is a mock package. Provide the real SDK for production use.`)}e.createFlowStudio=t}));export default t();

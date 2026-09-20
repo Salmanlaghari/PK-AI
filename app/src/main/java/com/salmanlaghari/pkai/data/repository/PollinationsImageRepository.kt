@@ -4,6 +4,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.logging.HttpLoggingInterceptor
 import com.salmanlaghari.pkai.BuildConfig
+import android.util.Log
 import javax.inject.Inject
 import javax.inject.Singleton
 import java.net.SocketTimeoutException
@@ -19,11 +20,12 @@ class PollinationsImageRepository @Inject constructor() {
         const val MAX_ATTEMPTS = 4
         const val INITIAL_BACKOFF_MS = 2000L
         private const val TIMEOUT_SECONDS = 40L
+        private const val TAG = "PollinationsImageRepo"
     }
 
     private val okHttpClient: OkHttpClient = OkHttpClient.Builder()
         .addInterceptor(HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.HEADERS
+            level = HttpLoggingInterceptor.Level.BODY
         })
         .connectTimeout(TIMEOUT_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
         .readTimeout(TIMEOUT_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
@@ -32,12 +34,16 @@ class PollinationsImageRepository @Inject constructor() {
     fun buildImageUrl(prompt: String, width: Int = DEFAULT_WIDTH, height: Int = DEFAULT_HEIGHT, model: String = "flux"): String {
         val encodedPrompt = java.net.URLEncoder.encode(prompt, "UTF-8")
         val apiKey = BuildConfig.POLLINATIONS_API_KEY
+        val maskedKey = if (apiKey.isNotBlank()) apiKey.take(4) + "****" else "<empty>"
+        Log.i(TAG, "BuildConfig.POLLINATIONS_API_KEY masked: $maskedKey, length=${apiKey.length}")
         val tokenParam = if (apiKey.isNotBlank()) "&token=$apiKey" else ""
-        return if (model.isNotBlank()) {
+        val url = if (model.isNotBlank()) {
             "https://image.pollinations.ai/prompt/$encodedPrompt?width=$width&height=$height&nologo=true&model=$model&enhance=true$tokenParam"
         } else {
             "https://image.pollinations.ai/prompt/$encodedPrompt?width=$width&height=$height&nologo=true$tokenParam"
         }
+        Log.i(TAG, "Built image URL (model=$model, key_present=${apiKey.isNotBlank()}): ${url.replace(apiKey, if (apiKey.isNotBlank()) apiKey.take(4) + "****" else "<empty>")}")
+        return url
     }
 
     suspend fun generateImage(prompt: String): ByteArray = withContext(Dispatchers.IO) {
@@ -51,7 +57,12 @@ class PollinationsImageRepository @Inject constructor() {
             try {
                 val url = buildImageUrl(prompt, model = "flux")
                 val request = Request.Builder().url(url).get().build()
+                Log.i(TAG, "Attempt $attempt: GET $url")
                 val response = okHttpClient.newCall(request).execute()
+                val statusCode = response.code
+                val bodyBytes = response.body?.bytes()
+                val bodySnippet = bodyBytes?.toString(Charsets.UTF_8)?.take(500) ?: "<empty body>"
+                Log.i(TAG, "Attempt $attempt response: HTTP $statusCode, body snippet: $bodySnippet")
                 response.use { resp ->
                     if (resp.isSuccessful) {
                         val bytes = resp.body?.bytes()
@@ -75,6 +86,7 @@ class PollinationsImageRepository @Inject constructor() {
                     else -> e.javaClass.simpleName
                 }
                 lastError = "$errorType: ${e.localizedMessage ?: e.message ?: "Unknown error"}"
+                Log.e(TAG, "Attempt $attempt failed: $lastError", e)
             }
             if (attempt < MAX_ATTEMPTS) {
                 kotlinx.coroutines.delay(backoffMs)

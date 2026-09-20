@@ -323,7 +323,7 @@ class HomeViewModel @Inject constructor(
                     // Premium path: try the selected provider, then fall back through the
                     // ordered chain when it is rate-limited / out of quota / temporarily unavailable.
                     val chain = aiProviderFactory.fallbackChain(provider.id).ifEmpty { listOf(provider) }
-                    var failureKind = ProviderErrorKind.Unknown
+                    var failureKind: ProviderErrorKind = ProviderErrorKind.Unknown
                     for (candidate in chain) {
                         val instance = aiProviderFactory.getProvider(candidate.id)
                         var text: String? = null

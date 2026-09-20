@@ -59,6 +59,9 @@ class AiHubFragment : Fragment() {
     @SuppressLint("SetJavaScriptEnabled")
     private fun setupWebView() {
         val webView = binding.webviewUltraAi
+        val assetLoader = WebViewAssetLoader.Builder()
+            .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(requireContext()))
+            .build()
 
         // Set dark background immediately to avoid white flash
         webView.setBackgroundColor(0xFF020617.toInt())
@@ -105,6 +108,10 @@ class AiHubFragment : Fragment() {
                 request: WebResourceRequest?
             ): WebResourceResponse? {
                 val url = request?.url ?: return super.shouldInterceptRequest(view, request)
+                val intercepted = assetLoader.shouldInterceptRequest(url)
+                if (intercepted != null) {
+                    return intercepted
+                }
                 val urlString = url.toString()
 
                 if (urlString.contains("ultra-ai-chat-space")) {
@@ -151,6 +158,9 @@ class AiHubFragment : Fragment() {
                 request: WebResourceRequest?
             ): Boolean {
                 val url = request?.url?.toString() ?: return false
+                if (url.startsWith("https://appassets.androidplatform.net")) {
+                    return false
+                }
                 if (url.startsWith("http://") || url.startsWith("https://")) {
                     return false
                 }
@@ -203,7 +213,7 @@ class AiHubFragment : Fragment() {
             "AndroidOAuth"
         )
 
-        webView.loadUrl("file:///android_asset/ultra-ai-chat-space/index.html")
+        webView.loadUrl("https://appassets.androidplatform.net/assets/ultra-ai-chat-space/index.html")
     }
 
     private fun triggerGoogleSignIn() {

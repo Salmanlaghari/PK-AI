@@ -29,7 +29,7 @@ import javax.inject.Singleton
  * This is a single editable constant so the order can be tweaked in one place.
  */
 val FALLBACK_ORDER: List<String> = listOf(
-    "groq", "llm7", "mistral", "cohere"
+    "groq", "llm7", "mistral", "cohere", "puter"
 )
 
 @Singleton
@@ -129,6 +129,7 @@ class AiProviderFactory @Inject constructor(
         "LLM7_API_KEY" -> BuildConfig.LLM7_API_KEY
         "MISTRAL_API_KEY" -> BuildConfig.MISTRAL_API_KEY
         "COHERE_API_KEY" -> BuildConfig.COHERE_API_KEY
+        "PUTER_AUTH_TOKEN" -> BuildConfig.PUTER_AUTH_TOKEN
         else -> ""
     }
 }

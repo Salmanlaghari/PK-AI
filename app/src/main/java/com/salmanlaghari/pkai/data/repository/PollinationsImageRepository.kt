@@ -85,7 +85,7 @@ class PollinationsImageRepository @Inject constructor() : ImageGenerationProvide
                         429 -> {
                             val retryAfter = resp.header("Retry-After")?.toLongOrNull()
                             if (retryAfter != null && retryAfter > 0) {
-                                backoffMs = min(retryAfter * 1000, MAX_BACKOFF_MS)
+                                 backoffMs = minOf(retryAfter * 1000, MAX_BACKOFF_MS)
                             }
                             lastResult = ImageGenerationResult.RateLimited(retryAfter, "Rate limited (HTTP 429).")
                         }
@@ -110,7 +110,7 @@ class PollinationsImageRepository @Inject constructor() : ImageGenerationProvide
             if (attempt < MAX_ATTEMPTS) {
                 val jitter = (Math.random() * backoffMs / 2).toLong()
                 kotlinx.coroutines.delay(backoffMs + jitter)
-                backoffMs = min(backoffMs * 2, MAX_BACKOFF_MS)
+                backoffMs = minOf(backoffMs * 2, MAX_BACKOFF_MS)
             }
         }
         return@withContext lastResult ?: ImageGenerationResult.Unavailable("Image generation failed after $MAX_ATTEMPTS attempts.")

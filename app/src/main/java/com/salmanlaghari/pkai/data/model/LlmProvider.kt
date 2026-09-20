@@ -97,6 +97,16 @@ data class LlmProvider(
                 // HTTP 404. `command-a-03-2025` is the recommended active replacement.
                 defaultModel = "command-a-03-2025",
                 apiKeyBuildConfig = "COHERE_API_KEY"
+            ),
+            LlmProvider(
+                id = "puter",
+                displayName = "Puter AI",
+                tagline = "Claude, GPT-Codex & 400+ models",
+                logoEmoji = "🎧",
+                format = ProviderFormat.OPENAI,
+                baseUrl = "https://api.puter.com/puterai/openai/v1/",
+                defaultModel = "claude-sonnet-5",
+                apiKeyBuildConfig = "PUTER_AUTH_TOKEN"
             )
         )
 

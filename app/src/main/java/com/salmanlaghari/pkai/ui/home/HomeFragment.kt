@@ -129,7 +129,9 @@ class HomeFragment : Fragment() {
             viewModel.isImageMode.collect { updateImageModeToggle() }
         }
         lifecycleScope.launch {
-            viewModel.generatingLabel.collect { binding.tvTyping.text = it }
+            viewModel.generatingLabel.collect { label ->
+                _binding?.let { b -> b.tvTyping.text = label }
+            }
         }
 
         binding.btnTabPremium.setOnClickListener { viewModel.setFreeMode(false) }
@@ -147,7 +149,7 @@ class HomeFragment : Fragment() {
             viewModel.chatMessages.collect { messages ->
                 chatAdapter.submitList(messages) {
                     if (messages.isNotEmpty()) {
-                        binding.rvChatMessages.scrollToPosition(messages.size - 1)
+                        _binding?.let { b -> b.rvChatMessages.scrollToPosition(messages.size - 1) }
                     }
                 }
             }
@@ -155,9 +157,11 @@ class HomeFragment : Fragment() {
 
         lifecycleScope.launch {
             viewModel.isGenerating.collect { isGenerating ->
-                binding.layoutTyping.visibility = if (isGenerating) View.VISIBLE else View.GONE
-                binding.btnSend.isEnabled = !isGenerating
-                binding.btnAttach.isEnabled = !isGenerating
+                _binding?.let { b ->
+                    b.layoutTyping.visibility = if (isGenerating) View.VISIBLE else View.GONE
+                    b.btnSend.isEnabled = !isGenerating
+                    b.btnAttach.isEnabled = !isGenerating
+                }
             }
         }
 
@@ -182,33 +186,35 @@ class HomeFragment : Fragment() {
 
     /** Reflects the active provider/model in the persistent chip + input hint. */
     private fun updateProviderChip() {
+        val currentBinding = _binding ?: return
         updateTabSelection()
         val isFree = viewModel.isFreeMode.value
         val isImage = viewModel.isImageMode.value
 
         if (isImage) {
-            binding.chipActiveProvider.text = "🖼 PK AI Image"
-            binding.etMessageInput.setHint("Describe the image you want…")
+            currentBinding.chipActiveProvider.text = "🖼 PK AI Image"
+            currentBinding.etMessageInput.setHint("Describe the image you want…")
             return
         }
 
         when {
             isFree -> {
                 val fm = viewModel.selectedFreeModel.value
-                binding.chipActiveProvider.text = "${fm.logoEmoji} ${fm.displayName}"
-                binding.etMessageInput.setHint("Ask ${fm.displayName}…")
+                currentBinding.chipActiveProvider.text = "${fm.logoEmoji} ${fm.displayName}"
+                currentBinding.etMessageInput.setHint("Ask ${fm.displayName}…")
             }
             else -> {
                 val p = viewModel.effectiveProvider.value
                 val label = if (viewModel.webSearchMode.value) "🌐 ${p.displayName}" else "${p.logoEmoji} ${p.displayName}"
-                binding.chipActiveProvider.text = label
-                binding.etMessageInput.setHint("Ask ${p.displayName}…")
+                currentBinding.chipActiveProvider.text = label
+                currentBinding.etMessageInput.setHint("Ask ${p.displayName}…")
             }
         }
     }
 
     /** Highlights the active chat-mode tab (Premium / Free). */
     private fun updateTabSelection() {
+        val currentBinding = _binding ?: return
         val selectedBg = R.drawable.bg_pill_chip_selected
         val transparent = android.R.color.transparent
         val activeText = R.color.white
@@ -216,37 +222,38 @@ class HomeFragment : Fragment() {
 
         val isFree = viewModel.isFreeMode.value
 
-        binding.btnTabPremium.setBackgroundResource(if (!isFree) selectedBg else transparent)
-        binding.btnTabPremium.setTextColor(resources.getColor(if (!isFree) activeText else idleText, null))
+        currentBinding.btnTabPremium.setBackgroundResource(if (!isFree) selectedBg else transparent)
+        currentBinding.btnTabPremium.setTextColor(resources.getColor(if (!isFree) activeText else idleText, null))
 
-        binding.btnTabFree.setBackgroundResource(if (isFree) selectedBg else transparent)
-        binding.btnTabFree.setTextColor(resources.getColor(if (isFree) activeText else idleText, null))
+        currentBinding.btnTabFree.setBackgroundResource(if (isFree) selectedBg else transparent)
+        currentBinding.btnTabFree.setTextColor(resources.getColor(if (isFree) activeText else idleText, null))
     }
 
     /** Updates the Chat / Image segmented control to match the current mode with stylish 8K HD styling. */
     private fun updateImageModeToggle() {
+        val currentBinding = _binding ?: return
         val isImage = viewModel.isImageMode.value
-        binding.layoutImageModeToggle.visibility = View.VISIBLE
+        currentBinding.layoutImageModeToggle.visibility = View.VISIBLE
 
         val activeText = ContextCompat.getColor(requireContext(), R.color.white)
         val idleText = ContextCompat.getColor(requireContext(), R.color.outline)
 
         if (!isImage) {
-            binding.btnTabChat.setBackgroundResource(R.drawable.bg_mode_button_chat_active)
-            binding.tvTabChatTitle.setTextColor(activeText)
-            binding.tvTabChatTitle.setTypeface(null, android.graphics.Typeface.BOLD)
+            currentBinding.btnTabChat.setBackgroundResource(R.drawable.bg_mode_button_chat_active)
+            currentBinding.tvTabChatTitle.setTextColor(activeText)
+            currentBinding.tvTabChatTitle.setTypeface(null, android.graphics.Typeface.BOLD)
 
-            binding.btnTabImage.setBackgroundResource(R.drawable.bg_mode_button_inactive)
-            binding.tvTabImageTitle.setTextColor(idleText)
-            binding.tvTabImageTitle.setTypeface(null, android.graphics.Typeface.NORMAL)
+            currentBinding.btnTabImage.setBackgroundResource(R.drawable.bg_mode_button_inactive)
+            currentBinding.tvTabImageTitle.setTextColor(idleText)
+            currentBinding.tvTabImageTitle.setTypeface(null, android.graphics.Typeface.NORMAL)
         } else {
-            binding.btnTabChat.setBackgroundResource(R.drawable.bg_mode_button_inactive)
-            binding.tvTabChatTitle.setTextColor(idleText)
-            binding.tvTabChatTitle.setTypeface(null, android.graphics.Typeface.NORMAL)
+            currentBinding.btnTabChat.setBackgroundResource(R.drawable.bg_mode_button_inactive)
+            currentBinding.tvTabChatTitle.setTextColor(idleText)
+            currentBinding.tvTabChatTitle.setTypeface(null, android.graphics.Typeface.NORMAL)
 
-            binding.btnTabImage.setBackgroundResource(R.drawable.bg_mode_button_image_active)
-            binding.tvTabImageTitle.setTextColor(activeText)
-            binding.tvTabImageTitle.setTypeface(null, android.graphics.Typeface.BOLD)
+            currentBinding.btnTabImage.setBackgroundResource(R.drawable.bg_mode_button_image_active)
+            currentBinding.tvTabImageTitle.setTextColor(activeText)
+            currentBinding.tvTabImageTitle.setTypeface(null, android.graphics.Typeface.BOLD)
         }
     }
 

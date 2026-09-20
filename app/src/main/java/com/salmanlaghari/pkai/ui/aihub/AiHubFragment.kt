@@ -7,9 +7,12 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.webkit.ConsoleMessage
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.credentials.CredentialManager
@@ -26,6 +29,7 @@ import com.salmanlaghari.pkai.databinding.FragmentAiHubBinding
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import java.io.InputStream
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -33,6 +37,7 @@ class AiHubFragment : Fragment() {
 
     private var _binding: FragmentAiHubBinding? = null
     private val binding get() = _binding!!
+
     private val viewModel: AiHubViewModel by viewModels()
 
     @Inject
@@ -54,11 +59,22 @@ class AiHubFragment : Fragment() {
     @SuppressLint("SetJavaScriptEnabled")
     private fun setupWebView() {
         val webView = binding.webviewUltraAi
-        webView.settings.javaScriptEnabled = true
-        webView.settings.domStorageEnabled = true
-        webView.settings.allowFileAccess = true
-        webView.settings.allowContentAccess = true
-        webView.settings.cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
+
+        // Set dark background immediately to avoid white flash
+        webView.setBackgroundColor(0xFF020617.toInt())
+
+        webView.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            databaseEnabled = true
+            allowFileAccess = true
+            allowContentAccess = true
+            allowFileAccessFromFileURLs = true
+            allowUniversalAccessFromFileURLs = true
+            useWideViewPort = true
+            loadWithOverviewMode = true
+            cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
+        }
 
         webView.webViewClient = object : WebViewClient() {
             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
@@ -75,17 +91,59 @@ class AiHubFragment : Fragment() {
                 } catch (e: Exception) {
                     ""
                 }
-                val redirectUri = ""
                 val clientIdJs = JSONObject.quote(googleClientId)
-                val redirectUriJs = JSONObject.quote(redirectUri)
-
                 val js = """
                     window.GOOGLE_CLIENT_ID = $clientIdJs;
-                    window.GOOGLE_REDIRECT_URI = $redirectUriJs;
+                    window.GOOGLE_REDIRECT_URI = "";
                     console.log("[AiHub] Injected GOOGLE_CLIENT_ID successfully");
                 """.trimIndent()
                 view?.evaluateJavascript(js, null)
-                Log.d("AiHubFragment", "Injected JS configuration into WebView")
+            }
+
+            override fun shouldInterceptRequest(
+                view: WebView?,
+                request: WebResourceRequest?
+            ): WebResourceResponse? {
+                val url = request?.url ?: return super.shouldInterceptRequest(view, request)
+                val urlString = url.toString()
+
+                if (urlString.contains("ultra-ai-chat-space")) {
+                    try {
+                        val path = when {
+                            urlString.contains("/android_asset/") -> {
+                                urlString.substringAfter("/android_asset/")
+                            }
+                            url.path != null && url.path!!.contains("ultra-ai-chat-space") -> {
+                                "ultra-ai-chat-space" + url.path!!.substringAfter("ultra-ai-chat-space")
+                            }
+                            else -> null
+                        }
+
+                        if (path != null) {
+                            val cleanPath = path.substringBefore("?").substringBefore("#")
+                            val mimeType = when {
+                                cleanPath.endsWith(".js") -> "application/javascript"
+                                cleanPath.endsWith(".css") -> "text/css"
+                                cleanPath.endsWith(".html") -> "text/html"
+                                cleanPath.endsWith(".svg") -> "image/svg+xml"
+                                cleanPath.endsWith(".png") -> "image/png"
+                                cleanPath.endsWith(".json") -> "application/json"
+                                else -> "application/octet-stream"
+                            }
+                            val stream: InputStream = requireContext().assets.open(cleanPath)
+                            val response = WebResourceResponse(mimeType, "UTF-8", stream)
+                            val headers = HashMap<String, String>()
+                            headers["Access-Control-Allow-Origin"] = "*"
+                            headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+                            headers["Access-Control-Allow-Headers"] = "*"
+                            response.responseHeaders = headers
+                            return response
+                        }
+                    } catch (e: Exception) {
+                        Log.w("AiHubFragment", "Asset intercept notice: $urlString -> ${e.message}")
+                    }
+                }
+                return super.shouldInterceptRequest(view, request)
             }
 
             override fun shouldOverrideUrlLoading(
@@ -96,7 +154,16 @@ class AiHubFragment : Fragment() {
                 if (url.startsWith("http://") || url.startsWith("https://")) {
                     return false
                 }
-                return true
+                return false
+            }
+
+            override fun onReceivedError(
+                view: WebView?,
+                request: WebResourceRequest?,
+                error: WebResourceError?
+            ) {
+                super.onReceivedError(view, request, error)
+                Log.e("AiHubFragment", "WebView error: ${error?.description} on ${request?.url}")
             }
         }
 
@@ -106,6 +173,11 @@ class AiHubFragment : Fragment() {
                 if (newProgress == 100) {
                     Log.d("AiHubFragment", "WebView load complete")
                 }
+            }
+
+            override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
+                Log.d("AiHubJS", "[${consoleMessage?.messageLevel()}] ${consoleMessage?.message()} (line ${consoleMessage?.lineNumber()} of ${consoleMessage?.sourceId()})")
+                return true
             }
         }
 

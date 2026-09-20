@@ -21,18 +21,22 @@ import androidx.lifecycle.lifecycleScope
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.salmanlaghari.pkai.R
+import com.salmanlaghari.pkai.data.repository.AuthRepository
 import com.salmanlaghari.pkai.databinding.FragmentAiHubBinding
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class AiHubFragment : Fragment() {
 
     private var _binding: FragmentAiHubBinding? = null
     private val binding get() = _binding!!
-
     private val viewModel: AiHubViewModel by viewModels()
+
+    @Inject
+    lateinit var authRepository: AuthRepository
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -66,21 +70,22 @@ class AiHubFragment : Fragment() {
                 super.onPageFinished(view, url)
                 Log.d("AiHubFragment", "Page finished loading: $url")
 
-                val googleClientId = ""
+                val googleClientId = try {
+                    getString(R.string.default_web_client_id)
+                } catch (e: Exception) {
+                    ""
+                }
                 val redirectUri = ""
-
                 val clientIdJs = JSONObject.quote(googleClientId)
                 val redirectUriJs = JSONObject.quote(redirectUri)
 
                 val js = """
                     window.GOOGLE_CLIENT_ID = $clientIdJs;
                     window.GOOGLE_REDIRECT_URI = $redirectUriJs;
-                    console.log("Injected GOOGLE_CLIENT_ID:", window.GOOGLE_CLIENT_ID);
-                    console.log("Injected GOOGLE_REDIRECT_URI:", window.GOOGLE_REDIRECT_URI);
+                    console.log("[AiHub] Injected GOOGLE_CLIENT_ID successfully");
                 """.trimIndent()
-
                 view?.evaluateJavascript(js, null)
-                Log.d("AiHubFragment", "Injected JS: $js")
+                Log.d("AiHubFragment", "Injected JS configuration into WebView")
             }
 
             override fun shouldOverrideUrlLoading(
@@ -104,91 +109,22 @@ class AiHubFragment : Fragment() {
             }
         }
 
+        // Bridge exposed to WebView JavaScript as window.AndroidOAuth
         webView.addJavascriptInterface(
             object {
                 @JavascriptInterface
-                fun startGoogleSignIn(
-                    clientId: String,
-                    redirectUri: String,
-                    onSuccess: (token: String, user: UserInfo) -> Unit,
-                    onError: (error: String) -> Unit
-                ) {
+                fun startGoogleSignIn() {
                     Log.d("AiHubFragment", "startGoogleSignIn called from JS")
                     activity?.runOnUiThread {
-                        try {
-                            val credentialManager = CredentialManager.create(requireContext())
-                            val googleIdOption = GetGoogleIdOption.Builder()
-                                .setFilterByAuthorizedAccounts(false)
-                                .setServerClientId(clientId)
-                                .setAutoSelectEnabled(true)
-                                .build()
-
-                            val request = GetCredentialRequest.Builder()
-                                .addCredentialOption(googleIdOption)
-                                .build()
-
-                            lifecycleScope.launch {
-                                try {
-                                    val result = credentialManager.getCredential(
-                                        request = request,
-                                        context = requireContext()
-                                    )
-                                    val credential = result.credential
-                                    if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
-                                        val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
-                                        val token = googleIdTokenCredential.idToken
-                                        val name = googleIdTokenCredential.displayName ?: ""
-                                        val email = googleIdTokenCredential.id ?: ""
-                                        val picture = googleIdTokenCredential.profilePictureUri?.toString() ?: ""
-                                        val user = UserInfo(
-                                            name = name,
-                                            email = email,
-                                            picture = picture
-                                        )
-                                        onSuccess(token, user)
-                                    } else {
-                                        onError("Unsupported credential type: ${credential.type}")
-                                    }
-                                } catch (e: Exception) {
-                                    onError("Google Sign-In failed: ${e.message}")
-                                }
-                            }
-                        } catch (e: Exception) {
-                            onError("Failed to start Google Sign-In: ${e.message}")
-                        }
+                        triggerGoogleSignIn()
                     }
                 }
 
                 @JavascriptInterface
-                fun onGoogleAuthSuccess(accessToken: String, email: String, name: String, picture: String) {
-                    Log.d("AiHubFragment", "onGoogleAuthSuccess: $email")
+                fun startGoogleSignIn(clientId: String?, redirectUri: String?) {
+                    Log.d("AiHubFragment", "startGoogleSignIn(clientId, redirectUri) called from JS")
                     activity?.runOnUiThread {
-                        val clientIdJs = JSONObject.quote("")
-                        val redirectUriJs = JSONObject.quote("")
-                        val accessTokenJs = JSONObject.quote(accessToken)
-                        val emailJs = JSONObject.quote(email)
-                        val nameJs = JSONObject.quote(name)
-                        val pictureJs = JSONObject.quote(picture)
-                        val js = """
-                            window.AndroidOAuth?.onAuthSuccess?.($accessTokenJs, {
-                                name: $nameJs,
-                                email: $emailJs,
-                                picture: $pictureJs
-                            });
-                        """.trimIndent()
-                        webView.evaluateJavascript(js, null)
-                    }
-                }
-
-                @JavascriptInterface
-                fun onGoogleAuthError(error: String) {
-                    Log.d("AiHubFragment", "onGoogleAuthError: $error")
-                    activity?.runOnUiThread {
-                        val errorJs = JSONObject.quote(error)
-                        val js = """
-                            window.AndroidOAuth?.onAuthError?.($errorJs);
-                        """.trimIndent()
-                        webView.evaluateJavascript(js, null)
+                        triggerGoogleSignIn()
                     }
                 }
             },
@@ -198,11 +134,131 @@ class AiHubFragment : Fragment() {
         webView.loadUrl("file:///android_asset/ultra-ai-chat-space/index.html")
     }
 
-    data class UserInfo(
-        val name: String,
-        val email: String,
-        val picture: String
-    )
+    private fun triggerGoogleSignIn() {
+        try {
+            val credentialManager = CredentialManager.create(requireContext())
+            val clientId = try {
+                getString(R.string.default_web_client_id)
+            } catch (e: Exception) {
+                ""
+            }
+
+            if (clientId.isBlank()) {
+                dispatchAuthErrorToJs("Google Client ID is not configured in strings.xml")
+                return
+            }
+
+            val googleIdOption = GetGoogleIdOption.Builder()
+                .setFilterByAuthorizedAccounts(false)
+                .setServerClientId(clientId)
+                .setAutoSelectEnabled(true)
+                .build()
+
+            val request = GetCredentialRequest.Builder()
+                .addCredentialOption(googleIdOption)
+                .build()
+
+            viewLifecycleOwner.lifecycleScope.launch {
+                try {
+                    Log.d("AiHubFragment", "Requesting credentials via CredentialManager with client ID: $clientId")
+                    val result = credentialManager.getCredential(
+                        request = request,
+                        context = requireContext()
+                    )
+                    val credential = result.credential
+                    if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+                        val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
+                        val idToken = googleIdTokenCredential.idToken
+                        val displayName = googleIdTokenCredential.displayName ?: ""
+                        val email = googleIdTokenCredential.id
+                        val photoUrl = googleIdTokenCredential.profilePictureUri?.toString() ?: ""
+
+                        Log.i("AiHubFragment", "Google Sign-In success! Email: $email")
+
+                        // Update app-wide session in repository
+                        try {
+                            authRepository.loginWithGoogle(
+                                idToken = idToken,
+                                displayName = displayName,
+                                email = email,
+                                photoUrl = photoUrl
+                            )
+                        } catch (e: Exception) {
+                            Log.w("AiHubFragment", "Failed to update authRepository session: ${e.message}")
+                        }
+
+                        dispatchAuthSuccessToJs(idToken, email, displayName, photoUrl)
+                    } else {
+                        Log.e("AiHubFragment", "Unsupported credential type: ${credential.type}")
+                        dispatchAuthErrorToJs("Unsupported credential type: ${credential.type}")
+                    }
+                } catch (e: androidx.credentials.exceptions.GetCredentialCancellationException) {
+                    Log.d("AiHubFragment", "Google Sign-In was cancelled by user")
+                    dispatchAuthErrorToJs("Sign-In cancelled.")
+                } catch (e: androidx.credentials.exceptions.NoCredentialException) {
+                    Log.e("AiHubFragment", "No credentials available on device", e)
+                    dispatchAuthErrorToJs("No Google account found on this device.")
+                } catch (e: Exception) {
+                    Log.e("AiHubFragment", "CredentialManager getCredential failed", e)
+                    dispatchAuthErrorToJs(e.localizedMessage ?: "Google Sign-In failed")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("AiHubFragment", "Failed to initialize Google Sign-In", e)
+            dispatchAuthErrorToJs(e.localizedMessage ?: "Failed to start Google Sign-In")
+        }
+    }
+
+    private fun dispatchAuthSuccessToJs(token: String, email: String, name: String, picture: String) {
+        activity?.runOnUiThread {
+            val tokenJs = JSONObject.quote(token)
+            val emailJs = JSONObject.quote(email)
+            val nameJs = JSONObject.quote(name)
+            val pictureJs = JSONObject.quote(picture)
+
+            val js = """
+                (function() {
+                    var user = { name: $nameJs, email: $emailJs, picture: $pictureJs };
+                    var token = $tokenJs;
+                    if (typeof window.onAndroidGoogleAuthSuccess === 'function') {
+                        window.onAndroidGoogleAuthSuccess(token, user);
+                    }
+                    if (typeof window.__onGoogleAuthSuccess === 'function') {
+                        window.__onGoogleAuthSuccess(token, user);
+                    }
+                    if (window.AndroidOAuth && typeof window.AndroidOAuth.onAuthSuccess === 'function') {
+                        try { window.AndroidOAuth.onAuthSuccess(token, user); } catch(e) {}
+                    }
+                    window.dispatchEvent(new CustomEvent('pkai:auth_success', { detail: { token: token, user: user } }));
+                })();
+            """.trimIndent()
+            _binding?.webviewUltraAi?.evaluateJavascript(js, null)
+            Log.d("AiHubFragment", "Dispatched auth success to WebView")
+        }
+    }
+
+    private fun dispatchAuthErrorToJs(error: String) {
+        activity?.runOnUiThread {
+            val errorJs = JSONObject.quote(error)
+            val js = """
+                (function() {
+                    var err = $errorJs;
+                    if (typeof window.onAndroidGoogleAuthError === 'function') {
+                        window.onAndroidGoogleAuthError(err);
+                    }
+                    if (typeof window.__onGoogleAuthError === 'function') {
+                        window.__onGoogleAuthError(err);
+                    }
+                    if (window.AndroidOAuth && typeof window.AndroidOAuth.onAuthError === 'function') {
+                        try { window.AndroidOAuth.onAuthError(err); } catch(e) {}
+                    }
+                    window.dispatchEvent(new CustomEvent('pkai:auth_error', { detail: { error: err } }));
+                })();
+            """.trimIndent()
+            _binding?.webviewUltraAi?.evaluateJavascript(js, null)
+            Log.d("AiHubFragment", "Dispatched auth error to WebView: $error")
+        }
+    }
 
     override fun onDestroyView() {
         super.onDestroyView()

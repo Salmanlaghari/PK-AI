@@ -64,7 +64,7 @@ data class LlmProvider(
             LlmProvider(
                 id = "llm7",
                 displayName = "LLM7.io",
-                tagline = "Open models, no limits",
+                tagline = "Open models, free-tier friendly",
                 logoEmoji = "🔗",
                 format = ProviderFormat.OPENAI,
                 baseUrl = "https://api.llm7.io/v1/",
@@ -101,7 +101,7 @@ data class LlmProvider(
             LlmProvider(
                 id = "puter",
                 displayName = "Puter AI",
-                tagline = "Claude, GPT-Codex & 400+ models",
+                tagline = "Claude, GPT-Codex & more",
                 logoEmoji = "🎧",
                 format = ProviderFormat.OPENAI,
                 baseUrl = "https://api.puter.com/puterai/openai/v1/",

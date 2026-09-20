@@ -14,6 +14,7 @@ import com.salmanlaghari.pkai.data.repository.AppRepository
 import com.salmanlaghari.pkai.data.repository.AuthRepository
 import com.salmanlaghari.pkai.data.repository.CodeExecutionResult
 import com.salmanlaghari.pkai.data.repository.CodeRunnerRepository
+import com.salmanlaghari.pkai.data.repository.ImageGenerationResult
 import com.salmanlaghari.pkai.data.repository.PollinationsImageRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -320,8 +321,9 @@ class HomeViewModel @Inject constructor(
                     if (answeredFreeModel == null) builder.clear().append(lastError ?: "Unknown error")
                 } else {
                     // Premium path: try the selected provider, then fall back through the
-                    // ordered chain when it is rate-limited / out of quota.
+                    // ordered chain when it is rate-limited / out of quota / temporarily unavailable.
                     val chain = aiProviderFactory.fallbackChain(provider.id).ifEmpty { listOf(provider) }
+                    var failureKind = ProviderErrorKind.Unknown
                     for (candidate in chain) {
                         val instance = aiProviderFactory.getProvider(candidate.id)
                         var text: String? = null
@@ -342,9 +344,15 @@ class HomeViewModel @Inject constructor(
 
                         if (firstFailureReason == null) firstFailureReason = err
                         lastError = err
+                        failureKind = classifyError(err)
 
-                        // Only a rate-limit / quota error justifies burning another provider.
-                        if (isRateLimitOrQuota(err)) continue
+                        // Only transient/provider-affecting errors justify burning another provider.
+                        if (failureKind == ProviderErrorKind.RateLimit ||
+                            failureKind == ProviderErrorKind.QuotaExceeded ||
+                            failureKind == ProviderErrorKind.AuthFailure ||
+                            failureKind == ProviderErrorKind.ServerUnavailable ||
+                            failureKind == ProviderErrorKind.Network
+                        ) continue
                         builder.clear().append(err ?: "Unknown error")
                         break
                     }
@@ -366,10 +374,14 @@ class HomeViewModel @Inject constructor(
                 // After a successful fallback, surface which provider actually answered and
                 // nudge the active-provider indicator to match.
                 if (!isFree && answeredBy != null && answeredBy.id != provider.id) {
-                    val reason = if (isRateLimitOrQuota(firstFailureReason)) {
-                        "${provider.displayName} limit reached"
-                    } else {
-                        "${provider.displayName} unavailable"
+                    val kind = classifyError(firstFailureReason)
+                    val reason = when (kind) {
+                        ProviderErrorKind.RateLimit -> "${provider.displayName} temporarily rate-limited"
+                        ProviderErrorKind.QuotaExceeded -> "${provider.displayName} quota exhausted"
+                        ProviderErrorKind.AuthFailure -> "${provider.displayName} authentication failed"
+                        ProviderErrorKind.ServerUnavailable -> "${provider.displayName} servers unavailable"
+                        ProviderErrorKind.Network -> "${provider.displayName} network error"
+                        else -> "${provider.displayName} unavailable"
                     }
                     chatMessageDao.insertMessage(
                         ChatMessage(
@@ -434,11 +446,20 @@ class HomeViewModel @Inject constructor(
             _generatingLabel.value = "Generating image, please wait…"
             try {
                 val markdown = withContext(Dispatchers.IO) {
-                    val bytes = pollinationsImageRepository.generateImage(prompt)
-                    val imagesDir = File(context.filesDir, "generated_images").apply { mkdirs() }
-                    val imageFile = File(imagesDir, "img_${System.currentTimeMillis()}.jpg")
-                    imageFile.writeBytes(bytes)
-                    "![Generated image](file://${imageFile.absolutePath})"
+                    when (val result = pollinationsImageRepository.generateImage(prompt)) {
+                        is ImageGenerationResult.Success -> {
+                            val imagesDir = File(context.filesDir, "generated_images").apply { mkdirs() }
+                            val imageFile = File(imagesDir, "img_${System.currentTimeMillis()}.jpg")
+                            imageFile.writeBytes(result.bytes)
+                            "![Generated image](file://${imageFile.absolutePath})"
+                        }
+                        is ImageGenerationResult.RateLimited -> "🖼 Image generation rate-limited. ${result.message} Please try again shortly."
+                        is ImageGenerationResult.QuotaExceeded -> "🖼 Image generation quota exceeded. ${result.message}"
+                        is ImageGenerationResult.AuthenticationFailed -> "🖼 Image generation authentication failed. ${result.message}"
+                        is ImageGenerationResult.Unavailable -> "🖼 Image generation unavailable. ${result.message}"
+                        is ImageGenerationResult.InvalidRequest -> "🖼 Invalid image request. ${result.message}"
+                        is ImageGenerationResult.NetworkError -> "🖼 Network error generating image. ${result.message}"
+                    }
                 }
                 chatMessageDao.insertMessage(
                     ChatMessage(content = markdown, isUser = false, modelUsed = IMAGE_PROVIDER_LABEL)
@@ -480,11 +501,20 @@ class HomeViewModel @Inject constructor(
             _isGenerating.value = true
             try {
                 val markdown = withContext(Dispatchers.IO) {
-                    val bytes = pollinationsImageRepository.generateImage(prompt.trim())
-                    val imagesDir = File(context.filesDir, "generated_images").apply { mkdirs() }
-                    val imageFile = File(imagesDir, "img_${System.currentTimeMillis()}.jpg")
-                    imageFile.writeBytes(bytes)
-                    "![Generated image](file://${imageFile.absolutePath})"
+                    when (val result = pollinationsImageRepository.generateImage(prompt.trim())) {
+                        is ImageGenerationResult.Success -> {
+                            val imagesDir = File(context.filesDir, "generated_images").apply { mkdirs() }
+                            val imageFile = File(imagesDir, "img_${System.currentTimeMillis()}.jpg")
+                            imageFile.writeBytes(result.bytes)
+                            "![Generated image](file://${imageFile.absolutePath})"
+                        }
+                        is ImageGenerationResult.RateLimited -> "🖼 Image generation rate-limited. ${result.message} Please try again shortly."
+                        is ImageGenerationResult.QuotaExceeded -> "🖼 Image generation quota exceeded. ${result.message}"
+                        is ImageGenerationResult.AuthenticationFailed -> "🖼 Image generation authentication failed. ${result.message}"
+                        is ImageGenerationResult.Unavailable -> "🖼 Image generation unavailable. ${result.message}"
+                        is ImageGenerationResult.InvalidRequest -> "🖼 Invalid image request. ${result.message}"
+                        is ImageGenerationResult.NetworkError -> "🖼 Network error generating image. ${result.message}"
+                    }
                 }
                 chatMessageDao.insertMessage(
                     ChatMessage(content = markdown, isUser = false, modelUsed = providerLabel)
@@ -509,6 +539,32 @@ class HomeViewModel @Inject constructor(
         if (error == null) return false
         val e = error.lowercase()
         return e.contains("429") || e.contains("rate limit") || e.contains("quota") || e.contains("402")
+    }
+
+    private sealed interface ProviderErrorKind {
+        object RateLimit : ProviderErrorKind
+        object QuotaExceeded : ProviderErrorKind
+        object AuthFailure : ProviderErrorKind
+        object ModelNotFound : ProviderErrorKind
+        object InvalidRequest : ProviderErrorKind
+        object ServerUnavailable : ProviderErrorKind
+        object Network : ProviderErrorKind
+        object Unknown : ProviderErrorKind
+    }
+
+    private fun classifyError(errorText: String?): ProviderErrorKind {
+        if (errorText.isNullOrBlank()) return ProviderErrorKind.Unknown
+        val lower = errorText.lowercase()
+        return when {
+            lower.contains("429") || lower.contains("rate limit") -> ProviderErrorKind.RateLimit
+            lower.contains("402") || lower.contains("quota") -> ProviderErrorKind.QuotaExceeded
+            lower.contains("401") || lower.contains("403") || lower.contains("authentication failed") || lower.contains("auth failure") -> ProviderErrorKind.AuthFailure
+            lower.contains("404") || lower.contains("model_not_found") || lower.contains("model not found") -> ProviderErrorKind.ModelNotFound
+            lower.contains("400") || lower.contains("invalid request") -> ProviderErrorKind.InvalidRequest
+            lower.contains("500") || lower.contains("502") || lower.contains("503") || lower.contains("504") || lower.contains("unavailable") -> ProviderErrorKind.ServerUnavailable
+            lower.contains("timeout") || lower.contains("network") || lower.contains("unknown host") || lower.contains("i/o error") -> ProviderErrorKind.Network
+            else -> ProviderErrorKind.Unknown
+        }
     }
 
     /** Conservative heuristic: does the user seem to be asking for an image to be drawn? */

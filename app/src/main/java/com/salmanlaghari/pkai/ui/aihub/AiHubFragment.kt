@@ -12,11 +12,15 @@ import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.credentials.CredentialManager
+import androidx.credentials.GetGoogleIdTokenRequest
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
 import com.salmanlaghari.pkai.R
 import com.salmanlaghari.pkai.databinding.FragmentAiHubBinding
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 @AndroidEntryPoint
@@ -109,40 +113,27 @@ class AiHubFragment : Fragment() {
                     Log.d("AiHubFragment", "startGoogleSignIn called from JS")
                     activity?.runOnUiThread {
                         try {
-                            val googleSignInIntent = com.google.android.gms.auth.api.signin.GoogleSignIn.getClient(
-                                requireActivity(),
-                                com.google.android.gms.auth.api.signin.GoogleSignInOptions.Builder(
-                                    com.google.android.gms.auth.api.signin.GoogleSignInOptions.DEFAULT_SIGN_IN
-                                )
-                                    .requestIdToken(clientId)
-                                    .requestEmail()
-                                    .requestProfile()
-                                    .build()
-                            ).signInIntent
+                            val credentialManager = androidx.credentials.CredentialManager.create(requireContext())
+                            val request = androidx.credentials.GetGoogleIdTokenRequest.Builder()
+                                .setServerClientId(clientId)
+                                .build()
 
-                            val launcher = registerForActivityResult(
-                                androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
-                            ) { result ->
-                                if (result.resultCode == android.app.Activity.RESULT_OK) {
-                                    val task = com.google.android.gms.auth.api.signin.GoogleSignIn.getSignedInAccountFromIntent(result.data)
-                                    try {
-                                        val account = task.getResult(com.google.android.gms.common.api.ApiException::class.java)
-                                        val token = account?.idToken ?: ""
-                                        val user = UserInfo(
-                                            name = account?.displayName ?: "",
-                                            email = account?.email ?: "",
-                                            picture = account?.photoUrl?.toString() ?: ""
-                                        )
-                                        onSuccess(token, user)
-                                    } catch (e: com.google.android.gms.common.api.ApiException) {
-                                        onError("Google Sign-In failed: ${e.message}")
-                                    }
-                                } else {
-                                    onError("Google Sign-In cancelled")
+                            lifecycleScope.launch {
+                                try {
+                                    val result = credentialManager.getCredential(requireContext(), request)
+                                    val googleIdTokenCredential = androidx.credentials.GetGoogleIdTokenCredential.create(result.data)
+                                    val token = googleIdTokenCredential.idToken
+                                    val profile = googleIdTokenCredential.profile
+                                    val user = UserInfo(
+                                        name = profile?.name ?: "",
+                                        email = profile?.email ?: "",
+                                        picture = profile?.profilePictureUri?.toString() ?: ""
+                                    )
+                                    onSuccess(token, user)
+                                } catch (e: Exception) {
+                                    onError("Google Sign-In failed: ${e.message}")
                                 }
                             }
-
-                            launcher.launch(googleSignInIntent)
                         } catch (e: Exception) {
                             onError("Failed to start Google Sign-In: ${e.message}")
                         }

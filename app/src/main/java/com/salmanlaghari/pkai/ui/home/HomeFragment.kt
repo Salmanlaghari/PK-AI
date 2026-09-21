@@ -139,6 +139,9 @@ class HomeFragment : Fragment() {
         binding.btnTabSuperChat.setOnClickListener {
             findNavController().navigate(R.id.superChatFragment)
         }
+        binding.btnTabUltraAi.setOnClickListener {
+            findNavController().navigate(R.id.aiHubFragment)
+        }
 
         binding.btnTabChat.setOnClickListener { viewModel.setImageMode(false) }
         binding.btnTabImage.setOnClickListener { viewModel.setImageMode(true) }

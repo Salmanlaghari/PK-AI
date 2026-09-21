@@ -15,11 +15,12 @@ import type { Message } from "../types";
 
 interface ChatMessageProps {
   message: Message;
+  userName?: string;
   onRegenerate?: () => void;
   onGenerateSongFromLyrics?: (soundPrompt: string, title: string) => void;
 }
 
-export default function ChatMessage({ message, onRegenerate, onGenerateSongFromLyrics: _onGenerateSongFromLyrics }: ChatMessageProps) {
+export default function ChatMessage({ message, userName, onRegenerate, onGenerateSongFromLyrics: _onGenerateSongFromLyrics }: ChatMessageProps) {
   const [copied, setCopied] = useState(false);
   const [liked, setLiked] = useState(false);
 
@@ -60,7 +61,7 @@ export default function ChatMessage({ message, onRegenerate, onGenerateSongFromL
       >
         <div className="flex items-center gap-2 text-[11px] text-slate-400 px-1">
           <span className="font-semibold text-slate-300">
-            {isAI ? (message.modelName || "Ultra AI Engine") : "Aap (Ishaq110)"}
+            {isAI ? (message.modelName || "Ultra AI Engine") : (userName ? `Aap (${userName})` : "Aap (Prince Laghari)")}
           </span>
           <span>•</span>
           <span>{message.timestamp}</span>

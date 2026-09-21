@@ -1,6 +1,8 @@
 import { useState } from "react";
 import {
   Sparkles,
+  ArrowLeft,
+  LogOut,
   MessageSquare,
   Plus,
   Settings,
@@ -23,6 +25,9 @@ interface SidebarProps {
   onNewChat: () => void;
   onOpenSettings: () => void;
   onOpenVoice: () => void;
+  authUser?: { name: string; email: string; picture: string } | null;
+  onOpenAuth?: () => void;
+  onSignOut?: () => void;
 }
 
 export default function Sidebar({
@@ -37,8 +42,19 @@ export default function Sidebar({
   onNewChat,
   onOpenSettings,
   onOpenVoice,
+  authUser,
+  onOpenAuth,
+  onSignOut,
 }: SidebarProps) {
   const [showModelPicker, setShowModelPicker] = useState(false);
+  const displayName = authUser?.name || "Prince Laghari";
+  const initials = displayName
+    .split(" ")
+    .map((n) => n[0])
+    .filter(Boolean)
+    .join("")
+    .slice(0, 2)
+    .toUpperCase() || "PL";
 
   return (
     <aside
@@ -192,29 +208,75 @@ export default function Sidebar({
         })}
       </div>
 
-      <div className="p-3 border-t border-slate-800/60 bg-slate-950/60 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-pink-500 via-purple-500 to-indigo-500 p-0.5 shadow-md">
-              <div className="w-full h-full bg-slate-900 rounded-full flex items-center justify-center text-xs font-bold text-white">
-                IS
+      <div className="p-3 border-t border-slate-800/60">
+        <button
+          onClick={() => {
+            const androidOAuth = (window as any).AndroidOAuth;
+            if (androidOAuth && typeof androidOAuth.exitToHome === "function") {
+              androidOAuth.exitToHome();
+            } else if (window.history.length > 1) {
+              window.history.back();
+            }
+          }}
+          className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-xs font-medium transition-all"
+        >
+          <ArrowLeft className="w-3.5 h-3.5 text-cyan-400" />
+          <span>PK AI Home Screen</span>
+        </button>
+      </div>
+
+      <div className="p-3 border-t border-slate-800/60 bg-slate-950/80 flex items-center justify-between">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="relative shrink-0">
+            {authUser?.picture ? (
+              <img
+                src={authUser.picture}
+                alt={displayName}
+                className="w-9 h-9 rounded-full object-cover border-2 border-indigo-500/60"
+              />
+            ) : (
+              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-pink-500 via-purple-500 to-indigo-500 p-0.5 shadow-md">
+                <div className="w-full h-full bg-slate-900 rounded-full flex items-center justify-center text-xs font-bold text-white">
+                  {initials}
+                </div>
               </div>
-            </div>
-            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-slate-950 rounded-full" />
+            )}
+            <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 ${authUser ? "bg-emerald-500" : "bg-cyan-500"} border-2 border-slate-950 rounded-full`} />
           </div>
-          <div>
-            <div className="text-xs font-semibold text-slate-200">Ishaq110</div>
-            <div className="text-[10px] text-cyan-400 font-medium">Ultra Premium VIP</div>
+          <div className="min-w-0">
+            <div className="text-xs font-semibold text-slate-200 truncate">{displayName}</div>
+            <div className="text-[10px] text-cyan-400 font-medium truncate">
+              {authUser ? "FlowMusic Connected" : "FlowMusic Account"}
+            </div>
           </div>
         </div>
 
-        <button
-          onClick={onOpenSettings}
-          className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors"
-          title="Settings"
-        >
-          <Settings className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-1">
+          {authUser ? (
+            <button
+              onClick={onSignOut}
+              className="p-2 rounded-xl text-slate-400 hover:text-red-400 hover:bg-slate-800/80 transition-colors"
+              title="Sign Out"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          ) : (
+            <button
+              onClick={onOpenAuth}
+              className="px-2 py-1.5 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-500/40 text-[11px] text-indigo-300 font-medium transition-all"
+              title="Connect Account"
+            >
+              Sign In
+            </button>
+          )}
+          <button
+            onClick={onOpenSettings}
+            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors"
+            title="Settings"
+          >
+            <Settings className="w-4 h-4" />
+          </button>
+        </div>
       </div>
     </aside>
   );

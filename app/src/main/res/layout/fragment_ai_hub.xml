@@ -6,40 +6,14 @@
     android:layout_height="match_parent"
     android:background="@color/premium_black">
 
-    <!-- Header -->
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/layout_header"
-        android:layout_width="0dp"
-        android:layout_height="56dp"
-        android:background="@color/glass_surface"
-        android:paddingHorizontal="16dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:fontFamily="@font/poppins"
-            android:text="⚡ Ultra AI 4"
-            android:textColor="@color/white"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
-    </androidx.constraintlayout.widget.ConstraintLayout>
-
-    <!-- Ultra AI Chat Space WebView -->
+    <!-- Ultra AI 4 Fullscreen Mobile Web View -->
     <WebView
         android:id="@+id/webview_ultra_ai"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_marginTop="4dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/layout_header" />
+        app:layout_constraintTop_toTopOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

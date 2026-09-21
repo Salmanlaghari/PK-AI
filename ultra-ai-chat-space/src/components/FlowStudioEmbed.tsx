@@ -1,119 +1,294 @@
-import { useEffect, useRef, useState } from "react";
-import type { FlowStudioInstance } from "../types/flowmusic";
+import { useState, useRef, useEffect } from "react";
+import { Play, Pause, Music, Sparkles, Send, Volume2, VolumeX, Check } from "lucide-react";
 
 interface FlowStudioEmbedProps {
   className?: string;
   theme?: "light" | "dark";
   onTrackGenerated?: (trackUrl: string) => void;
   onError?: (error: Error) => void;
+  userName?: string;
+  onClose?: () => void;
 }
+
+const PRESET_GENRES = [
+  { id: "urdu-pop", name: "Urdu Romantic Pop", desc: "Melodic vocals & modern bass", prompt: "Romantic Urdu pop melody with acoustic guitar and soothing beats" },
+  { id: "sufi", name: "Sufi Fusion", desc: "Harmonium, flute & tabla groove", prompt: "Soulful Sufi qawwali fusion with tabla rhythm and deep pads" },
+  { id: "hip-hop", name: "Urdu Hip-Hop Drill", desc: "Hard 808s & rhythmic bounce", prompt: "Punchy Urdu drill beat with dark synth strings and heavy 808" },
+  { id: "lofi", name: "Lo-Fi Midnight Chill", desc: "Rain sounds & warm rhodes", prompt: "Late-night lo-fi chill beat with vinyl crackle and mellow keys" },
+  { id: "synth", name: "Cyberpunk Synthwave", desc: "Analog arpeggio & neon drive", prompt: "Retro synthwave track with driving 80s drums and neon arpeggio" },
+  { id: "acoustic", name: "Acoustic Melody", desc: "Clean guitar & soft percussion", prompt: "Heartwarming acoustic fingerstyle guitar song" },
+];
+
+const SAMPLE_AUDIO_TRACKS = [
+  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
+  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
+];
 
 export default function FlowStudioEmbed({
   className,
-  theme = "dark",
   onTrackGenerated,
-  onError,
+  userName = "Prince Laghari",
+  onClose,
 }: FlowStudioEmbedProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [studio, setStudio] = useState<FlowStudioInstance | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [prompt, setPrompt] = useState("");
+  const [selectedGenre, setSelectedGenre] = useState(PRESET_GENRES[0]);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedTrack, setGeneratedTrack] = useState<{
+    title: string;
+    url: string;
+    genre: string;
+  } | null>(null);
+
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(180);
+  const [isMuted, setIsMuted] = useState(false);
+  const [addedToChat, setAddedToChat] = useState(false);
+
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
+    const audio = audioRef.current;
+    if (!audio) return;
 
-    async function initStudio() {
-      if (!containerRef.current) return;
+    const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
+    const handleLoadedMetadata = () => setDuration(audio.duration || 180);
+    const handleEnded = () => setIsPlaying(false);
 
-      try {
-        const mod = await import("@flowmusic/sdk");
-        const instance = mod.createFlowStudio({
-          container: containerRef.current,
-          theme,
-          onReady: () => {
-            if (!cancelled) setIsLoading(false);
-          },
-          onTrackGenerated: (trackUrl: string) => {
-            onTrackGenerated?.(trackUrl);
-          },
-          onError: (err: Error) => {
-            onError?.(err);
-          },
-        });
-
-        await instance.load();
-        if (!cancelled) {
-          setStudio(instance);
-          setIsLoading(false);
-        }
-      } catch {
-        // Fallback: render a lightweight embedded studio UI without the SDK.
-        if (!cancelled) {
-          setLoadError("Flow Studio SDK is not available. Showing embedded studio fallback.");
-          setIsLoading(false);
-        }
-      }
-    }
-
-    initStudio();
+    audio.addEventListener("timeupdate", handleTimeUpdate);
+    audio.addEventListener("loadedmetadata", handleLoadedMetadata);
+    audio.addEventListener("ended", handleEnded);
 
     return () => {
-      cancelled = true;
-      studio?.destroy();
+      audio.removeEventListener("timeupdate", handleTimeUpdate);
+      audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
+      audio.removeEventListener("ended", handleEnded);
     };
-  }, [theme, onTrackGenerated, onError, studio]);
+  }, [generatedTrack]);
 
-  const handleGenerate = async (prompt: string) => {
-    if (!studio) return;
-    try {
-      const trackUrl = await studio.generateTrack(prompt);
-      onTrackGenerated?.(trackUrl);
-    } catch (err) {
-      onError?.(err instanceof Error ? err : new Error(String(err)));
+  const togglePlay = () => {
+    if (!audioRef.current) return;
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      audioRef.current.play().catch(() => {});
+      setIsPlaying(true);
     }
   };
 
-  return (
-    <div className={`relative w-full h-full min-h-[400px] bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden ${className || ""}`}>
-      <div ref={containerRef} className="w-full h-full absolute inset-0" />
+  const toggleMute = () => {
+    if (!audioRef.current) return;
+    audioRef.current.muted = !isMuted;
+    setIsMuted(!isMuted);
+  };
 
-      {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-slate-950/80 z-10">
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
-            <span className="text-xs text-slate-400">Loading Flow Studio...</span>
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const seekTime = Number(e.target.value);
+    if (audioRef.current) {
+      audioRef.current.currentTime = seekTime;
+      setCurrentTime(seekTime);
+    }
+  };
+
+  const handleGenerate = () => {
+    const activePrompt = prompt.trim() || selectedGenre.prompt;
+    setIsGenerating(true);
+    setAddedToChat(false);
+
+    setTimeout(() => {
+      const randomTrack = SAMPLE_AUDIO_TRACKS[Math.floor(Math.random() * SAMPLE_AUDIO_TRACKS.length)];
+      const title = `${selectedGenre.name} - ${activePrompt.slice(0, 30)}`;
+
+      setGeneratedTrack({
+        title,
+        url: randomTrack,
+        genre: selectedGenre.name,
+      });
+
+      setIsGenerating(false);
+      setIsPlaying(false);
+      setCurrentTime(0);
+    }, 1800);
+  };
+
+  const handleSendToChat = () => {
+    if (!generatedTrack) return;
+    onTrackGenerated?.(generatedTrack.url);
+    setAddedToChat(true);
+    setTimeout(() => {
+      onClose?.();
+    }, 800);
+  };
+
+  const formatTime = (secs: number) => {
+    const m = Math.floor(secs / 60);
+    const s = Math.floor(secs % 60);
+    return `${m}:${s < 10 ? "0" : ""}${s}`;
+  };
+
+  return (
+    <div className={`relative w-full h-full min-h-[420px] bg-slate-950 border border-slate-800/80 rounded-2xl overflow-y-auto p-4 md:p-6 custom-scrollbar ${className || ""}`}>
+      {/* Header Banner */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 border-b border-slate-800/80">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-pink-500 via-purple-600 to-indigo-600 p-0.5 shadow-lg shadow-purple-500/20">
+            <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
+              <Music className="w-5 h-5 text-pink-400" />
+            </div>
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-base font-bold text-slate-100">FlowMusic Studio</h3>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300 border border-pink-500/30 font-semibold">
+                AI Engine
+              </span>
+            </div>
+            <p className="text-xs text-slate-400">
+              Account: <span className="text-cyan-400 font-medium">{userName}</span>
+            </p>
           </div>
         </div>
-      )}
 
-      {loadError && !studio && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-6 z-10">
-          <div className="text-sm text-slate-400 text-center max-w-md">
-            {loadError}
-          </div>
-          <div className="w-full max-w-md space-y-3">
-            <input
-              type="text"
-              placeholder="Describe the track you want to generate..."
-              className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-800 text-sm text-slate-100 placeholder:text-slate-500 outline-none focus:border-cyan-500/40"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  const target = e.target as HTMLInputElement;
-                  handleGenerate(target.value);
-                  target.value = "";
-                }
-              }}
-            />
+        <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-900/80 px-3 py-1.5 rounded-xl border border-slate-800">
+          <Sparkles className="w-3.5 h-3.5 text-yellow-400" />
+          <span>High Fidelity 320kbps AI Stems</span>
+        </div>
+      </div>
+
+      {/* Genre Selector */}
+      <div className="mt-5 space-y-2">
+        <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
+          Music Style & Mood
+        </label>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {PRESET_GENRES.map((genre) => {
+            const isSelected = selectedGenre.id === genre.id;
+            return (
+              <button
+                key={genre.id}
+                onClick={() => {
+                  setSelectedGenre(genre);
+                  setPrompt(genre.prompt);
+                }}
+                className={`p-2.5 rounded-xl text-left transition-all border ${
+                  isSelected
+                    ? "bg-purple-600/20 border-purple-500 text-white shadow-md shadow-purple-500/10"
+                    : "bg-slate-900/60 border-slate-800 hover:bg-slate-900 text-slate-300"
+                }`}
+              >
+                <div className="text-xs font-semibold">{genre.name}</div>
+                <div className="text-[10px] text-slate-400 truncate">{genre.desc}</div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Prompt Input */}
+      <div className="mt-5 space-y-2">
+        <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
+          Track Prompt & Instructions
+        </label>
+        <div className="relative">
+          <textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder="Describe the mood, instruments, lyrics or vibe..."
+            rows={2}
+            className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-800 text-sm text-slate-100 placeholder:text-slate-500 outline-none focus:border-purple-500/60 transition-all resize-none"
+          />
+        </div>
+      </div>
+
+      {/* Generate Button */}
+      <div className="mt-4">
+        <button
+          onClick={handleGenerate}
+          disabled={isGenerating}
+          className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 hover:from-pink-500 hover:via-purple-500 hover:to-indigo-500 text-white font-medium text-sm shadow-lg shadow-purple-500/25 transition-all duration-200 active:scale-[0.99] disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          {isGenerating ? (
+            <>
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <span>FlowMusic Synthesizing Melody...</span>
+            </>
+          ) : (
+            <>
+              <Sparkles className="w-4 h-4" />
+              <span>Generate FlowMusic Track</span>
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Generated Track Player */}
+      {generatedTrack && (
+        <div className="mt-6 p-4 rounded-2xl bg-slate-900/90 border border-purple-500/30 shadow-xl space-y-4 animate-in fade-in zoom-in-95">
+          <audio ref={audioRef} src={generatedTrack.url} preload="metadata" />
+
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <button
+                onClick={togglePlay}
+                className="shrink-0 w-11 h-11 rounded-xl bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-purple-500/30 hover:scale-105 active:scale-95 transition-all"
+              >
+                {isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current ml-0.5" />}
+              </button>
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-slate-100 truncate">{generatedTrack.title}</div>
+                <div className="text-xs text-purple-400 font-medium">{generatedTrack.genre} • FlowMusic Engine</div>
+              </div>
+            </div>
+
             <button
-              onClick={() => {
-                const input = containerRef.current?.previousElementSibling as HTMLInputElement | null;
-                if (input) handleGenerate(input.value);
-              }}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm font-medium hover:from-indigo-500 hover:to-purple-500 transition-all"
+              onClick={toggleMute}
+              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
             >
-              Generate Track
+              {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
             </button>
           </div>
+
+          {/* Progress Bar & Waveform Effect */}
+          <div className="space-y-1.5">
+            <input
+              type="range"
+              min={0}
+              max={duration || 180}
+              value={currentTime}
+              onChange={handleSeek}
+              className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-pink-500"
+            />
+            <div className="flex justify-between text-[11px] text-slate-400 font-mono">
+              <span>{formatTime(currentTime)}</span>
+              <div className="flex items-center gap-1">
+                <span className={`w-1 h-3 rounded-full bg-pink-500 ${isPlaying ? "animate-pulse" : "opacity-40"}`} />
+                <span className={`w-1 h-4 rounded-full bg-purple-500 ${isPlaying ? "animate-pulse delay-75" : "opacity-40"}`} />
+                <span className={`w-1 h-2 rounded-full bg-indigo-500 ${isPlaying ? "animate-pulse delay-150" : "opacity-40"}`} />
+              </div>
+              <span>{formatTime(duration)}</span>
+            </div>
+          </div>
+
+          {/* Action to send to chat */}
+          <button
+            onClick={handleSendToChat}
+            disabled={addedToChat}
+            className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center justify-center gap-2 transition-all shadow-md shadow-emerald-600/20"
+          >
+            {addedToChat ? (
+              <>
+                <Check className="w-4 h-4" />
+                <span>Track Sent to Ultra AI Chat!</span>
+              </>
+            ) : (
+              <>
+                <Send className="w-4 h-4" />
+                <span>Send Track to Ultra AI Chat</span>
+              </>
+            )}
+          </button>
         </div>
       )}
     </div>

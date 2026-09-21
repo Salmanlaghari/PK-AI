@@ -33,6 +33,36 @@ export default function ChatMessage({ message, userName, onRegenerate, onGenerat
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleDownload = async (url: string, defaultName: string, mimeType: string) => {
+    if (!url) return;
+    try {
+      const androidBridge = (window as any).AndroidOAuth;
+      if (androidBridge && typeof androidBridge.downloadFile === "function") {
+        androidBridge.downloadFile(url, defaultName, mimeType);
+        return;
+      }
+      const response = await fetch(url, { mode: "cors" });
+      if (!response.ok) throw new Error("Fetch failed");
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = defaultName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch {
+      const a = document.createElement("a");
+      a.href = url;
+      a.target = "_blank";
+      a.download = defaultName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+  };
+
   const formatDuration = (seconds: number | null | undefined) => {
     if (!seconds) return null;
     const m = Math.floor(seconds / 60);
@@ -131,9 +161,15 @@ export default function ChatMessage({ message, userName, onRegenerate, onGenerat
                   <ThumbsUp className="w-3.5 h-3.5" />
                   {liked ? "Liked" : "Like"}
                 </button>
-                <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/60 text-slate-300 hover:text-white border border-slate-700 text-[11px] font-medium transition-all">
-                  <Download className="w-3.5 h-3.5" />
-                  Download
+                <button
+                  onClick={() => {
+                    const safeName = (message.songTitle || "ultra_ai_track").replace(/[^a-zA-Z0-9_-]/g, "_") + ".mp3";
+                    handleDownload(message.audioUrl || "", safeName, "audio/mpeg");
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/80 text-slate-300 hover:text-white hover:bg-slate-700 border border-slate-700 text-[11px] font-medium transition-all active:scale-95"
+                >
+                  <Download className="w-3.5 h-3.5 text-cyan-400" />
+                  Download Song
                 </button>
               </div>
             </div>
@@ -150,8 +186,16 @@ export default function ChatMessage({ message, userName, onRegenerate, onGenerat
               <div className="p-3 flex items-center justify-between bg-slate-900/80">
                 <span className="text-[10px] text-cyan-400 font-mono">Real AI Image Output</span>
                 <div className="flex gap-2">
-                  <button className="p-1.5 rounded-lg bg-slate-800/60 text-slate-300 hover:text-white border border-slate-700 transition-all">
-                    <Download className="w-3.5 h-3.5" />
+                  <button
+                    onClick={() => {
+                      const safeName = "ultra_ai_image_" + Date.now() + ".jpg";
+                      handleDownload(message.imageUrl || "", safeName, "image/jpeg");
+                    }}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800/80 text-slate-300 hover:text-white hover:bg-slate-700 border border-slate-700 transition-all text-[11px] font-medium active:scale-95"
+                    title="Download Image"
+                  >
+                    <Download className="w-3.5 h-3.5 text-cyan-400" />
+                    Download
                   </button>
                 </div>
               </div>
@@ -169,8 +213,16 @@ export default function ChatMessage({ message, userName, onRegenerate, onGenerat
               <div className="p-3 flex items-center justify-between bg-slate-900/80">
                 <span className="text-[10px] text-violet-400 font-mono">Real AI Video Output</span>
                 <div className="flex gap-2">
-                  <button className="p-1.5 rounded-lg bg-slate-800/60 text-slate-300 hover:text-white border border-slate-700 transition-all">
-                    <Download className="w-3.5 h-3.5" />
+                  <button
+                    onClick={() => {
+                      const safeName = "ultra_ai_image_" + Date.now() + ".jpg";
+                      handleDownload(message.imageUrl || "", safeName, "image/jpeg");
+                    }}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800/80 text-slate-300 hover:text-white hover:bg-slate-700 border border-slate-700 transition-all text-[11px] font-medium active:scale-95"
+                    title="Download Image"
+                  >
+                    <Download className="w-3.5 h-3.5 text-cyan-400" />
+                    Download
                   </button>
                 </div>
               </div>
@@ -199,9 +251,22 @@ export default function ChatMessage({ message, userName, onRegenerate, onGenerat
           {/* LYRICS */}
           {message.type === "real_lyrics" && message.lyricsText && (
             <div className="mt-3 p-4 rounded-2xl bg-slate-950/90 border border-violet-500/40 shadow-2xl">
-              <div className="flex items-center gap-2 mb-2">
-                <FileText className="w-4 h-4 text-violet-400" />
-                <span className="text-xs font-semibold text-violet-300">AI Generated Lyrics</span>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-violet-400" />
+                  <span className="text-xs font-semibold text-violet-300">AI Generated Lyrics</span>
+                </div>
+                <button
+                  onClick={() => {
+                    const blob = new Blob([message.lyricsText || ""], { type: "text/plain;charset=utf-8" });
+                    const blobUrl = window.URL.createObjectURL(blob);
+                    handleDownload(blobUrl, "ultra_ai_lyrics_" + Date.now() + ".txt", "text/plain");
+                  }}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800/80 text-slate-300 hover:text-white border border-slate-700 text-[10px] font-medium transition-all active:scale-95"
+                >
+                  <Download className="w-3 h-3 text-pink-400" />
+                  Download
+                </button>
               </div>
               <p className="whitespace-pre-wrap text-sm text-slate-300 leading-relaxed">
                 {message.lyricsText}

@@ -173,7 +173,12 @@ export default function FlowAuthModal({ isOpen, onClose, onAuthSuccess }: FlowAu
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
         <div className="flex items-center justify-between p-4 border-b border-slate-800">
-          <h2 className="text-lg font-semibold text-slate-100">Connect to PK AI</h2>
+          <h2 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
+            <span>Connect FlowMusic Account</span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-pink-950 text-pink-300 border border-pink-800">
+              50 Daily Credits
+            </span>
+          </h2>
           <button
             onClick={onClose}
             className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/60 transition-colors"
@@ -183,14 +188,14 @@ export default function FlowAuthModal({ isOpen, onClose, onAuthSuccess }: FlowAu
         </div>
 
         <div className="p-6 space-y-4">
-          <p className="text-sm text-slate-400">
-            Sign in with your personal Google account to access PK AI HUB and Flow Studio. Your session is private and isolated.
+          <p className="text-sm text-slate-400 leading-relaxed">
+            Sign in with your Google account to link your <strong className="text-slate-200">FlowMusic.app</strong> profile with Ultra AI 4. You get <span className="text-pink-400 font-semibold">50 Free Daily Credits</span> every day to generate songs, lyrics, and high-resolution media.
           </p>
 
           <button
             onClick={handleGoogleSignIn}
             disabled={isSigningIn}
-            className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl bg-white text-slate-900 font-medium text-sm hover:bg-slate-100 disabled:opacity-60 transition-all"
+            className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl bg-white text-slate-900 font-medium text-sm hover:bg-slate-100 disabled:opacity-60 transition-all shadow-md active:scale-[0.98]"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path

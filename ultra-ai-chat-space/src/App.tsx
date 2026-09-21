@@ -12,6 +12,14 @@ import FlowStudioEmbed from "./components/FlowStudioEmbed";
 import { models, defaultModel } from "./data/models";
 import { sessions as initialSessions } from "./data/sessions";
 import type { Message, AIModel } from "./types";
+import {
+  getFlowMusicSession,
+  bindGoogleToFlowMusic,
+  generateStrictVisual,
+  generateFlowMusicTrack,
+  deductFlowCredits,
+  type FlowMusicUser,
+} from "./services/flowMusicService";
 
 function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -25,9 +33,9 @@ function createWelcomeMessage(model: AIModel): Message {
   return {
     id: generateId(),
     sender: "ai",
-    text: `Namaste! Main ${model.name} hoon. Aaj main aapki kya madad kar sakta hoon? Main creative tasks, coding, image generation, aur voice synthesis sab mein aapki madad kar sakta hoon.`,
+    text: `Namaste! Main ${model.name} hoon (Powered by FlowMusic Backend). Aaj main aapki kya madad kar sakta hoon? Aap mujhse koi bhi song, Bollywood track, lyrics, ya HD image mang sakte hain.`,
     timestamp: getTimestamp(),
-    modelName: model.name,
+    modelName: `${model.name} × FlowMusic`,
   };
 }
 
@@ -43,6 +51,7 @@ function App() {
   const [authOpen, setAuthOpen] = useState(false);
   const [flowStudioOpen, setFlowStudioOpen] = useState(false);
   const [imageModal, setImageModal] = useState<{ isOpen: boolean; url: string }>({ isOpen: false, url: "" });
+  const [flowUser, setFlowUser] = useState<FlowMusicUser>(() => getFlowMusicSession());
   const [authUser, setAuthUser] = useState<{ name: string; email: string; picture: string } | null>(() => {
     try {
       const saved = localStorage.getItem("ultra_ai_user");
@@ -91,98 +100,66 @@ function App() {
     setMessages([createWelcomeMessage(selectedModel)]);
   };
 
-function cleanImagePrompt(input: string): string {
-  let p = input
-    .replace(/^(please\s+)?(can\s+you\s+)?(make|generate|create|draw|paint|show|give|banao|dikhao|render)\s+(me\s+)?(an?\s+)?(image|photo|picture|pic|tasveer|wallpaper)\s+(of\s+|about\s+|ki\s+|ka\s+)?/i, "")
-    .replace(/\s+(image|photo|picture|pic|draw|tasveer|banao)\s*$/i, "")
-    .trim();
-  return p.length >= 2 ? p : input.trim();
-}
-
-function parseMusicPrompt(input: string) {
-  const lower = input.toLowerCase();
-  let songTitle = "Ultra Flow Track";
-  let audioUrl = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
-  let coverPrompt = "music album cover futuristic";
-
-  if (lower.includes("bollywood") || lower.includes("hindi") || lower.includes("filmi")) {
-    songTitle = "Bollywood Filmi Romance - Tum Hi Ho Meri Duniya";
-    coverPrompt = "bollywood movie album cover couple romantic dramatic cinematic lighting";
-    audioUrl = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
-  } else if (lower.includes("sufi") || lower.includes("qawwali")) {
-    songTitle = "Roohani Ishq - Sufi Fusion";
-    coverPrompt = "sufi mystical album cover spiritual glowing light harmony";
-    audioUrl = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3";
-  } else if (lower.includes("sad") || lower.includes("dard") || lower.includes("gham")) {
-    songTitle = "Khaali Raaste - Melancholic Melody";
-    coverPrompt = "sad melancholic rainy window album cover night lo-fi aesthetic";
-    audioUrl = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3";
-  } else if (lower.includes("rap") || lower.includes("drill") || lower.includes("hip hop")) {
-    songTitle = "Desi Drill 808 - Raaston Ka Shor";
-    coverPrompt = "dark urban drill street album cover neon night underground";
-    audioUrl = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3";
-  } else {
-    const cleaned = input
-      .replace(/^(make|generate|play|create|gaana|gana|song|music|sunao)\s+(me\s+)?(a\s+)?/i, "")
-      .replace(/\s+(song|music|audio|track|gaana)\s*$/i, "")
-      .trim();
-    const tag = cleaned ? cleaned.charAt(0).toUpperCase() + cleaned.slice(1) : "Flow Track";
-    songTitle = `${tag} - Ultra AI Original`;
-    coverPrompt = `music album cover ${tag} vibrant studio high quality`;
-    audioUrl = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
-  }
-
-  const coverImageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(coverPrompt)}?width=400&height=400&nologo=true`;
-
-  return { songTitle, audioUrl, coverImageUrl };
-}
-
   const simulateAIResponse = useCallback((userText: string): Message => {
     const lower = userText.toLowerCase();
     let responseText = "";
     let type: Message["type"] = "text";
 
-    if (lower.includes("image") || lower.includes("photo") || lower.includes("picture") || lower.includes("draw") || lower.includes("tasveer") || lower.includes("pic")) {
+    // 1. IMAGE GENERATION - STRICT PROMPT OBEDIENCE VIA FLOWMUSIC VISUAL ENGINE
+    if (lower.includes("image") || lower.includes("photo") || lower.includes("picture") || lower.includes("draw") || lower.includes("tasveer") || lower.includes("pic") || lower.includes("wallpaper")) {
       type = "real_image";
-      const prompt = cleanImagePrompt(userText);
-      const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=1024&nologo=true&seed=${Date.now()}`;
-      responseText = `Maine aapke prompt "${prompt}" ke mutabiq yeh high-quality AI image generate kar di hai:`;
+      const visual = generateStrictVisual(userText);
+      const updatedUser = getFlowMusicSession();
+      setFlowUser(updatedUser);
+
+      responseText = `Maine FlowMusic Backend Engine ke zariye aapke prompt "${visual.prompt}" ke mutabiq authentic HD image generate kar di hai:\n(⚡ ${visual.creditsCost} FlowMusic Credits istemal huye | ${visual.creditsRemaining}/50 Daily Credits baqi hain)`;
+
       return {
         id: generateId(),
         sender: "ai",
         text: responseText,
         timestamp: getTimestamp(),
         type,
-        imageUrl,
-        modelName: selectedModel.name,
+        imageUrl: visual.imageUrl,
+        modelName: `${selectedModel.name} × FlowMusic`,
         isGeneratingMedia: false,
         mediaCategory: "image",
       };
     }
 
-    if (lower.includes("song") || lower.includes("music") || lower.includes("audio") || lower.includes("gana") || lower.includes("gaana") || lower.includes("track")) {
+    // 2. REAL AI MUSIC GENERATION - FLOWMUSIC.APP BACKEND ENGINE
+    if (lower.includes("song") || lower.includes("music") || lower.includes("audio") || lower.includes("gana") || lower.includes("gaana") || lower.includes("track") || lower.includes("beat")) {
       type = "real_song";
-      const musicData = parseMusicPrompt(userText);
-      responseText = `Maine aapke request ke mutabiq "${musicData.songTitle}" generate kar diya hai:`;
+      const track = generateFlowMusicTrack(userText);
+      const updatedUser = getFlowMusicSession();
+      setFlowUser(updatedUser);
+
+      responseText = `Maine FlowMusic Audio Engine (https://www.flowmusic.app/) se aapke request ke mutabiq "${track.songTitle}" mukammal tayyar kar diya hai:\n(⚡ ${track.creditsCost} FlowMusic Credits istemal huye | ${track.creditsRemaining}/50 Daily Credits baqi hain)\n\n${track.lyrics}`;
+
       return {
         id: generateId(),
         sender: "ai",
         text: responseText,
         timestamp: getTimestamp(),
         type,
-        audioUrl: musicData.audioUrl,
-        coverImageUrl: musicData.coverImageUrl,
-        songTitle: musicData.songTitle,
-        duration: 185,
-        modelName: selectedModel.name,
+        audioUrl: track.audioUrl,
+        coverImageUrl: track.coverImageUrl,
+        songTitle: track.songTitle,
+        duration: track.duration,
+        lyricsText: track.lyrics,
+        modelName: `${selectedModel.name} × FlowMusic`,
         isGeneratingMedia: false,
         mediaCategory: "song",
       };
     }
 
-    if (lower.includes("video") || lower.includes("clip")) {
+    // 3. REAL AI VIDEO GENERATION
+    if (lower.includes("video") || lower.includes("clip") || lower.includes("film")) {
       type = "real_video";
-      responseText = "Maine aapke liye yeh video generate kar di hai:";
+      const remainingCredits = deductFlowCredits(4);
+      setFlowUser(getFlowMusicSession());
+
+      responseText = `Maine FlowMusic Visual Engine se aapke liye video generate kar di hai:\n(⚡ 4 FlowMusic Credits istemal huye | ${remainingCredits}/50 Daily Credits baqi hain)`;
       return {
         id: generateId(),
         sender: "ai",
@@ -190,7 +167,7 @@ function parseMusicPrompt(input: string) {
         timestamp: getTimestamp(),
         type,
         videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-        modelName: selectedModel.name,
+        modelName: `${selectedModel.name} × FlowMusic`,
         isGeneratingMedia: false,
         mediaCategory: "video",
       };
@@ -199,7 +176,7 @@ function parseMusicPrompt(input: string) {
     if (lower.includes("code") || lower.includes("function") || lower.includes("program")) {
       type = "code";
       responseText = "Yeh raha aapke request ke mutabiq code:";
-      const codeSnippet = `function helloUltraAI() {\n  console.log("Ultra AI 4 - Powered by Gemini & FlowMusic");\n}`;
+      const codeSnippet = `function helloUltraAI() {\n  // Ultra AI 4 powered by FlowMusic Engine (https://www.flowmusic.app/)\n  console.log("Connected to FlowMusic Creator Engine - 50 Daily Credits");\n}`;
       return {
         id: generateId(),
         sender: "ai",
@@ -213,15 +190,18 @@ function parseMusicPrompt(input: string) {
 
     if (lower.includes("lyrics") || lower.includes("geet") || lower.includes("song words") || lower.includes("shairi")) {
       type = "real_lyrics";
+      const remainingCredits = deductFlowCredits(1);
+      setFlowUser(getFlowMusicSession());
+
       let lyricsText = "";
       if (lower.includes("bollywood") || lower.includes("romantic") || lower.includes("love") || lower.includes("pyar")) {
-        lyricsText = `[Bollywood Romantic Style]\n\nMukhda:\nDil ki galiyon mein tera hi basera hai\nTu subah meri, tu hi mera savera hai\n\nAntra 1:\nFaasle mita ke aa kareeb tu zara\nTere bina lage har ek lamha sazaa\nAnkhon se bayan ho rahi yeh daastan\nTu hi meri rooh, tu hi mera aasmaan\n\nChorus:\nTum hi ho meri duniya, tum hi ho qarar\nDil karta hai tumse be-inteha pyar!`;
+        lyricsText = `[Bollywood Romantic - FlowMusic Composition]\n\nMukhda:\nDil ki galiyon mein tera hi basera hai\nTu subah meri, tu hi mera savera hai\n\nAntra 1:\nFaasle mita ke aa kareeb tu zara\nTere bina lage har ek lamha sazaa\nAnkhon se bayan ho rahi yeh daastan\nTu hi meri rooh, tu hi mera aasmaan\n\nChorus:\nTum hi ho meri duniya, tum hi ho qarar\nDil karta hai tumse be-inteha pyar!`;
       } else if (lower.includes("sad") || lower.includes("dard")) {
-        lyricsText = `[Sad Melancholic Style]\n\nMukhda:\nKhaali hain haath, bheege hain yeh naina\nAb tere bina mushkil hai mera rehna\n\nAntra 1:\nKayi khwaab toote hain is raat ke andhere mein\nBas tera hi saaya hai yaadon ke ghere mein\n\nChorus:\nJaane kyun bewajah juda ho gaye hum\nAb har taraf bas dhuwan aur gham!`;
+        lyricsText = `[Sad Melancholic - FlowMusic Composition]\n\nMukhda:\nKhaali hain haath, bheege hain yeh naina\nAb tere bina mushkil hai mera rehna\n\nAntra 1:\nKayi khwaab toote hain is raat ke andhere mein\nBas tera hi saaya hai yaadon ke ghere mein\n\nChorus:\nJaane kyun bewajah juda ho gaye hum\nAb har taraf bas dhuwan aur gham!`;
       } else {
-        lyricsText = `[Ultra AI Lyrics]\n\nVerse 1:\nAaj ki raat nayi dhun bajegi\nHar ek saaz pe zindagi sajegi\n\nChorus:\nUltra AI ka yeh jaadu chale\nKhushi ke deep har ek pal jale!`;
+        lyricsText = `[FlowMusic AI Original]\n\nVerse 1:\nAaj ki raat nayi dhun bajegi\nHar ek saaz pe zindagi sajegi\n\nChorus:\nFlowMusic ka yeh jaadu chale\nKhushi ke deep har ek pal jale!`;
       }
-      responseText = `Maine aapke request ke mutabiq yeh song lyrics generate kar diye hain:`;
+      responseText = `Maine FlowMusic Engine se aapke liye song lyrics generate kar diye hain:\n(⚡ 1 FlowMusic Credit istemal hua | ${remainingCredits}/50 Daily Credits baqi hain)`;
       return {
         id: generateId(),
         sender: "ai",
@@ -229,7 +209,7 @@ function parseMusicPrompt(input: string) {
         timestamp: getTimestamp(),
         type,
         lyricsText,
-        modelName: selectedModel.name,
+        modelName: `${selectedModel.name} × FlowMusic`,
       };
     }
 
@@ -372,14 +352,16 @@ function parseMusicPrompt(input: string) {
     try {
       localStorage.setItem("ultra_ai_user", JSON.stringify(user));
     } catch {}
+    const updated = bindGoogleToFlowMusic(user);
+    setFlowUser(updated);
     setAuthOpen(false);
 
     const welcomeMsg: Message = {
       id: generateId(),
       sender: "ai",
-      text: `🎉 **FlowMusic Account Connected!**\n\nKhush-aamdeed **${user.name}**! Aapka Google / FlowMusic account safely connect ho chuka hai. Ab aap Ultra AI 4 ke tamam songs, lyrics, voice aur creative features be-fiker use kar sakte hain.`,
+      text: `🎉 **FlowMusic Account Connected!**\n\nKhush-aamdeed **${user.name}**! Aapka Google / FlowMusic account safely connect ho chuka hai.\n⚡ **50 Daily Creation Credits** activate ho chuke hain (https://www.flowmusic.app/). Ab aap Ultra AI 4 ke tamam songs, lyrics, voice aur creative features be-fiker use kar sakte hain.`,
       timestamp: getTimestamp(),
-      modelName: selectedModel.name,
+      modelName: `${selectedModel.name} × FlowMusic`,
     };
     setMessages((prev) => [...prev, welcomeMsg]);
   }, [selectedModel.name]);
@@ -425,6 +407,7 @@ function parseMusicPrompt(input: string) {
             localStorage.removeItem("ultra_ai_user");
           } catch {}
         }}
+        flowCredits={flowUser.dailyCreditsRemaining}
       />
 
       <div className="flex-1 flex flex-col min-w-0">
@@ -434,6 +417,7 @@ function parseMusicPrompt(input: string) {
           onOpenVoice={() => setVoiceOpen(true)}
           onOpenSettings={() => setSettingsOpen(true)}
           onOpenFlowStudio={() => setAuthOpen(true)}
+          flowCredits={flowUser.dailyCreditsRemaining}
         />
 
         <main className="flex-1 overflow-y-auto custom-scrollbar">

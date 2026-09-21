@@ -91,39 +91,88 @@ function App() {
     setMessages([createWelcomeMessage(selectedModel)]);
   };
 
+function cleanImagePrompt(input: string): string {
+  let p = input
+    .replace(/^(please\s+)?(can\s+you\s+)?(make|generate|create|draw|paint|show|give|banao|dikhao|render)\s+(me\s+)?(an?\s+)?(image|photo|picture|pic|tasveer|wallpaper)\s+(of\s+|about\s+|ki\s+|ka\s+)?/i, "")
+    .replace(/\s+(image|photo|picture|pic|draw|tasveer|banao)\s*$/i, "")
+    .trim();
+  return p.length >= 2 ? p : input.trim();
+}
+
+function parseMusicPrompt(input: string) {
+  const lower = input.toLowerCase();
+  let songTitle = "Ultra Flow Track";
+  let audioUrl = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
+  let coverPrompt = "music album cover futuristic";
+
+  if (lower.includes("bollywood") || lower.includes("hindi") || lower.includes("filmi")) {
+    songTitle = "Bollywood Filmi Romance - Tum Hi Ho Meri Duniya";
+    coverPrompt = "bollywood movie album cover couple romantic dramatic cinematic lighting";
+    audioUrl = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
+  } else if (lower.includes("sufi") || lower.includes("qawwali")) {
+    songTitle = "Roohani Ishq - Sufi Fusion";
+    coverPrompt = "sufi mystical album cover spiritual glowing light harmony";
+    audioUrl = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3";
+  } else if (lower.includes("sad") || lower.includes("dard") || lower.includes("gham")) {
+    songTitle = "Khaali Raaste - Melancholic Melody";
+    coverPrompt = "sad melancholic rainy window album cover night lo-fi aesthetic";
+    audioUrl = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3";
+  } else if (lower.includes("rap") || lower.includes("drill") || lower.includes("hip hop")) {
+    songTitle = "Desi Drill 808 - Raaston Ka Shor";
+    coverPrompt = "dark urban drill street album cover neon night underground";
+    audioUrl = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3";
+  } else {
+    const cleaned = input
+      .replace(/^(make|generate|play|create|gaana|gana|song|music|sunao)\s+(me\s+)?(a\s+)?/i, "")
+      .replace(/\s+(song|music|audio|track|gaana)\s*$/i, "")
+      .trim();
+    const tag = cleaned ? cleaned.charAt(0).toUpperCase() + cleaned.slice(1) : "Flow Track";
+    songTitle = `${tag} - Ultra AI Original`;
+    coverPrompt = `music album cover ${tag} vibrant studio high quality`;
+    audioUrl = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
+  }
+
+  const coverImageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(coverPrompt)}?width=400&height=400&nologo=true`;
+
+  return { songTitle, audioUrl, coverImageUrl };
+}
+
   const simulateAIResponse = useCallback((userText: string): Message => {
     const lower = userText.toLowerCase();
     let responseText = "";
     let type: Message["type"] = "text";
 
-    if (lower.includes("image") || lower.includes("photo") || lower.includes("picture") || lower.includes("draw")) {
+    if (lower.includes("image") || lower.includes("photo") || lower.includes("picture") || lower.includes("draw") || lower.includes("tasveer") || lower.includes("pic")) {
       type = "real_image";
-      responseText = "I have generated an image based on your request. Here it is:";
+      const prompt = cleanImagePrompt(userText);
+      const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=1024&nologo=true&seed=${Date.now()}`;
+      responseText = `Maine aapke prompt "${prompt}" ke mutabiq yeh high-quality AI image generate kar di hai:`;
       return {
         id: generateId(),
         sender: "ai",
         text: responseText,
         timestamp: getTimestamp(),
         type,
-        imageUrl: `https://picsum.photos/seed/${generateId()}/512/512`,
+        imageUrl,
         modelName: selectedModel.name,
         isGeneratingMedia: false,
         mediaCategory: "image",
       };
     }
 
-    if (lower.includes("song") || lower.includes("music") || lower.includes("audio") || lower.includes("gana")) {
+    if (lower.includes("song") || lower.includes("music") || lower.includes("audio") || lower.includes("gana") || lower.includes("gaana") || lower.includes("track")) {
       type = "real_song";
-      responseText = "Here is an AI-generated track based on your request:";
+      const musicData = parseMusicPrompt(userText);
+      responseText = `Maine aapke request ke mutabiq "${musicData.songTitle}" generate kar diya hai:`;
       return {
         id: generateId(),
         sender: "ai",
         text: responseText,
         timestamp: getTimestamp(),
         type,
-        audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-        coverImageUrl: `https://picsum.photos/seed/${generateId()}/128/128`,
-        songTitle: "AI Generated Track",
+        audioUrl: musicData.audioUrl,
+        coverImageUrl: musicData.coverImageUrl,
+        songTitle: musicData.songTitle,
         duration: 185,
         modelName: selectedModel.name,
         isGeneratingMedia: false,
@@ -133,7 +182,7 @@ function App() {
 
     if (lower.includes("video") || lower.includes("clip")) {
       type = "real_video";
-      responseText = "I have generated a video for you. Here it is:";
+      responseText = "Maine aapke liye yeh video generate kar di hai:";
       return {
         id: generateId(),
         sender: "ai",
@@ -149,8 +198,8 @@ function App() {
 
     if (lower.includes("code") || lower.includes("function") || lower.includes("program")) {
       type = "code";
-      responseText = "Here is a code example based on your request:";
-      const codeSnippet = `function hello() {\n  console.log("Hello from Ultra AI!");\n}`;
+      responseText = "Yeh raha aapke request ke mutabiq code:";
+      const codeSnippet = `function helloUltraAI() {\n  console.log("Ultra AI 4 - Powered by Gemini & FlowMusic");\n}`;
       return {
         id: generateId(),
         sender: "ai",
@@ -162,11 +211,17 @@ function App() {
       };
     }
 
-    if (lower.includes("lyrics") || lower.includes("geet") || lower.includes("song words")) {
+    if (lower.includes("lyrics") || lower.includes("geet") || lower.includes("song words") || lower.includes("shairi")) {
       type = "real_lyrics";
-      responseText = "Here are AI-generated lyrics for you:";
-      const lyricsText = `Verse 1:\nDil ki baat suno meri\nAaj raat hai humari\nChand taare sath hain\nYeh pal hain yaadgaar`;
-
+      let lyricsText = "";
+      if (lower.includes("bollywood") || lower.includes("romantic") || lower.includes("love") || lower.includes("pyar")) {
+        lyricsText = `[Bollywood Romantic Style]\n\nMukhda:\nDil ki galiyon mein tera hi basera hai\nTu subah meri, tu hi mera savera hai\n\nAntra 1:\nFaasle mita ke aa kareeb tu zara\nTere bina lage har ek lamha sazaa\nAnkhon se bayan ho rahi yeh daastan\nTu hi meri rooh, tu hi mera aasmaan\n\nChorus:\nTum hi ho meri duniya, tum hi ho qarar\nDil karta hai tumse be-inteha pyar!`;
+      } else if (lower.includes("sad") || lower.includes("dard")) {
+        lyricsText = `[Sad Melancholic Style]\n\nMukhda:\nKhaali hain haath, bheege hain yeh naina\nAb tere bina mushkil hai mera rehna\n\nAntra 1:\nKayi khwaab toote hain is raat ke andhere mein\nBas tera hi saaya hai yaadon ke ghere mein\n\nChorus:\nJaane kyun bewajah juda ho gaye hum\nAb har taraf bas dhuwan aur gham!`;
+      } else {
+        lyricsText = `[Ultra AI Lyrics]\n\nVerse 1:\nAaj ki raat nayi dhun bajegi\nHar ek saaz pe zindagi sajegi\n\nChorus:\nUltra AI ka yeh jaadu chale\nKhushi ke deep har ek pal jale!`;
+      }
+      responseText = `Maine aapke request ke mutabiq yeh song lyrics generate kar diye hain:`;
       return {
         id: generateId(),
         sender: "ai",
@@ -179,15 +234,12 @@ function App() {
     }
 
     const responses = [
-      "Bilkul! Main aapke sawal ka jawab dene ke liye tayyar hoon. Thoda detail mein batayein taaki main behtar madad kar sakoon.",
-      "Yeh bahut interesting sawal hai. Main iske bare mein soch raha hoon...",
-      "Main yeh kaam aapke liye kar sakta hoon. Kya aap kuch specific requirements chahte hain?",
-      "Great idea! Aaj hum ise implement karte hain. Step by step guide follow karein.",
-      "Main aapke liye ek comprehensive solution taiyar kar raha hoon. Thoda intezar karein...",
+      "Bilkul! Maine aapka sawal samajh liya hai. Main is par kaam kar raha hoon.",
+      "Zaroor! Main aapki is request par mukammal madad karne ke liye tayyar hoon.",
+      "Yeh bahut behtareen request hai. Ultra AI 4 engine iska behtar result generate kar raha hai.",
+      "Ji haan, bilkul. Main aapke liye step-by-step complete solution provide karta hoon.",
     ];
-
     responseText = responses[Math.floor(Math.random() * responses.length)];
-
     return {
       id: generateId(),
       sender: "ai",

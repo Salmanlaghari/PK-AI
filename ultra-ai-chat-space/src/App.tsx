@@ -43,7 +43,14 @@ function App() {
   const [authOpen, setAuthOpen] = useState(false);
   const [flowStudioOpen, setFlowStudioOpen] = useState(false);
   const [imageModal, setImageModal] = useState<{ isOpen: boolean; url: string }>({ isOpen: false, url: "" });
-  const [authUser, setAuthUser] = useState<{ name: string; email: string; picture: string } | null>(null);
+  const [authUser, setAuthUser] = useState<{ name: string; email: string; picture: string } | null>(() => {
+    try {
+      const saved = localStorage.getItem("ultra_ai_user");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   useEffect(() => {
     if (authUser) {
       console.log("Authenticated user:", authUser);
@@ -310,9 +317,20 @@ function App() {
 
   const handleAuthSuccess = useCallback((_token: string, user: { name: string; email: string; picture: string }) => {
     setAuthUser(user);
+    try {
+      localStorage.setItem("ultra_ai_user", JSON.stringify(user));
+    } catch {}
     setAuthOpen(false);
-    setFlowStudioOpen(true);
-  }, []);
+
+    const welcomeMsg: Message = {
+      id: generateId(),
+      sender: "ai",
+      text: `🎉 **FlowMusic Account Connected!**\n\nKhush-aamdeed **${user.name}**! Aapka Google / FlowMusic account safely connect ho chuka hai. Ab aap Ultra AI 4 ke tamam songs, lyrics, voice aur creative features be-fiker use kar sakte hain.`,
+      timestamp: getTimestamp(),
+      modelName: selectedModel.name,
+    };
+    setMessages((prev) => [...prev, welcomeMsg]);
+  }, [selectedModel.name]);
 
   const handleFlowStudioTrackGenerated = useCallback((trackUrl: string) => {
     const aiMessage: Message = {
@@ -347,6 +365,14 @@ function App() {
         onNewChat={handleNewChat}
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenVoice={() => setVoiceOpen(true)}
+        authUser={authUser}
+        onOpenAuth={() => setAuthOpen(true)}
+        onSignOut={() => {
+          setAuthUser(null);
+          try {
+            localStorage.removeItem("ultra_ai_user");
+          } catch {}
+        }}
       />
 
       <div className="flex-1 flex flex-col min-w-0">
@@ -364,6 +390,7 @@ function App() {
               <ChatMessage
                 key={message.id}
                 message={message}
+                userName={authUser?.name}
                 onRegenerate={
                   message.sender === "ai" && messages.filter((m) => m.sender === "ai").length > 1
                     ? handleRegenerate
@@ -433,8 +460,9 @@ function App() {
             </div>
             <div className="flex-1 overflow-hidden p-4">
               <FlowStudioEmbed
-                theme="dark"
+                userName={authUser?.name || "Prince Laghari"}
                 onTrackGenerated={handleFlowStudioTrackGenerated}
+                onClose={() => setFlowStudioOpen(false)}
                 onError={(err) => console.error("Flow Studio error:", err)}
               />
             </div>

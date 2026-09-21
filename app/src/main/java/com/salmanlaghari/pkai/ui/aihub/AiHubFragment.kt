@@ -19,6 +19,8 @@ import androidx.webkit.WebViewAssetLoader
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
+import androidx.activity.OnBackPressedCallback
+import androidx.navigation.fragment.findNavController
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
@@ -55,6 +57,18 @@ class AiHubFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupWebView()
+
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                val webView = _binding?.webviewUltraAi
+                if (webView != null && webView.canGoBack()) {
+                    webView.goBack()
+                } else {
+                    isEnabled = false
+                    findNavController().navigateUp()
+                }
+            }
+        })
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -208,6 +222,13 @@ class AiHubFragment : Fragment() {
                     Log.d("AiHubFragment", "startGoogleSignIn(clientId, redirectUri) called from JS")
                     activity?.runOnUiThread {
                         triggerGoogleSignIn()
+                    }
+                }
+                @JavascriptInterface
+                fun exitToHome() {
+                    Log.d("AiHubFragment", "exitToHome called from JS")
+                    activity?.runOnUiThread {
+                        findNavController().navigateUp()
                     }
                 }
             },

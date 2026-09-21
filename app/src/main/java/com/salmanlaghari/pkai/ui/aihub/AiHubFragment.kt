@@ -1,5 +1,12 @@
 package com.salmanlaghari.pkai.ui.aihub
 
+import android.app.DownloadManager
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Environment
+import android.widget.Toast
+
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.os.Bundle
@@ -231,9 +238,25 @@ class AiHubFragment : Fragment() {
                         findNavController().navigateUp()
                     }
                 }
+                @JavascriptInterface
+                fun downloadFile(fileUrl: String?, fileName: String?, mimeType: String?) {
+                    Log.d("AiHubFragment", "downloadFile called from JS: $fileUrl, $fileName, $mimeType")
+                    if (fileUrl.isNullOrBlank()) return
+                    activity?.runOnUiThread {
+                        downloadMediaToDevice(
+                            fileUrl,
+                            fileName ?: "ultra_ai_${System.currentTimeMillis()}",
+                            mimeType ?: "*/*"
+                        )
+                    }
+                }
             },
             "AndroidOAuth"
         )
+
+                webView.setDownloadListener { url, _, _, mimetype, _ ->
+            downloadMediaToDevice(url, "ultra_ai_${System.currentTimeMillis()}", mimetype ?: "*/*")
+        }
 
         webView.loadUrl("https://appassets.androidplatform.net/assets/ultra-ai-chat-space/index.html")
     }
@@ -367,5 +390,33 @@ class AiHubFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+
+    private fun downloadMediaToDevice(url: String, fileName: String, mimeType: String) {
+        try {
+            val uri = Uri.parse(url)
+            val request = DownloadManager.Request(uri).apply {
+                setTitle(fileName)
+                setDescription("Downloading from Ultra AI 4...")
+                setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
+                setAllowedOverMetered(true)
+                setAllowedOverRoaming(true)
+                if (mimeType.isNotBlank() && mimeType != "*/*") {
+                    setMimeType(mimeType)
+                }
+            }
+            val downloadManager = requireContext().getSystemService(Context.DOWNLOAD_SERVICE) as? DownloadManager
+            downloadManager?.enqueue(request)
+            Toast.makeText(requireContext(), "Downloading $fileName to storage...", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Log.e("AiHubFragment", "Failed to start DownloadManager: ${e.message}", e)
+            try {
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                startActivity(intent)
+            } catch (err: Exception) {
+                Toast.makeText(requireContext(), "Download error: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 }

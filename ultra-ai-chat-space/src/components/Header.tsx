@@ -13,6 +13,7 @@ interface HeaderProps {
   onOpenVoice: () => void;
   onOpenSettings: () => void;
   onOpenFlowStudio: () => void;
+  flowCredits?: number;
 }
 
 export default function Header({
@@ -21,6 +22,7 @@ export default function Header({
   onOpenVoice,
   onOpenSettings,
   onOpenFlowStudio,
+  flowCredits = 50,
 }: HeaderProps) {
   return (
     <header className="h-16 border-b border-slate-800/60 bg-slate-950/60 backdrop-blur-2xl px-4 flex items-center justify-between shrink-0 z-30">
@@ -44,6 +46,12 @@ export default function Header({
           <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900/40 border border-slate-800/40 text-[11px] text-slate-400">
             <Activity className="w-3.5 h-3.5 text-emerald-400" />
             <span>12ms Latency</span>
+          </div>
+
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-pink-950/50 border border-pink-800/50 text-[11px] text-pink-300" title="FlowMusic.app Daily Credits">
+            <span className="w-1.5 h-1.5 rounded-full bg-pink-400 animate-pulse" />
+            <span className="font-semibold">{flowCredits}</span>
+            <span className="hidden md:inline text-pink-400/80">Flow Credits</span>
           </div>
         </div>
       </div>

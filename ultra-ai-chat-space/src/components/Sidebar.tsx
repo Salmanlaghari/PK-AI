@@ -10,6 +10,7 @@ import {
   Zap,
   BrainCircuit,
   Bot,
+  Music2,
 } from "lucide-react";
 import type { AIModel, ChatSession } from "../types";
 
@@ -28,6 +29,7 @@ interface SidebarProps {
   authUser?: { name: string; email: string; picture: string } | null;
   onOpenAuth?: () => void;
   onSignOut?: () => void;
+  flowCredits?: number;
 }
 
 export default function Sidebar({
@@ -45,6 +47,7 @@ export default function Sidebar({
   authUser,
   onOpenAuth,
   onSignOut,
+  flowCredits = 50,
 }: SidebarProps) {
   const [showModelPicker, setShowModelPicker] = useState(false);
   const displayName = authUser?.name || "Prince Laghari";
@@ -223,6 +226,27 @@ export default function Sidebar({
           <ArrowLeft className="w-3.5 h-3.5 text-cyan-400" />
           <span>PK AI Home Screen</span>
         </button>
+      </div>
+
+      {/* FlowMusic Daily Credits Card */}
+      <div className="mx-3 mb-2 p-2.5 rounded-xl bg-gradient-to-r from-pink-950/40 via-purple-950/30 to-slate-900/90 border border-pink-500/20 shadow-lg">
+        <div className="flex items-center justify-between text-[11px] mb-1.5">
+          <span className="text-slate-300 font-medium flex items-center gap-1.5">
+            <Music2 className="w-3.5 h-3.5 text-pink-400" />
+            FlowMusic Credits
+          </span>
+          <span className="text-pink-300 font-bold">{flowCredits} / 50</span>
+        </div>
+        <div className="w-full h-1.5 bg-slate-800/80 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-gradient-to-r from-pink-500 to-cyan-400 rounded-full transition-all duration-300"
+            style={{ width: `${Math.min(100, Math.max(0, (flowCredits / 50) * 100))}%` }}
+          />
+        </div>
+        <div className="flex items-center justify-between mt-1.5 text-[9px] text-slate-400">
+          <span>Daily Free Refresh</span>
+          <span className="text-cyan-400 font-mono">flowmusic.app</span>
+        </div>
       </div>
 
       <div className="p-3 border-t border-slate-800/60 bg-slate-950/80 flex items-center justify-between">

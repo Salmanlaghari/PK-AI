@@ -417,6 +417,8 @@ function App() {
           onOpenVoice={() => setVoiceOpen(true)}
           onOpenSettings={() => setSettingsOpen(true)}
           onOpenFlowStudio={() => setAuthOpen(true)}
+          onOpenAuth={() => setAuthOpen(true)}
+          authUser={authUser}
           flowCredits={flowUser.dailyCreditsRemaining}
         />
 

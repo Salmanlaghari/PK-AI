@@ -138,6 +138,12 @@ class MainActivity : AppCompatActivity() {
                     Toast.makeText(this, "PK AI Premium — full access unlocked.", Toast.LENGTH_SHORT).show()
                     true
                 }
+                R.id.nav_ultra_ai -> {
+                    if (navController.currentDestination?.id != R.id.aiHubFragment) {
+                        navController.navigate(R.id.aiHubFragment)
+                    }
+                    true
+                }
                 R.id.nav_super_chat -> {
                     if (navController.currentDestination?.id != R.id.superChatFragment) {
                         navController.navigate(R.id.superChatFragment)

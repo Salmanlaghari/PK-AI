@@ -66,6 +66,9 @@
             app:destination="@id/loginFragment"
             app:popUpTo="@id/homeFragment"
             app:popUpToInclusive="true" />
+        <action
+            android:id="@+id/action_homeFragment_to_aiHubFragment"
+            app:destination="@id/aiHubFragment" />
     </fragment>
 
     <fragment
@@ -92,7 +95,7 @@
     <fragment
         android:id="@+id/aiHubFragment"
         android:name="com.salmanlaghari.pkai.ui.aihub.AiHubFragment"
-        android:label="AiHubFragment"
+        android:label="Ultra AI 4"
         tools:layout="@layout/fragment_ai_hub" />
 
     <fragment

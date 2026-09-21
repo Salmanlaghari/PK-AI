@@ -182,6 +182,20 @@
                 android:text="✨ Super"
                 android:textColor="@color/outline"
                 android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/btn_tab_ultra_ai"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="@android:color/transparent"
+                android:clickable="true"
+                android:focusable="true"
+                android:fontFamily="@font/poppins"
+                android:gravity="center"
+                android:text="⚡ Ultra AI 4"
+                android:textColor="@color/outline"
+                android:textSize="11sp" />
         </LinearLayout>
     </LinearLayout>
 

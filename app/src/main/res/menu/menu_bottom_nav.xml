@@ -11,7 +11,7 @@
     <item
         android:id="@+id/aiHubFragment"
         android:icon="@drawable/ic_ai_hub"
-        android:title="AI Hub" />
+        android:title="Ultra AI 4" />
     <item
         android:id="@+id/historyFragment"
         android:icon="@drawable/ic_history"

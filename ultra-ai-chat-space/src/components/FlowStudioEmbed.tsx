@@ -151,9 +151,24 @@ export default function FlowStudioEmbed({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-900/80 px-3 py-1.5 rounded-xl border border-slate-800">
-          <Sparkles className="w-3.5 h-3.5 text-yellow-400" />
-          <span>High Fidelity 320kbps AI Stems</span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              const androidOAuth = (window as any).AndroidOAuth;
+              if (androidOAuth && typeof androidOAuth.openFlowMusicSignUp === "function") {
+                androidOAuth.openFlowMusicSignUp();
+              } else {
+                window.open("https://flowmusic.app", "_blank");
+              }
+            }}
+            className="flex items-center gap-1.5 text-xs text-pink-300 bg-pink-950/60 hover:bg-pink-900/80 px-3 py-1.5 rounded-xl border border-pink-700/60 transition-colors"
+          >
+            <span>Sign Up on FlowMusic</span>
+          </button>
+          <div className="hidden sm:flex items-center gap-2 text-xs text-slate-400 bg-slate-900/80 px-3 py-1.5 rounded-xl border border-slate-800">
+            <Sparkles className="w-3.5 h-3.5 text-yellow-400" />
+            <span>High Fidelity 320kbps AI Stems</span>
+          </div>
         </div>
       </div>
 

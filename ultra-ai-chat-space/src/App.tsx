@@ -416,7 +416,14 @@ function App() {
           selectedModel={selectedModel}
           onOpenVoice={() => setVoiceOpen(true)}
           onOpenSettings={() => setSettingsOpen(true)}
-          onOpenFlowStudio={() => setAuthOpen(true)}
+          onOpenFlowStudio={() => {
+            const androidOAuth = (window as any).AndroidOAuth;
+            if (androidOAuth && typeof androidOAuth.openFlowMusicSignUp === "function") {
+              androidOAuth.openFlowMusicSignUp();
+            } else {
+              setFlowStudioOpen(true);
+            }
+          }}
           onOpenAuth={() => setAuthOpen(true)}
           authUser={authUser}
           flowCredits={flowUser.dailyCreditsRemaining}

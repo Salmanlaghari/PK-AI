@@ -218,6 +218,20 @@ export default function FlowAuthModal({ isOpen, onClose, onAuthSuccess }: FlowAu
             {isSigningIn ? "Connecting..." : "Continue with Google"}
           </button>
 
+          <button
+            onClick={() => {
+              const androidOAuth = (window as any).AndroidOAuth;
+              if (androidOAuth && typeof androidOAuth.openFlowMusicSignUp === "function") {
+                androidOAuth.openFlowMusicSignUp();
+              } else {
+                window.open("https://flowmusic.app", "_blank");
+              }
+            }}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-pink-600 via-rose-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-medium text-sm transition-all shadow-lg shadow-pink-600/20 active:scale-[0.98]"
+          >
+            <span>Sign Up Directly on FlowMusic.app</span>
+          </button>
+
           {error && (
             <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs">
               {error}

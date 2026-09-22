@@ -16,6 +16,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.webkit.ConsoleMessage
 import android.webkit.JavascriptInterface
+import android.webkit.PermissionRequest
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
@@ -64,9 +65,18 @@ class AiHubFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupWebView()
+        setupFlowMusicBackend()
+
+        binding.btnCloseFlowmusicSignup.setOnClickListener {
+            closeFlowMusicSignUp()
+        }
 
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
+                if (binding.containerFlowmusicSignup.visibility == View.VISIBLE) {
+                    closeFlowMusicSignUp()
+                    return
+                }
                 val webView = _binding?.webviewUltraAi
                 if (webView != null && webView.canGoBack()) {
                     webView.goBack()
@@ -76,6 +86,61 @@ class AiHubFragment : Fragment() {
                 }
             }
         })
+    }
+
+    @SuppressLint("SetJavaScriptEnabled")
+    private fun setupFlowMusicBackend() {
+        // Background FlowMusic execution engine
+        binding.webviewFlowmusicBackend.apply {
+            settings.javaScriptEnabled = true
+            settings.domStorageEnabled = true
+            settings.allowFileAccess = true
+            settings.mediaPlaybackRequiresUserGesture = false
+            webChromeClient = object : WebChromeClient() {
+                override fun onPermissionRequest(request: PermissionRequest?) {
+                    request?.grant(request.resources)
+                }
+            }
+            webViewClient = object : WebViewClient() {
+                override fun onPageFinished(view: WebView?, url: String?) {
+                    super.onPageFinished(view, url)
+                    Log.d("AiHubFragment", "FlowMusic Backend ready in background: $url")
+                }
+            }
+            loadUrl("https://flowmusic.app")
+        }
+
+        // Dedicated Sign Up / Account modal WebView
+        binding.webviewFlowmusicSignup.apply {
+            settings.javaScriptEnabled = true
+            settings.domStorageEnabled = true
+            settings.allowFileAccess = true
+            settings.mediaPlaybackRequiresUserGesture = false
+            webChromeClient = object : WebChromeClient() {
+                override fun onPermissionRequest(request: PermissionRequest?) {
+                    request?.grant(request.resources)
+                }
+            }
+            webViewClient = object : WebViewClient() {
+                override fun onPageFinished(view: WebView?, url: String?) {
+                    super.onPageFinished(view, url)
+                    Log.d("AiHubFragment", "FlowMusic Sign Up page loaded: $url")
+                }
+            }
+        }
+    }
+
+    fun openFlowMusicSignUp() {
+        activity?.runOnUiThread {
+            binding.containerFlowmusicSignup.visibility = View.VISIBLE
+            binding.webviewFlowmusicSignup.loadUrl("https://flowmusic.app")
+        }
+    }
+
+    fun closeFlowMusicSignUp() {
+        activity?.runOnUiThread {
+            binding.containerFlowmusicSignup.visibility = View.GONE
+        }
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -96,6 +161,7 @@ class AiHubFragment : Fragment() {
             allowContentAccess = true
             allowFileAccessFromFileURLs = true
             allowUniversalAccessFromFileURLs = true
+            mediaPlaybackRequiresUserGesture = false
             useWideViewPort = true
             loadWithOverviewMode = true
             cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
@@ -200,6 +266,10 @@ class AiHubFragment : Fragment() {
         }
 
         webView.webChromeClient = object : WebChromeClient() {
+            override fun onPermissionRequest(request: PermissionRequest?) {
+                request?.grant(request.resources)
+            }
+
             override fun onProgressChanged(view: WebView?, newProgress: Int) {
                 super.onProgressChanged(view, newProgress)
                 if (newProgress == 100) {
@@ -232,6 +302,40 @@ class AiHubFragment : Fragment() {
                     }
                 }
                 @JavascriptInterface
+                fun openFlowMusicSignUp() {
+                    Log.d("AiHubFragment", "openFlowMusicSignUp called from JS")
+                    openFlowMusicSignUp()
+                }
+                @JavascriptInterface
+                fun openFlowMusicStudio() {
+                    Log.d("AiHubFragment", "openFlowMusicStudio called from JS")
+                    openFlowMusicSignUp()
+                }
+                @JavascriptInterface
+                fun playFlowMusicInBackend(trackUrl: String?) {
+                    Log.d("AiHubFragment", "playFlowMusicInBackend: $trackUrl")
+                    if (trackUrl.isNullOrBlank()) return
+                    activity?.runOnUiThread {
+                        val escapedUrl = JSONObject.quote(trackUrl)
+                        binding.webviewFlowmusicBackend.evaluateJavascript(
+                            "if (window.playTrack) { window.playTrack($escapedUrl); } else { new Audio($escapedUrl).play(); }",
+                            null
+                        )
+                    }
+                }
+                @JavascriptInterface
+                fun triggerFlowMusicAction(actionJson: String?) {
+                    Log.d("AiHubFragment", "triggerFlowMusicAction: $actionJson")
+                    if (actionJson.isNullOrBlank()) return
+                    activity?.runOnUiThread {
+                        val escapedJson = JSONObject.quote(actionJson)
+                        binding.webviewFlowmusicBackend.evaluateJavascript(
+                            "window.postMessage({ type: 'FLOWMUSIC_ACTION', data: JSON.parse($escapedJson) }, '*');",
+                            null
+                        )
+                    }
+                }
+                @JavascriptInterface
                 fun exitToHome() {
                     Log.d("AiHubFragment", "exitToHome called from JS")
                     activity?.runOnUiThread {
@@ -254,7 +358,7 @@ class AiHubFragment : Fragment() {
             "AndroidOAuth"
         )
 
-                webView.setDownloadListener { url, _, _, mimetype, _ ->
+        webView.setDownloadListener { url, _, _, mimetype, _ ->
             downloadMediaToDevice(url, "ultra_ai_${System.currentTimeMillis()}", mimetype ?: "*/*")
         }
 

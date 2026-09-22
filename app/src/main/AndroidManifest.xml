@@ -6,6 +6,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.CAMERA" />
 
     <!-- Media read access (Android 13+ uses granular READ_MEDIA_*; the in-app file
          picker also grants scoped URI access, so these are only a belt-and-braces fallback). -->

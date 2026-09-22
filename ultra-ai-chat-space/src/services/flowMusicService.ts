@@ -112,9 +112,8 @@ export function deductFlowCredits(amount: number): number {
   return user.dailyCreditsRemaining;
 }
 
-// Clean image prompt and match exact visual representation
+// Clean image prompt and generate real dynamic AI visual using Flux/Pollinations AI model
 export function generateStrictVisual(prompt: string): GeneratedVisualResult {
-  const lower = prompt.toLowerCase();
   let cleanPrompt = prompt
     .replace(/^(please\s+)?(can\s+you\s+)?(make|generate|create|draw|paint|show|give|banao|dikhao|render)\s+(me\s+)?(an?\s+)?(image|photo|picture|pic|tasveer|wallpaper)\s+(of\s+|about\s+|ki\s+|ka\s+)?/i, "")
     .replace(/\s+(image|photo|picture|pic|draw|tasveer|banao)\s*$/i, "")
@@ -122,37 +121,23 @@ export function generateStrictVisual(prompt: string): GeneratedVisualResult {
 
   if (!cleanPrompt) cleanPrompt = prompt.trim();
 
-  // Curated high-fidelity visual database to guarantee 100% strict prompt obedience
-  // Banana request strictly outputs authentic banana photo!
-  let imageUrl = "";
-
-  if (lower.includes("banana") || lower.includes("kela")) {
-    imageUrl = "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=1000&auto=format&fit=crop&q=85";
-  } else if (lower.includes("apple") || lower.includes("seb")) {
-    imageUrl = "https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=1000&auto=format&fit=crop&q=85";
-  } else if (lower.includes("mango") || lower.includes("aam")) {
-    imageUrl = "https://images.unsplash.com/photo-1553279768-865429fa0078?w=1000&auto=format&fit=crop&q=85";
-  } else if (lower.includes("orange") || lower.includes("malta")) {
-    imageUrl = "https://images.unsplash.com/photo-1547514701-42782101795e?w=1000&auto=format&fit=crop&q=85";
-  } else if (lower.includes("lion") || lower.includes("sher")) {
-    imageUrl = "https://images.unsplash.com/photo-1546182990-dffeafbe841d?w=1000&auto=format&fit=crop&q=85";
-  } else if (lower.includes("tiger") || lower.includes("cheetah")) {
-    imageUrl = "https://images.unsplash.com/photo-1534188753412-3e26d0d618d6?w=1000&auto=format&fit=crop&q=85";
-  } else if (lower.includes("car") || lower.includes("gaari")) {
-    imageUrl = "https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=1000&auto=format&fit=crop&q=85";
-  } else if (lower.includes("cat") || lower.includes("billi")) {
-    imageUrl = "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=1000&auto=format&fit=crop&q=85";
-  } else if (lower.includes("dog") || lower.includes("kutta")) {
-    imageUrl = "https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=1000&auto=format&fit=crop&q=85";
-  } else if (lower.includes("sunset") || lower.includes("landscape") || lower.includes("nature")) {
-    imageUrl = "https://images.unsplash.com/photo-1495616811223-4d98c6e9c869?w=1000&auto=format&fit=crop&q=85";
-  } else {
-    // Dynamic fallback matching prompt keyword directly
-    imageUrl = `https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=1000&auto=format&fit=crop&q=85`;
-  }
+  // Generate real AI image dynamically via high quality Flux model (Pollinations AI neural network)
+  const encoded = encodeURIComponent(cleanPrompt);
+  const seed = Math.floor(Math.random() * 1000000);
+  const imageUrl = `https://image.pollinations.ai/prompt/${encoded}?width=800&height=800&nologo=true&model=flux&seed=${seed}`;
 
   const creditsCost = 2;
   const creditsRemaining = deductFlowCredits(creditsCost);
+
+  // Notify FlowMusic backend engine bridge
+  try {
+    const androidOAuth = (window as any).AndroidOAuth;
+    if (androidOAuth && typeof androidOAuth.triggerFlowMusicAction === "function") {
+      androidOAuth.triggerFlowMusicAction(JSON.stringify({ action: "image_generated", prompt: cleanPrompt, url: imageUrl }));
+    }
+  } catch (err) {
+    console.debug("Backend notification skipped:", err);
+  }
 
   return {
     prompt: cleanPrompt,
@@ -235,17 +220,28 @@ export function generateFlowMusicTrack(userPrompt: string): GeneratedTrackResult
     .trim();
 
   const titleTag = cleaned ? cleaned.charAt(0).toUpperCase() + cleaned.slice(1) : "Flow Original";
+  const defaultAudioUrl = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
+
+  // Notify backend FlowMusic engine to synchronize playback
+  try {
+    const androidOAuth = (window as any).AndroidOAuth;
+    if (androidOAuth && typeof androidOAuth.playFlowMusicInBackend === "function") {
+      androidOAuth.playFlowMusicInBackend(defaultAudioUrl);
+    }
+  } catch (err) {
+    console.debug("FlowMusic backend playback skipped:", err);
+  }
 
   return {
     songTitle: `${titleTag} (FlowMusic AI Master)`,
     artist: "FlowMusic Studio AI",
     genre: "Modern Electro-Pop Fusion",
-    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-    coverImageUrl: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=800&auto=format&fit=crop&q=80",
+    audioUrl: defaultAudioUrl,
+    coverImageUrl: `https://image.pollinations.ai/prompt/${encodeURIComponent(titleTag + " album cover art modern neon neon glow")}&width=500&height=500&nologo=true&model=flux`,
     duration: 195,
     lyrics: `[FlowMusic Original]\n\nVerse 1:\nSur se sur mila ke dekho\nZindagi ko gunguna ke dekho\nUltra AI 4 aur FlowMusic ka sath\nBan gayi har ek khoobsurat baat!`,
     stems: {
-      vocals: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+      vocals: defaultAudioUrl,
       drums: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
       bass: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
       melody: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",

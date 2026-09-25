@@ -58,7 +58,7 @@ export default function Header({
           <button
             onClick={onOpenAuth || onOpenFlowStudio}
             className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-r from-pink-950/70 via-purple-950/60 to-slate-900/90 border border-pink-500/40 hover:border-pink-400 text-[11px] text-pink-200 transition-all active:scale-95 shrink-0"
-            title="FlowMusic.app Daily Credits & Account"
+            title="Ultra Chat AI Daily Credits & Account"
           >
             <span className="w-1.5 h-1.5 rounded-full bg-pink-400 animate-pulse shrink-0" />
             <span className="font-bold text-pink-300">{flowCredits}</span>
@@ -75,11 +75,11 @@ export default function Header({
               ? "bg-gradient-to-r from-emerald-500/20 via-teal-500/20 to-cyan-500/20 border-emerald-500/50 hover:border-emerald-400 text-emerald-200 hover:text-white shadow-emerald-500/10"
               : "bg-gradient-to-r from-pink-500/20 via-rose-500/20 to-orange-500/20 border-pink-500/40 hover:border-pink-400 text-pink-200 hover:text-white shadow-pink-500/10"
           }`}
-          title={flowConnected ? "Flow Music connected" : "Connect your Flow Music account"}
+          title={flowConnected ? "Ultra Chat AI connected" : "Connect your Ultra Chat AI account"}
         >
           <Music2 className={`w-3.5 h-3.5 shrink-0 ${flowConnected ? "text-emerald-400" : "text-pink-400 animate-pulse"}`} />
           <span className="hidden xs:inline sm:inline">
-            {flowConnected ? "Flow Music ✓" : "Connect"}
+            {flowConnected ? "Ultra AI 4 ✓" : "Connect"}
           </span>
         </button>
 

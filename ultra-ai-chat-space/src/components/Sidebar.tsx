@@ -233,7 +233,7 @@ export default function Sidebar({
         <div className="flex items-center justify-between text-[11px] mb-1.5">
           <span className="text-slate-300 font-medium flex items-center gap-1.5">
             <Music2 className="w-3.5 h-3.5 text-pink-400" />
-            FlowMusic Credits
+            Ultra AI 4 Credits
           </span>
           <span className="text-pink-300 font-bold">{flowCredits} / 50</span>
         </div>
@@ -270,7 +270,7 @@ export default function Sidebar({
           <div className="min-w-0">
             <div className="text-xs font-semibold text-slate-200 truncate">{displayName}</div>
             <div className="text-[10px] text-cyan-400 font-medium truncate">
-              {authUser ? "FlowMusic Connected" : "FlowMusic Account"}
+              {authUser ? "Ultra Chat AI Connected" : "Ultra Chat AI Account"}
             </div>
           </div>
         </div>

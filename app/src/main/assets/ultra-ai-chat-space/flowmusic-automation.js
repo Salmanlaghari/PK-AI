@@ -294,7 +294,7 @@
       return;
     }
 
-    reportProgress("queued", "Flow Music se connect ho gaya. Studio tayyar ho raha hai...");
+    reportProgress("queued", "Ultra Chat AI se connect ho gaya. Ultra Studio tayyar ho raha hai...");
 
     var attempts = 0;
     var maxAttempts = 24; // ~12s for the SPA to settle
@@ -306,13 +306,13 @@
           report({
             ok: false,
             error:
-              "Flow Music studio is not ready. Sign in to Flow Music first, then try again.",
+              "Ultra Studio is not ready. Sign in to Ultra Chat AI first, then try again.",
           });
           return;
         }
         // Every few attempts, try to navigate into the studio from the landing page.
         if (attempts % 4 === 0) enterStudio();
-        reportProgress("waiting_studio", "Flow Music studio load ho raha hai... (" + attempts + ")");
+        reportProgress("waiting_studio", "Ultra Studio load ho raha hai... (" + attempts + ")");
         setTimeout(locateAndRun, 500);
         return;
       }
@@ -324,18 +324,18 @@
   function runGeneration(input, prompt) {
     var before = audioSources();
     if (!setInputValue(input, prompt)) {
-      report({ ok: false, error: "Could not write the prompt into Flow Music." });
+      report({ ok: false, error: "Could not write the prompt into Ultra Studio." });
       return;
     }
-    log("Prompt written into Flow Music input.");
-    reportProgress("prompt_entered", "Prompt Flow Music mein likh diya gaya hai.");
+    log("Prompt written into Ultra Studio input.");
+    reportProgress("prompt_entered", "Prompt Ultra Studio mein likh diya gaya hai.");
 
     setTimeout(function () {
       var btn = findGenerateButton();
       if (!btn) {
         report({
           ok: false,
-          error: "Could not find the Create/Generate button on Flow Music.",
+          error: "Could not find the Create/Generate button on Ultra Studio.",
         });
         return;
       }
@@ -343,10 +343,10 @@
       try {
         btn.click();
       } catch (e) {
-        report({ ok: false, error: "Failed to click the Flow Music generate button." });
+        report({ ok: false, error: "Failed to click the Ultra AI 4 generate button." });
         return;
       }
-      reportProgress("generating", "Flow Music track compose kar raha hai...");
+      reportProgress("generating", "Ultra AI 4 track compose kar raha hai...");
 
       var started = Date.now();
       var lastTick = 0;
@@ -367,13 +367,13 @@
         var elapsed = Math.round((Date.now() - started) / 1000);
         if (elapsed - lastTick >= 6) {
           lastTick = elapsed;
-          reportProgress("generating", "Flow Music track compose kar raha hai... (" + elapsed + "s)");
+          reportProgress("generating", "Ultra AI 4 track compose kar raha hai... (" + elapsed + "s)");
         }
         if (Date.now() - started > 240000) {
           clearInterval(timer);
           report({
             ok: false,
-            error: "Flow Music generation timed out after 4 minutes.",
+            error: "Ultra AI 4 generation timed out after 4 minutes.",
           });
         }
       }, 2500);

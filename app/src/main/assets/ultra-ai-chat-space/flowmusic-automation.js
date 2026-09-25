@@ -46,6 +46,20 @@
     }
   }
 
+  function reportProgress(stage, message, extra) {
+    var payload = { stage: stage, message: message || "" };
+    if (extra) {
+      for (var k in extra) {
+        if (Object.prototype.hasOwnProperty.call(extra, k)) payload[k] = extra[k];
+      }
+    }
+    try {
+      var n = native();
+      if (n && typeof n.onProgress === "function") n.onProgress(JSON.stringify(payload));
+    } catch (e) {}
+    console.log("[FlowMusic Automation][progress] " + stage + " :: " + (message || ""));
+  }
+
   // --------------------------------------------------------------------------
   // Session probe — detect a real signed-in Flow Music (Supabase) session.
   // --------------------------------------------------------------------------
@@ -243,6 +257,36 @@
   // --------------------------------------------------------------------------
   // Generation driver
   // --------------------------------------------------------------------------
+  function enterStudio() {
+    try {
+      var els = document.querySelectorAll('a, button, [role="button"]');
+      for (var i = 0; i < els.length; i++) {
+        var el = els[i];
+        if (!visible(el)) continue;
+        var t = (
+          el.innerText ||
+          el.textContent ||
+          el.getAttribute("aria-label") ||
+          ""
+        )
+          .trim()
+          .toLowerCase();
+        if (!t || t.length > 40) continue;
+        if (
+          /^(create|new song|new track|start creating|get started|studio|make a song|create music|start|create song)$/.test(
+            t
+          ) ||
+          /create (a )?(new )?(song|track|music)|start creating|open studio|new song/.test(t)
+        ) {
+          log("Entering studio via: '" + t + "'");
+          el.click();
+          return true;
+        }
+      }
+    } catch (e) {}
+    return false;
+  }
+
   FLOW.generate = function (prompt) {
     log("Generation requested: " + prompt);
     if (!prompt || !prompt.trim()) {
@@ -250,22 +294,41 @@
       return;
     }
 
-    var input = findPromptInput();
-    if (!input) {
-      report({
-        ok: false,
-        error:
-          "Flow Music studio is not ready. Open Flow Music, make sure you are signed in, then try again.",
-      });
-      return;
-    }
+    reportProgress("queued", "Flow Music se connect ho gaya. Studio tayyar ho raha hai...");
 
+    var attempts = 0;
+    var maxAttempts = 24; // ~12s for the SPA to settle
+    function locateAndRun() {
+      var input = findPromptInput();
+      if (!input) {
+        attempts++;
+        if (attempts >= maxAttempts) {
+          report({
+            ok: false,
+            error:
+              "Flow Music studio is not ready. Sign in to Flow Music first, then try again.",
+          });
+          return;
+        }
+        // Every few attempts, try to navigate into the studio from the landing page.
+        if (attempts % 4 === 0) enterStudio();
+        reportProgress("waiting_studio", "Flow Music studio load ho raha hai... (" + attempts + ")");
+        setTimeout(locateAndRun, 500);
+        return;
+      }
+      runGeneration(input, prompt);
+    }
+    locateAndRun();
+  };
+
+  function runGeneration(input, prompt) {
     var before = audioSources();
     if (!setInputValue(input, prompt)) {
       report({ ok: false, error: "Could not write the prompt into Flow Music." });
       return;
     }
     log("Prompt written into Flow Music input.");
+    reportProgress("prompt_entered", "Prompt Flow Music mein likh diya gaya hai.");
 
     setTimeout(function () {
       var btn = findGenerateButton();
@@ -283,13 +346,16 @@
         report({ ok: false, error: "Failed to click the Flow Music generate button." });
         return;
       }
+      reportProgress("generating", "Flow Music track compose kar raha hai...");
 
       var started = Date.now();
+      var lastTick = 0;
       var timer = setInterval(function () {
         var url = findNewAudio(before);
         if (url) {
           clearInterval(timer);
           log("Track detected: " + url);
+          reportProgress("finalizing", "Track mil gaya, finalize ho raha hai...");
           report({
             ok: true,
             audioUrl: url,
@@ -298,6 +364,11 @@
           });
           return;
         }
+        var elapsed = Math.round((Date.now() - started) / 1000);
+        if (elapsed - lastTick >= 6) {
+          lastTick = elapsed;
+          reportProgress("generating", "Flow Music track compose kar raha hai... (" + elapsed + "s)");
+        }
         if (Date.now() - started > 240000) {
           clearInterval(timer);
           report({
@@ -305,9 +376,9 @@
             error: "Flow Music generation timed out after 4 minutes.",
           });
         }
-      }, 3000);
+      }, 2500);
     }, 1600);
-  };
+  }
 
   FLOW.ready = true;
   return "flowmusic-automation-ready";

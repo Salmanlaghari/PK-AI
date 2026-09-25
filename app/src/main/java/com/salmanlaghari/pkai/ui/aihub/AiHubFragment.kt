@@ -143,11 +143,30 @@ class AiHubFragment : Fragment() {
             settings.allowFileAccess = true
             settings.mediaPlaybackRequiresUserGesture = false
             settings.cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
+            // A real Chrome UA improves compatibility with Google OAuth (avoids
+            // the "disallowed_useragent" block that embedded WebViews can trigger).
+            settings.userAgentString = CHROME_MOBILE_UA
+            settings.setSupportMultipleWindows(true)
+            settings.javaScriptCanOpenWindowsAutomatically = true
+            isClickable = false
+            isFocusable = false
+            isFocusableInTouchMode = false
             CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
             addJavascriptInterface(FlowMusicNativeBridge(), "FlowMusicNative")
             webChromeClient = object : WebChromeClient() {
                 override fun onPermissionRequest(request: PermissionRequest?) {
                     request?.grant(request.resources)
+                }
+                override fun onCreateWindow(
+                    view: WebView?,
+                    isDialog: Boolean,
+                    isUserGesture: Boolean,
+                    resultMsg: android.os.Message?
+                ): Boolean {
+                    val transport = resultMsg?.obj as? WebView.WebViewTransport ?: return false
+                    transport.webView = view
+                    resultMsg.sendToTarget()
+                    return true
                 }
                 override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
                     Log.d("FlowMusicJS", "[${consoleMessage?.messageLevel()}] ${consoleMessage?.message()}")
@@ -173,10 +192,28 @@ class AiHubFragment : Fragment() {
             settings.databaseEnabled = true
             settings.allowFileAccess = true
             settings.mediaPlaybackRequiresUserGesture = false
+            settings.userAgentString = CHROME_MOBILE_UA
+            // Some OAuth flows open a popup window; allow it and route it back
+            // into this same WebView so the user can complete Google sign-in.
+            settings.setSupportMultipleWindows(true)
+            settings.javaScriptCanOpenWindowsAutomatically = true
             CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
             webChromeClient = object : WebChromeClient() {
                 override fun onPermissionRequest(request: PermissionRequest?) {
                     request?.grant(request.resources)
+                }
+
+                override fun onCreateWindow(
+                    view: WebView?,
+                    isDialog: Boolean,
+                    isUserGesture: Boolean,
+                    resultMsg: android.os.Message?
+                ): Boolean {
+                    // Reuse the same (visible) WebView to render the popup content.
+                    val transport = resultMsg?.obj as? WebView.WebViewTransport ?: return false
+                    transport.webView = view
+                    resultMsg.sendToTarget()
+                    return true
                 }
             }
             webViewClient = object : WebViewClient() {
@@ -256,6 +293,23 @@ class AiHubFragment : Fragment() {
         }
     }
 
+    /** Streams live generation progress into the Ultra AI chat bubble. */
+    private fun dispatchProgressToJs(progressJson: String) {
+        activity?.runOnUiThread {
+            val quoted = JSONObject.quote(progressJson)
+            val js = """
+                (function(){
+                    try {
+                        var data = JSON.parse($quoted);
+                        if (typeof window.onFlowMusicProgress === 'function') window.onFlowMusicProgress(data);
+                        window.dispatchEvent(new CustomEvent('pkai:flowmusic_progress', { detail: data }));
+                    } catch(e) {}
+                })();
+            """.trimIndent()
+            _binding?.webviewUltraAi?.evaluateJavascript(js, null)
+        }
+    }
+
     private fun startFlowMusicGeneration(prompt: String) {
         val wv = _binding?.webviewFlowmusicBackend
         if (wv == null) {
@@ -307,6 +361,13 @@ class AiHubFragment : Fragment() {
         @JavascriptInterface
         fun onAutomationLog(msg: String?) {
             Log.d("FlowMusicAutomation", msg ?: "")
+        }
+
+        @JavascriptInterface
+        fun onProgress(json: String?) {
+            if (json.isNullOrBlank()) return
+            Log.d("AiHubFragment", "Flow Music progress: $json")
+            dispatchProgressToJs(json)
         }
 
         @JavascriptInterface
@@ -486,19 +547,19 @@ class AiHubFragment : Fragment() {
                 @JavascriptInterface
                 fun connectFlowMusic() {
                     Log.d("AiHubFragment", "connectFlowMusic called from JS")
-                    connectFlowMusic()
+                    this@AiHubFragment.connectFlowMusic()
                 }
 
                 @JavascriptInterface
                 fun openFlowMusicSignUp() {
                     Log.d("AiHubFragment", "openFlowMusicSignUp called from JS")
-                    connectFlowMusic()
+                    this@AiHubFragment.connectFlowMusic()
                 }
 
                 @JavascriptInterface
                 fun openFlowMusicStudio() {
                     Log.d("AiHubFragment", "openFlowMusicStudio called from JS")
-                    connectFlowMusic()
+                    this@AiHubFragment.connectFlowMusic()
                 }
 
                 /** Returns the cached Flow Music session status as a JSON string. */
@@ -521,7 +582,7 @@ class AiHubFragment : Fragment() {
                 @JavascriptInterface
                 fun disconnectFlowMusic() {
                     Log.d("AiHubFragment", "disconnectFlowMusic called from JS")
-                    disconnectFlowMusic()
+                    this@AiHubFragment.disconnectFlowMusic()
                 }
 
                 @JavascriptInterface
@@ -750,5 +811,8 @@ class AiHubFragment : Fragment() {
 
     companion object {
         private const val FLOW_MUSIC_URL = "https://www.flowmusic.app"
+        private const val CHROME_MOBILE_UA =
+            "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 " +
+                "(KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
     }
 }

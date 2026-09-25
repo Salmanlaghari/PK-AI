@@ -39,6 +39,12 @@ export interface FlowMusicTrackResult {
   error?: string;
 }
 
+export interface FlowMusicProgress {
+  stage: string;
+  message: string;
+  [key: string]: unknown;
+}
+
 export interface GeneratedTrackResult {
   songTitle: string;
   artist: string;
@@ -175,7 +181,10 @@ export function deductFlowCredits(amount: number): number {
 // ---------------------------------------------------------------------------
 // Real music generation via the native Flow Music WebView session
 // ---------------------------------------------------------------------------
-export function requestFlowMusicTrack(prompt: string): Promise<FlowMusicTrackResult> {
+export function requestFlowMusicTrack(
+  prompt: string,
+  onProgress?: (progress: FlowMusicProgress) => void
+): Promise<FlowMusicTrackResult> {
   return new Promise((resolve) => {
     const bridge = getBridge();
     if (!bridge || typeof bridge.generateFlowMusicTrack !== "function") {
@@ -188,6 +197,15 @@ export function requestFlowMusicTrack(prompt: string): Promise<FlowMusicTrackRes
     }
 
     let settled = false;
+
+    // Live progress listener (queued -> generating -> done), streamed by native.
+    const progressHandler = (e: Event) => {
+      if (settled) return;
+      const detail = (e as CustomEvent).detail as FlowMusicProgress;
+      if (detail && typeof onProgress === "function") onProgress(detail);
+    };
+    window.addEventListener("pkai:flowmusic_progress", progressHandler);
+
     const timeout = setTimeout(() => {
       if (settled) return;
       settled = true;
@@ -197,6 +215,7 @@ export function requestFlowMusicTrack(prompt: string): Promise<FlowMusicTrackRes
 
     function cleanup() {
       clearTimeout(timeout);
+      window.removeEventListener("pkai:flowmusic_progress", progressHandler);
       delete (window as any).onFlowMusicTrackResult;
     }
 

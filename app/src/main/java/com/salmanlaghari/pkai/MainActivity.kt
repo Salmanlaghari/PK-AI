@@ -15,6 +15,7 @@ import com.salmanlaghari.pkai.R
 import com.salmanlaghari.pkai.data.local.datastore.PreferencesManager
 import com.salmanlaghari.pkai.data.repository.AuthRepository
 import com.salmanlaghari.pkai.databinding.ActivityMainBinding
+import com.salmanlaghari.pkai.ui.aihub.FlowMusicOAuth
 import com.salmanlaghari.pkai.util.CrashHandler
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -90,6 +91,27 @@ class MainActivity : AppCompatActivity() {
 
         setupDrawerNavigation()
         setupDrawerHeader()
+
+        // Handle the OAuth deep link if the app was cold-started from it.
+        handleFlowMusicDeepLink(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        // Handle the OAuth deep link when the app is already running.
+        handleFlowMusicDeepLink(intent)
+    }
+
+    /**
+     * Routes the `pkai://auth-callback?code=...` redirect (returned by the
+     * Chrome Custom Tab OAuth flow) to the live Ultra Chat AI engine.
+     */
+    private fun handleFlowMusicDeepLink(intent: Intent?) {
+        val data = intent?.data ?: return
+        if (data.scheme == "pkai" && data.host == "auth-callback") {
+            FlowMusicOAuth.onCallback?.invoke(data)
+        }
     }
 
     private fun setupDrawerHeader() {

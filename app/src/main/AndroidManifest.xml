@@ -57,6 +57,19 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!--
+              OAuth callback deep link for the Ultra Chat AI music engine.
+              Google blocks OAuth inside embedded WebViews, so the Google sign-in
+              runs in a Chrome Custom Tab and Supabase redirects back here with
+              the PKCE authorization code (pkai://auth-callback?code=...).
+            -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="pkai" android:host="auth-callback" />
+            </intent-filter>
         </activity>
 
         <activity

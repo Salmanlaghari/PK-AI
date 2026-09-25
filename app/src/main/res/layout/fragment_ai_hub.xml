@@ -71,7 +71,7 @@
                         android:layout_height="wrap_content"
                         android:layout_centerVertical="true"
                         android:fontFamily="sans-serif-medium"
-                        android:text="Connect Flow Music Account"
+                        android:text="Connect Ultra Chat AI Account"
                         android:textColor="#F8FAFC"
                         android:textSize="16sp" />
 
@@ -82,7 +82,7 @@
                         android:layout_alignParentEnd="true"
                         android:layout_centerVertical="true"
                         android:background="?attr/selectableItemBackgroundBorderless"
-                        android:contentDescription="Close FlowMusic Sign Up"
+                        android:contentDescription="Close Ultra Chat AI Sign In"
                         android:src="@drawable/ic_arrow_back"
                         app:tint="#94A3B8" />
                 </RelativeLayout>

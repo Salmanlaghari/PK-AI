@@ -185,6 +185,11 @@ dependencies {
     implementation("androidx.webkit:webkit:1.12.1")
     implementation(libs.google.identity.googleid)
 
+    // Chrome Custom Tabs - used for the Google OAuth hand-off so the sign-in
+    // never happens inside an embedded WebView (which Google blocks with
+    // "Browser not supported" / disallowed_useragent).
+    implementation(libs.androidx.browser)
+
     // Google AdMob
     implementation(libs.google.admob)
 

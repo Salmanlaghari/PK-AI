@@ -26,6 +26,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
+import androidx.browser.customtabs.CustomTabsIntent
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
@@ -40,7 +41,10 @@ import com.salmanlaghari.pkai.R
 import com.salmanlaghari.pkai.data.repository.AuthRepository
 import com.salmanlaghari.pkai.databinding.FragmentAiHubBinding
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import org.json.JSONTokener
 import java.io.InputStream
@@ -73,6 +77,9 @@ class AiHubFragment : Fragment() {
     private val statusHandler = Handler(Looper.getMainLooper())
     private var lastStatusJson = ""
     private var signInModalAutoClosed = false
+
+    /** PKCE code_verifier for the in-flight OAuth connection (Custom Tab flow). */
+    private var pendingCodeVerifier: String? = null
 
     /** Cached automation engine, injected into the Flow Music WebView. */
     private val automationScript: String by lazy {
@@ -108,6 +115,9 @@ class AiHubFragment : Fragment() {
         binding.btnCloseFlowmusicSignup.setOnClickListener {
             closeFlowMusicSignUp()
         }
+
+        // Receive the OAuth deep link forwarded by MainActivity.
+        FlowMusicOAuth.onCallback = { uri -> handleFlowMusicCallback(uri) }
 
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -252,7 +262,7 @@ class AiHubFragment : Fragment() {
                 signInModalAutoClosed = true
                 // Reload the engine so it picks up the freshly created session.
                 _binding?.webviewFlowmusicBackend?.reload()
-                Toast.makeText(requireContext(), "Flow Music connected ✓", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), "Ultra Chat AI connected ✓", Toast.LENGTH_SHORT).show()
                 statusHandler.postDelayed({ closeFlowMusicSignUp() }, 1200)
             }
         } catch (e: Exception) {
@@ -313,23 +323,134 @@ class AiHubFragment : Fragment() {
     private fun startFlowMusicGeneration(prompt: String) {
         val wv = _binding?.webviewFlowmusicBackend
         if (wv == null) {
-            dispatchTrackResultToJs("""{"ok":false,"error":"Flow Music engine unavailable."}""")
+            dispatchTrackResultToJs("""{"ok":false,"error":"Ultra AI 4 engine unavailable."}""")
             return
         }
         val quoted = JSONObject.quote(prompt)
-        val js = "if (window.__FLOW_AUTOMATION__ && window.__FLOW_AUTOMATION__.generate) { window.__FLOW_AUTOMATION__.generate($quoted); } else { window.FlowMusicNative && window.FlowMusicNative.onTrackResult(JSON.stringify({ok:false,error:'Flow Music engine not ready. Please reconnect Flow Music.'})); }"
+        val js = "if (window.__FLOW_AUTOMATION__ && window.__FLOW_AUTOMATION__.generate) { window.__FLOW_AUTOMATION__.generate($quoted); } else { window.FlowMusicNative && window.FlowMusicNative.onTrackResult(JSON.stringify({ok:false,error:'Ultra AI 4 engine not ready. Please reconnect Ultra Chat AI.'})); }"
         wv.evaluateJavascript(js, null)
     }
 
+    /**
+     * Starts the real account connection.
+     *
+     * Google blocks OAuth inside embedded WebViews ("Browser not supported"),
+     * so we run the Google consent screen in a Chrome Custom Tab and capture
+     * the PKCE code through the pkai://auth-callback deep link. The user only
+     * taps their existing Google account - the same one they already used for
+     * PK-AI - and the session is wired into the engine in the background.
+     */
     fun connectFlowMusic() {
         activity?.runOnUiThread {
-            signInModalAutoClosed = false
-            binding.containerFlowmusicSignup.visibility = View.VISIBLE
-            binding.webviewFlowmusicSignup.loadUrl(FLOW_MUSIC_URL)
+            viewLifecycleOwner.lifecycleScope.launch {
+                val email = try {
+                    authRepository.getSession().first().email?.takeIf { it.isNotBlank() }
+                } catch (e: Exception) {
+                    null
+                }
+
+                val verifier = FlowMusicOAuth.generateCodeVerifier()
+                pendingCodeVerifier = verifier
+                val challenge = FlowMusicOAuth.codeChallenge(verifier)
+                val url = FlowMusicOAuth.buildAuthorizeUrl(challenge, email)
+
+                val opened = openCustomTab(url)
+                if (opened) {
+                    Toast.makeText(
+                        requireContext(),
+                        "Ultra Chat AI account connect ho raha hai...",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                } else {
+                    // Fallback: in-app WebView overlay (may be blocked by Google
+                    // on some devices, but keeps the feature usable).
+                    signInModalAutoClosed = false
+                    binding.containerFlowmusicSignup.visibility = View.VISIBLE
+                    binding.webviewFlowmusicSignup.loadUrl(FLOW_MUSIC_URL)
+                }
+            }
         }
     }
 
     fun openFlowMusicSignUp() = connectFlowMusic()
+
+    private fun openCustomTab(url: String): Boolean {
+        return try {
+            val intent = CustomTabsIntent.Builder()
+                .setShowTitle(true)
+                .build()
+            intent.launchUrl(requireContext(), Uri.parse(url))
+            true
+        } catch (e: Exception) {
+            Log.w("AiHubFragment", "Custom Tab launch failed: ${e.message}")
+            false
+        }
+    }
+
+    /** Handles the pkai://auth-callback redirect returned by the Custom Tab. */
+    private fun handleFlowMusicCallback(uri: Uri) {
+        val code = uri.getQueryParameter("code")
+        val verifier = pendingCodeVerifier
+        if (code.isNullOrBlank() || verifier.isNullOrBlank()) {
+            Toast.makeText(
+                requireContext(),
+                "Ultra Chat AI connect nahi ho saka. Dobara try karein.",
+                Toast.LENGTH_LONG
+            ).show()
+            return
+        }
+
+        activity?.runOnUiThread {
+            Toast.makeText(
+                requireContext(),
+                "Ultra Chat AI account verify ho raha hai...",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            val session = withContext(Dispatchers.IO) {
+                FlowMusicOAuth.exchangeCodeForSession(code, verifier)
+            }
+            if (session == null) {
+                activity?.runOnUiThread {
+                    Toast.makeText(
+                        requireContext(),
+                        "Ultra Chat AI sign-in fail ho gaya. Dobara try karein.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+                return@launch
+            }
+            pendingCodeVerifier = null
+            injectSessionIntoEngine(session)
+        }
+    }
+
+    /** Persists the real session into the engine WebView and reloads it. */
+    private fun injectSessionIntoEngine(session: JSONObject) {
+        activity?.runOnUiThread {
+            val quotedSession = JSONObject.quote(session.toString())
+            val quotedKey = JSONObject.quote(FlowMusicOAuth.STORAGE_KEY)
+            val js = """
+                (function(){
+                    try {
+                        localStorage.setItem($quotedKey, $quotedSession);
+                        return 'ok';
+                    } catch(e) { return 'err:' + e; }
+                })();
+            """.trimIndent()
+            _binding?.webviewFlowmusicBackend?.evaluateJavascript(js) { _ ->
+                // Reload so the engine boots with the freshly injected session.
+                _binding?.webviewFlowmusicBackend?.reload()
+                lastStatusJson = ""
+                signInModalAutoClosed = false
+                closeFlowMusicSignUp()
+                Toast.makeText(requireContext(), "Ultra Chat AI connected \u2713", Toast.LENGTH_SHORT).show()
+                statusHandler.postDelayed({ probeFlowMusicSession() }, 3000)
+            }
+        }
+    }
 
     fun closeFlowMusicSignUp() {
         activity?.runOnUiThread {
@@ -349,7 +470,7 @@ class AiHubFragment : Fragment() {
                 _binding?.webviewFlowmusicBackend?.reload()
                 lastStatusJson = ""
                 dispatchStatusToJs("""{"signedIn":false,"hasStudio":false}""")
-                Toast.makeText(requireContext(), "Flow Music disconnected", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), "Ultra Chat AI disconnected", Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
                 Log.w("AiHubFragment", "disconnectFlowMusic: ${e.message}")
             }

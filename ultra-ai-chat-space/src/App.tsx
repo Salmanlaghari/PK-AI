@@ -36,9 +36,9 @@ function createWelcomeMessage(model: AIModel): Message {
   return {
     id: generateId(),
     sender: "ai",
-    text: `Namaste! Main ${model.name} hoon — Ultra AI 4, ab real Flow Music engine ke saath. Aap mujhse seedha gaana banao, lyrics likhwao, ya HD image banwao. Music ke liye pehle header se apne Flow Music account ko connect karein.`,
+    text: `Namaste! Main ${model.name} hoon — Ultra AI 4, ab real Ultra AI 4 music engine ke saath. Aap mujhse seedha gaana banao, lyrics likhwao, ya HD image banwao. Music ke liye pehle header se apne Ultra Chat AI account ko connect karein.`,
     timestamp: getTimestamp(),
-    modelName: `${model.name} × FlowMusic`,
+    modelName: `${model.name} × Ultra AI 4`,
   };
 }
 
@@ -149,7 +149,7 @@ function App() {
     if (/(lyrics|geet|song words|shairi)/.test(lower)) {
       const remainingCredits = deductFlowCredits(1);
       setFlowUser(getFlowMusicSession());
-      const lyricsText = `[FlowMusic AI Original]\n\nVerse 1:\nAaj ki raat nayi dhun bajegi\nHar ek saaz pe zindagi sajegi\n\nChorus:\nFlowMusic ka yeh jaadu chale\nKhushi ke deep har ek pal jale!`;
+      const lyricsText = `[Ultra AI 4 Original]\n\nVerse 1:\nAaj ki raat nayi dhun bajegi\nHar ek saaz pe zindagi sajegi\n\nChorus:\nUltra AI ka yeh jaadu chale\nKhushi ke deep har ek pal jale!`;
       return {
         id: generateId(),
         sender: "ai",
@@ -162,7 +162,7 @@ function App() {
     }
 
     if (/(code|function|program)/.test(lower)) {
-      const codeSnippet = `function helloUltraAI() {\n  // Ultra AI 4 + real Flow Music session\n  console.log("Connected to Flow Music Engine");\n}`;
+      const codeSnippet = `function helloUltraAI() {\n  // Ultra AI 4 + real music engine session\n  console.log("Connected to Ultra AI 4 Engine");\n}`;
       return {
         id: generateId(),
         sender: "ai",
@@ -221,11 +221,11 @@ function App() {
           id: placeholderId,
           sender: "ai",
           text: connected
-            ? "🎵 Flow Music is creating your song..."
-            : "🎵 Flow Music connect karein — header ke 'Connect' button se apne account se sign in karein, phir dobara try karein.",
+            ? "🎵 Ultra AI 4 is creating your song..."
+            : "🎵 Ultra Chat AI connect karein — header ke 'Connect' button se apne account se sign in karein, phir dobara try karein.",
           timestamp: getTimestamp(),
           type: "real_song",
-          modelName: "🎵 Flow Music AI",
+          modelName: "🎵 Ultra AI 4",
           isGeneratingMedia: connected,
           mediaCategory: "song",
         };
@@ -243,7 +243,7 @@ function App() {
           setMessages((prev) =>
             prev.map((m) =>
               m.id === placeholderId
-                ? { ...m, text: "\ud83c\udfb5 " + (progress.message || "Flow Music kaam kar raha hai...") }
+                ? { ...m, text: "\ud83c\udfb5 " + (progress.message || "Ultra AI 4 kaam kar raha hai...") }
                 : m
             )
           );
@@ -254,7 +254,7 @@ function App() {
               m.id === placeholderId
                 ? {
                     ...m,
-                    text: "🎵 Flow Music AI ne aapka track tayyar kar diya hai:",
+                    text: "🎵 Ultra AI 4 ne aapka track tayyar kar diya hai:",
                     audioUrl: result.audioUrl,
                     songTitle: result.title || text,
                     duration: null,
@@ -270,7 +270,7 @@ function App() {
                 ? {
                     ...m,
                     type: "text",
-                    text: `⚠️ Flow Music generation mukammal nahi ho saki.\n\n${result.error || "Unknown error."}\n\nTip: Header se "Connect" tap karke apne Flow Music account se sign in karein, Flow Music studio load hone dein, phir dobara try karein.`,
+                    text: `⚠️ Ultra AI 4 generation mukammal nahi ho saki.\n\n${result.error || "Unknown error."}\n\nTip: Header se "Connect" tap karke apne Ultra Chat AI account se sign in karein, Ultra Studio load hone dein, phir dobara try karein.`,
                     isGeneratingMedia: false,
                   }
                 : m
@@ -314,11 +314,11 @@ function App() {
       const songMessage: Message = {
         id: placeholderId,
         sender: "ai",
-        text: `🎵 Flow Music is creating "${title}"...`,
+        text: `🎵 Ultra AI 4 is creating "${title}"...`,
         timestamp: getTimestamp(),
         type: "real_song",
         songTitle: title,
-        modelName: "🎵 Flow Music AI",
+        modelName: "🎵 Ultra AI 4",
         isGeneratingMedia: true,
         mediaCategory: "song",
       };
@@ -328,7 +328,7 @@ function App() {
         setMessages((prev) =>
           prev.map((m) =>
             m.id === placeholderId
-              ? { ...m, text: "\ud83c\udfb5 " + (progress.message || "Flow Music kaam kar raha hai...") }
+              ? { ...m, text: "\ud83c\udfb5 " + (progress.message || "Ultra AI 4 kaam kar raha hai...") }
               : m
           )
         );
@@ -400,13 +400,13 @@ function App() {
       const aiMessage: Message = {
         id: generateId(),
         sender: "ai",
-        text: "I have generated a track for you using Flow Studio.",
+        text: "I have generated a track for you using Ultra Studio.",
         timestamp: getTimestamp(),
         type: "real_song",
         audioUrl: trackUrl,
-        songTitle: "Flow Studio Generated Track",
+        songTitle: "Ultra Studio Generated Track",
         duration: null,
-        modelName: "🎵 Flow Music AI",
+        modelName: "🎵 Ultra AI 4",
         isGeneratingMedia: false,
         mediaCategory: "song",
       };
@@ -469,7 +469,7 @@ function App() {
         {!flowConnected && (
           <div className="shrink-0 px-4 py-2 bg-gradient-to-r from-pink-950/60 via-purple-950/40 to-slate-950 border-b border-pink-900/40 flex items-center justify-center gap-2 text-[12px] text-pink-200">
             <Plug className="w-3.5 h-3.5 text-pink-400" />
-            <span>Flow Music connect nahi hai — real songs generate karne ke liye</span>
+            <span>Ultra Chat AI connect nahi hai — real songs generate karne ke liye</span>
             <button
               onClick={handleOpenFlowMusic}
               className="font-semibold text-pink-300 underline underline-offset-2 hover:text-white"
@@ -547,7 +547,7 @@ function App() {
             <div className="flex items-center justify-between p-4 border-b border-slate-800">
               <h2 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
                 <Music2 className="w-5 h-5 text-pink-400" />
-                Flow Studio
+                Ultra Studio
               </h2>
               <button
                 onClick={() => setFlowStudioOpen(false)}
@@ -561,7 +561,7 @@ function App() {
                 userName={authUser?.name || "Ultra AI User"}
                 onTrackGenerated={handleFlowStudioTrackGenerated}
                 onClose={() => setFlowStudioOpen(false)}
-                onError={(err) => console.error("Flow Studio error:", err)}
+                onError={(err) => console.error("Ultra Studio error:", err)}
               />
             </div>
           </div>

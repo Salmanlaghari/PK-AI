@@ -116,8 +116,9 @@ class AiHubFragment : Fragment() {
             closeFlowMusicSignUp()
         }
 
-        // Receive the OAuth deep link forwarded by MainActivity.
-        FlowMusicOAuth.onCallback = { uri -> handleFlowMusicCallback(uri) }
+        // Receive the OAuth deep link forwarded by MainActivity (flushes any
+        // link that arrived during a cold start).
+        FlowMusicOAuth.register { uri -> handleFlowMusicCallback(uri) }
 
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -332,15 +333,113 @@ class AiHubFragment : Fragment() {
     }
 
     /**
-     * Starts the real account connection.
+     * Starts the real account connection - the BROWSER-FREE path.
      *
-     * Google blocks OAuth inside embedded WebViews ("Browser not supported"),
-     * so we run the Google consent screen in a Chrome Custom Tab and capture
-     * the PKCE code through the pkai://auth-callback deep link. The user only
-     * taps their existing Google account - the same one they already used for
-     * PK-AI - and the session is wired into the engine in the background.
+     * The Google account picker pops up INSIDE Ultra Chat AI (the very same
+     * native Credential Manager sheet the PK-AI sign-in uses). The resulting
+     * Google ID token is exchanged with the music backend via
+     * `grant_type=id_token`, so no Chrome / external page ever opens and the
+     * user never leaves the Ultra AI interface.
+     *
+     * If the backend rejects the ID token (e.g. the client id is not on the
+     * backend's allow-list), we transparently fall back to the Chrome Custom
+     * Tab PKCE flow so the feature always works.
      */
     fun connectFlowMusic() {
+        activity?.runOnUiThread {
+            Toast.makeText(
+                requireContext(),
+                "Ultra Chat AI account connect ho raha hai...",
+                Toast.LENGTH_SHORT
+            ).show()
+            startNativeFlowMusicConnect()
+        }
+    }
+
+    /**
+     * Native, browser-free connect: Google pop-up -> ID token -> backend session.
+     */
+    private fun startNativeFlowMusicConnect() {
+        val clientId = try {
+            getString(R.string.default_web_client_id)
+        } catch (e: Exception) {
+            ""
+        }
+        if (clientId.isBlank()) {
+            // No native client id configured -> use the browser fallback.
+            startCustomTabFlowMusicConnect()
+            return
+        }
+
+        val credentialManager = CredentialManager.create(requireContext())
+        val googleIdOption = GetGoogleIdOption.Builder()
+            .setFilterByAuthorizedAccounts(false)
+            .setServerClientId(clientId)
+            .setAutoSelectEnabled(true)
+            .build()
+        val request = GetCredentialRequest.Builder()
+            .addCredentialOption(googleIdOption)
+            .build()
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val result = credentialManager.getCredential(
+                    request = request,
+                    context = requireContext()
+                )
+                val credential = result.credential
+                if (credential is CustomCredential &&
+                    credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
+                ) {
+                    val googleIdToken = GoogleIdTokenCredential.createFrom(credential.data)
+                    val idToken = googleIdToken.idToken
+                    val email = googleIdToken.id
+                    Log.i("AiHubFragment", "Native Google pop-up success for $email")
+
+                    // Keep the PK-AI identity in sync with the same account.
+                    try {
+                        authRepository.loginWithGoogle(
+                            idToken = idToken,
+                            displayName = googleIdToken.displayName ?: "",
+                            email = email,
+                            photoUrl = googleIdToken.profilePictureUri?.toString() ?: ""
+                        )
+                    } catch (e: Exception) {
+                        Log.w("AiHubFragment", "authRepository sync skipped: ${e.message}")
+                    }
+
+                    // Exchange the ID token for a real music-backend session.
+                    val session = withContext(Dispatchers.IO) {
+                        FlowMusicOAuth.exchangeIdTokenForSession(idToken)
+                    }
+                    if (session != null) {
+                        injectSessionIntoEngine(session)
+                    } else {
+                        // Backend rejected the ID token -> browser fallback.
+                        Log.w("AiHubFragment", "ID-token rejected; using Custom Tab fallback")
+                        startCustomTabFlowMusicConnect()
+                    }
+                } else {
+                    Log.w("AiHubFragment", "Unexpected credential type: ${credential.type}")
+                    startCustomTabFlowMusicConnect()
+                }
+            } catch (e: androidx.credentials.exceptions.GetCredentialCancellationException) {
+                Log.d("AiHubFragment", "Native connect cancelled by user")
+            } catch (e: androidx.credentials.exceptions.NoCredentialException) {
+                Log.w("AiHubFragment", "No Google account on device; using fallback")
+                startCustomTabFlowMusicConnect()
+            } catch (e: Exception) {
+                Log.e("AiHubFragment", "Native connect failed; using fallback", e)
+                startCustomTabFlowMusicConnect()
+            }
+        }
+    }
+
+    /**
+     * Browser fallback: Chrome Custom Tab PKCE flow (used only if the native
+     * ID-token exchange is unavailable or rejected by the backend).
+     */
+    private fun startCustomTabFlowMusicConnect() {
         activity?.runOnUiThread {
             viewLifecycleOwner.lifecycleScope.launch {
                 val email = try {
@@ -355,15 +454,8 @@ class AiHubFragment : Fragment() {
                 val url = FlowMusicOAuth.buildAuthorizeUrl(challenge, email)
 
                 val opened = openCustomTab(url)
-                if (opened) {
-                    Toast.makeText(
-                        requireContext(),
-                        "Ultra Chat AI account connect ho raha hai...",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                } else {
-                    // Fallback: in-app WebView overlay (may be blocked by Google
-                    // on some devices, but keeps the feature usable).
+                if (!opened) {
+                    // Last resort: in-app WebView overlay.
                     signInModalAutoClosed = false
                     binding.containerFlowmusicSignup.visibility = View.VISIBLE
                     binding.webviewFlowmusicSignup.loadUrl(FLOW_MUSIC_URL)
@@ -883,6 +975,7 @@ class AiHubFragment : Fragment() {
     override fun onDestroyView() {
         statusHandler.removeCallbacksAndMessages(null)
         CookieManager.getInstance().flush()
+        FlowMusicOAuth.unregister()
         _binding?.webviewFlowmusicBackend?.removeJavascriptInterface("FlowMusicNative")
         super.onDestroyView()
         _binding = null

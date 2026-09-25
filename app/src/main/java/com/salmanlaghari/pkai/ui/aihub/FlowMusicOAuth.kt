@@ -55,6 +55,43 @@ object FlowMusicOAuth {
     @Volatile
     var onCallback: ((Uri) -> Unit)? = null
 
+    /**
+     * Buffers a deep link that arrived before the fragment registered its
+     * callback (e.g. a cold start straight from the redirect).
+     */
+    @Volatile
+    private var pendingUri: Uri? = null
+
+    /**
+     * Delivers a deep link to the live fragment, or buffers it until the
+     * fragment registers (cold-start safety).
+     */
+    fun deliver(uri: Uri) {
+        val cb = onCallback
+        if (cb != null) {
+            cb(uri)
+        } else {
+            pendingUri = uri
+        }
+    }
+
+    /**
+     * Registers the fragment callback and immediately flushes any deep link
+     * that arrived while the fragment was not yet alive.
+     */
+    fun register(callback: (Uri) -> Unit) {
+        onCallback = callback
+        pendingUri?.let {
+            pendingUri = null
+            callback(it)
+        }
+    }
+
+    /** Clears the fragment callback. */
+    fun unregister() {
+        onCallback = null
+    }
+
     private val http: OkHttpClient by lazy {
         OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
@@ -94,6 +131,48 @@ object FlowMusicOAuth {
             sb.append("&login_hint=").append(Uri.encode(loginHint))
         }
         return sb.toString()
+    }
+
+    /**
+     * Exchanges a NATIVE Google ID token (obtained from the in-app Google
+     * account picker via Credential Manager) for a real Supabase session.
+     *
+     * This is the browser-free path the user asked for: the Google account
+     * picker pops up INSIDE Ultra Chat AI (exactly like the PK-AI sign-in), and
+     * the returned ID token is traded for a backend session with
+     * `grant_type=id_token` - no Chrome, no external page.
+     *
+     * Returns the full Supabase session JSON (with `expires_at`) or null.
+     */
+    fun exchangeIdTokenForSession(idToken: String): JSONObject? {
+        return try {
+            val payload = JSONObject()
+                .put("provider", "google")
+                .put("id_token", idToken)
+            val body = payload.toString().toRequestBody("application/json".toMediaType())
+            val request = Request.Builder()
+                .url("$SUPABASE_URL/auth/v1/token?grant_type=id_token")
+                .addHeader("apikey", SUPABASE_ANON_KEY)
+                .addHeader("Content-Type", "application/json")
+                .post(body)
+                .build()
+            http.newCall(request).execute().use { resp ->
+                val text = resp.body?.string().orEmpty()
+                if (!resp.isSuccessful) {
+                    Log.w(TAG, "ID-token exchange failed (${resp.code}): $text")
+                    return null
+                }
+                val json = JSONObject(text)
+                if (!json.has("expires_at")) {
+                    val expiresIn = json.optLong("expires_in", 3600L)
+                    json.put("expires_at", System.currentTimeMillis() / 1000L + expiresIn)
+                }
+                json
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "exchangeIdTokenForSession error", e)
+            null
+        }
     }
 
     /**

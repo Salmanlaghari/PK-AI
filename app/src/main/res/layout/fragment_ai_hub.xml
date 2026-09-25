@@ -6,22 +6,31 @@
     android:layout_height="match_parent"
     android:background="@color/premium_black">
 
-    <!-- Ultra AI 4 Fullscreen Mobile Web View (FRONTEND UI) -->
+    <!--
+      FlowMusic Engine WebView (persistent real session + automation executor).
+      It is FULL-SIZE so the Flow Music SPA lays out its real mobile UI (needed for
+      DOM automation), but it sits BEHIND the opaque Ultra AI chat WebView so the
+      user never sees it. Declared first => drawn underneath.
+    -->
+    <WebView
+        android:id="@+id/webview_flowmusic_backend"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:clickable="false"
+        android:focusable="false"
+        android:focusableInTouchMode="false"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- Ultra AI 4 Fullscreen Mobile Web View (FRONTEND UI) - opaque, covers the engine -->
     <WebView
         android:id="@+id/webview_ultra_ai"
         android:layout_width="0dp"
         android:layout_height="0dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <!-- FlowMusic Engine Background WebView (persistent real session + automation executor) -->
-    <WebView
-        android:id="@+id/webview_flowmusic_backend"
-        android:layout_width="1dp"
-        android:layout_height="1dp"
-        android:alpha="0.01"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 

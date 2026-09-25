@@ -238,7 +238,16 @@ function App() {
         }
 
         setIsGenerating(false);
-        const result = await requestFlowMusicTrack(text);
+        const result = await requestFlowMusicTrack(text, (progress) => {
+          // Stream live Flow Music progress straight into the chat bubble.
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === placeholderId
+                ? { ...m, text: "\ud83c\udfb5 " + (progress.message || "Flow Music kaam kar raha hai...") }
+                : m
+            )
+          );
+        });
         if (result.ok && result.audioUrl) {
           setMessages((prev) =>
             prev.map((m) =>
@@ -315,7 +324,15 @@ function App() {
       };
       setMessages((prev) => [...prev, songMessage]);
 
-      const result = await requestFlowMusicTrack(title);
+      const result = await requestFlowMusicTrack(title, (progress) => {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === placeholderId
+              ? { ...m, text: "\ud83c\udfb5 " + (progress.message || "Flow Music kaam kar raha hai...") }
+              : m
+          )
+        );
+      });
       setMessages((prev) =>
         prev.map((m) =>
           m.id === placeholderId

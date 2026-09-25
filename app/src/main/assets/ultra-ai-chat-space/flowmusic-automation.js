@@ -63,10 +63,12 @@
   // --------------------------------------------------------------------------
   // Session probe — detect a real signed-in Flow Music (Supabase) session.
   // --------------------------------------------------------------------------
-  FLOW.probe = function () {
-    var signedIn = false;
-    var email = "";
-    var name = "";
+  // Read the Supabase session from wherever Flow Music keeps it.
+  // Current Google Flow Music uses @supabase/ssr, which stores the session in
+  // CHUNKED BASE64 COOKIES (sb-<ref>-auth-token.0, .1, ...) instead of
+  // localStorage. Older builds used localStorage, so we check both.
+  function readSession() {
+    // 1) localStorage (legacy builds)
     try {
       var keys = Object.keys(localStorage || {});
       for (var i = 0; i < keys.length; i++) {
@@ -74,20 +76,63 @@
         if (/auth-token/i.test(k) || /^sb-.*-auth-token/i.test(k)) {
           var v = localStorage.getItem(k);
           if (v && v.length > 10) {
-            signedIn = true;
             try {
-              var o = JSON.parse(v);
-              var u = (o && o.user) || (o && o.currentSession && o.currentSession.user) || null;
-              if (u) {
-                email = u.email || "";
-                name =
-                  u.user_metadata && (u.user_metadata.full_name || u.user_metadata.name)
-                    ? u.user_metadata.full_name || u.user_metadata.name
-                    : "";
-              }
+              return JSON.parse(v);
             } catch (e) {}
-            break;
           }
+        }
+      }
+    } catch (e) {}
+
+    // 2) cookies (current Google Flow Music)
+    try {
+      var jar = document.cookie || "";
+      var pairs = jar.split("; ");
+      var chunks = {};
+      var base = null;
+      for (var j = 0; j < pairs.length; j++) {
+        var idx = pairs[j].indexOf("=");
+        if (idx < 0) continue;
+        var cname = pairs[j].slice(0, idx);
+        var cval = pairs[j].slice(idx + 1);
+        var m = cname.match(/^(sb-.*-auth-token)(?:\.(\d+))?$/);
+        if (!m) continue;
+        base = m[1];
+        var n = m[2] === undefined ? 0 : parseInt(m[2], 10);
+        chunks[n] = cval;
+      }
+      if (base) {
+        var joined = "";
+        var idxs = Object.keys(chunks)
+          .map(Number)
+          .sort(function (a, b) {
+            return a - b;
+          });
+        for (var z = 0; z < idxs.length; z++) joined += chunks[idxs[z]];
+        if (joined.indexOf("base64-") === 0) joined = joined.slice(7);
+        joined = joined.replace(/-/g, "+").replace(/_/g, "/");
+        while (joined.length % 4) joined += "=";
+        return JSON.parse(atob(joined));
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  FLOW.probe = function () {
+    var signedIn = false;
+    var email = "";
+    var name = "";
+    try {
+      var o = readSession();
+      if (o) {
+        signedIn = true;
+        var u = (o && o.user) || (o && o.currentSession && o.currentSession.user) || null;
+        if (u) {
+          email = u.email || "";
+          name =
+            u.user_metadata && (u.user_metadata.full_name || u.user_metadata.name)
+              ? u.user_metadata.full_name || u.user_metadata.name
+              : "";
         }
       }
     } catch (e) {}

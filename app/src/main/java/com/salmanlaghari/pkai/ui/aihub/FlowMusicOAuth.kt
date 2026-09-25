@@ -49,6 +49,15 @@ object FlowMusicOAuth {
     const val STORAGE_KEY = "sb-sb-auth-token"
 
     /**
+     * Cookie chunk size used by the live backend's `@supabase/ssr` storage.
+     * Verified against a real Google Flow Music session (3180 chars/chunk).
+     */
+    const val COOKIE_CHUNK_SIZE = 3180
+
+    /** Host whose cookies carry the engine backend session. */
+    const val COOKIE_HOST = "https://www.flowmusic.app"
+
+    /**
      * Registered by AiHubFragment so MainActivity can forward the OAuth deep
      * link to the live engine WebView.
      */
@@ -101,6 +110,31 @@ object FlowMusicOAuth {
 
     private fun base64Url(bytes: ByteArray): String =
         Base64.encodeToString(bytes, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
+
+    /**
+     * Builds the `@supabase/ssr` session cookies exactly the way the live
+     * Google Flow Music backend stores them:
+     *
+     *   sb-sb-auth-token.0 = "base64-" + base64url(sessionJson)
+     *   sb-sb-auth-token.1 = ... (only when the value exceeds COOKIE_CHUNK_SIZE)
+     *
+     * Current Flow Music keeps its session in these COOKIES (not localStorage),
+     * so injecting them is what actually signs the engine WebView in.
+     */
+    fun buildSessionCookies(session: JSONObject): List<Pair<String, String>> {
+        val encoded =
+            "base64-" + base64Url(session.toString().toByteArray(Charsets.UTF_8))
+        val cookies = ArrayList<Pair<String, String>>()
+        var index = 0
+        var chunk = 0
+        while (index < encoded.length) {
+            val end = minOf(index + COOKIE_CHUNK_SIZE, encoded.length)
+            cookies.add("$STORAGE_KEY.$chunk" to encoded.substring(index, end))
+            index = end
+            chunk++
+        }
+        return cookies
+    }
 
     /** RFC 7636 PKCE code_verifier. */
     fun generateCodeVerifier(): String {

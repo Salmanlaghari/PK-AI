@@ -1,5 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { Play, Pause, Music, Sparkles, Send, Volume2, VolumeX, Check } from "lucide-react";
+import {
+  requestFlowMusicTrack,
+  getFlowMusicStatus,
+  connectFlowMusic,
+} from "../services/flowMusicService";
 
 interface FlowStudioEmbedProps {
   className?: string;
@@ -20,16 +25,11 @@ const PRESET_GENRES = [
   { id: "acoustic", name: "Acoustic Melody", desc: "Clean guitar & soft percussion", prompt: "Heartwarming acoustic fingerstyle guitar song" },
 ];
 
-const SAMPLE_AUDIO_TRACKS = [
-  "https://appassets.androidplatform.net/assets/ultra-ai-chat-space/assets/flowmusic_track.wav",
-  "https://appassets.androidplatform.net/assets/ultra-ai-chat-space/assets/flowmusic_track.wav",
-  "https://appassets.androidplatform.net/assets/ultra-ai-chat-space/assets/flowmusic_track.wav",
-];
-
 export default function FlowStudioEmbed({
   className,
   onTrackGenerated,
-  userName = "Prince Laghari",
+  onError,
+  userName = "Ultra AI User",
   onClose,
   onOpenAuth,
 }: FlowStudioEmbedProps) {
@@ -47,6 +47,7 @@ export default function FlowStudioEmbed({
   const [duration, setDuration] = useState(180);
   const [isMuted, setIsMuted] = useState(false);
   const [addedToChat, setAddedToChat] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -94,25 +95,44 @@ export default function FlowStudioEmbed({
     }
   };
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     const activePrompt = prompt.trim() || selectedGenre.prompt;
     setIsGenerating(true);
     setAddedToChat(false);
+    setGenError(null);
 
-    setTimeout(() => {
-      const randomTrack = SAMPLE_AUDIO_TRACKS[Math.floor(Math.random() * SAMPLE_AUDIO_TRACKS.length)];
-      const title = `${selectedGenre.name} - ${activePrompt.slice(0, 30)}`;
+    try {
+      // Ensure a real Flow Music session exists before generating.
+      if (!getFlowMusicStatus().signedIn) {
+        connectFlowMusic();
+        setGenError(
+          "Pehle apne Flow Music account se sign in karein. Sign-in window khul gayi hai — connect hone ke baad dobara Generate dabayein."
+        );
+        setIsGenerating(false);
+        return;
+      }
 
-      setGeneratedTrack({
-        title,
-        url: randomTrack,
-        genre: selectedGenre.name,
-      });
-
+      const result = await requestFlowMusicTrack(activePrompt);
+      if (result.ok && result.audioUrl) {
+        setGeneratedTrack({
+          title: result.title || `${selectedGenre.name} - ${activePrompt.slice(0, 30)}`,
+          url: result.audioUrl,
+          genre: selectedGenre.name,
+        });
+        setIsPlaying(false);
+        setCurrentTime(0);
+      } else {
+        const msg = result.error || "Flow Music se track generate nahi ho saka.";
+        setGenError(msg);
+        onError?.(new Error(msg));
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Flow Music generation error.";
+      setGenError(msg);
+      onError?.(err instanceof Error ? err : new Error(msg));
+    } finally {
       setIsGenerating(false);
-      setIsPlaying(false);
-      setCurrentTime(0);
-    }, 1800);
+    }
   };
 
   const handleSendToChat = () => {
@@ -245,6 +265,12 @@ export default function FlowStudioEmbed({
           )}
         </button>
       </div>
+
+      {genError && (
+        <div className="mt-3 p-3 rounded-xl bg-rose-950/50 border border-rose-700/60 text-rose-200 text-xs leading-relaxed">
+          {genError}
+        </div>
+      )}
 
       {/* Generated Track Player */}
       {generatedTrack && (

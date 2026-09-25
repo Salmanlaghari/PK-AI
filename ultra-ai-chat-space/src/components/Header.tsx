@@ -16,6 +16,7 @@ interface HeaderProps {
   onOpenAuth?: () => void;
   authUser?: { name: string; email: string; picture: string } | null;
   flowCredits?: number;
+  flowConnected?: boolean;
 }
 
 export default function Header({
@@ -25,8 +26,8 @@ export default function Header({
   onOpenSettings,
   onOpenFlowStudio,
   onOpenAuth,
-  authUser,
   flowCredits = 50,
+  flowConnected = false,
 }: HeaderProps) {
   return (
     <header className="h-16 border-b border-slate-800/60 bg-slate-950/60 backdrop-blur-2xl px-3 sm:px-4 flex items-center justify-between shrink-0 z-30">
@@ -69,12 +70,16 @@ export default function Header({
       <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
         <button
           onClick={onOpenFlowStudio}
-          className="flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-pink-500/20 via-rose-500/20 to-orange-500/20 border border-pink-500/40 hover:border-pink-400 text-pink-200 hover:text-white text-xs font-semibold shadow-lg shadow-pink-500/10 transition-all active:scale-95"
-          title="Connect / Open FlowMusic Studio"
+          className={`flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-xl border text-xs font-semibold shadow-lg transition-all active:scale-95 ${
+            flowConnected
+              ? "bg-gradient-to-r from-emerald-500/20 via-teal-500/20 to-cyan-500/20 border-emerald-500/50 hover:border-emerald-400 text-emerald-200 hover:text-white shadow-emerald-500/10"
+              : "bg-gradient-to-r from-pink-500/20 via-rose-500/20 to-orange-500/20 border-pink-500/40 hover:border-pink-400 text-pink-200 hover:text-white shadow-pink-500/10"
+          }`}
+          title={flowConnected ? "Flow Music connected" : "Connect your Flow Music account"}
         >
-          <Music2 className="w-3.5 h-3.5 text-pink-400 animate-pulse shrink-0" />
+          <Music2 className={`w-3.5 h-3.5 shrink-0 ${flowConnected ? "text-emerald-400" : "text-pink-400 animate-pulse"}`} />
           <span className="hidden xs:inline sm:inline">
-            {authUser ? "FlowMusic" : "Connect"}
+            {flowConnected ? "Flow Music ✓" : "Connect"}
           </span>
         </button>
 

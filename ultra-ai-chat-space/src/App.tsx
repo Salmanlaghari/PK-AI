@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Bot, Loader2, X } from "lucide-react";
+import { Bot, Loader2, X, Music2, Plug } from "lucide-react";
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
 import ChatMessage from "./components/ChatMessage";
@@ -14,11 +14,14 @@ import { sessions as initialSessions } from "./data/sessions";
 import type { Message, AIModel } from "./types";
 import {
   getFlowMusicSession,
-  bindGoogleToFlowMusic,
+  getFlowMusicStatus,
+  connectFlowMusic,
+  requestFlowMusicTrack,
+  syncFlowMusicProfile,
   generateStrictVisual,
-  generateFlowMusicTrack,
   deductFlowCredits,
   type FlowMusicUser,
+  type FlowMusicStatus,
 } from "./services/flowMusicService";
 
 function generateId() {
@@ -33,10 +36,17 @@ function createWelcomeMessage(model: AIModel): Message {
   return {
     id: generateId(),
     sender: "ai",
-    text: `Namaste! Main ${model.name} hoon (Powered by FlowMusic Backend). Aaj main aapki kya madad kar sakta hoon? Aap mujhse koi bhi song, Bollywood track, lyrics, ya HD image mang sakte hain.`,
+    text: `Namaste! Main ${model.name} hoon — Ultra AI 4, ab real Flow Music engine ke saath. Aap mujhse seedha gaana banao, lyrics likhwao, ya HD image banwao. Music ke liye pehle header se apne Flow Music account ko connect karein.`,
     timestamp: getTimestamp(),
     modelName: `${model.name} × FlowMusic`,
   };
+}
+
+const MUSIC_RE = /(song|music|audio|gana|gaana|track|beat|melody|tune|dhun|compose|instrumental|remix|vocal)/i;
+const NON_MUSIC_RE = /(image|photo|picture|pic|tasveer|wallpaper|video|clip|code|function|program)/i;
+
+function isMusicPrompt(text: string): boolean {
+  return MUSIC_RE.test(text) && !NON_MUSIC_RE.test(text);
 }
 
 function App() {
@@ -52,6 +62,7 @@ function App() {
   const [flowStudioOpen, setFlowStudioOpen] = useState(false);
   const [imageModal, setImageModal] = useState<{ isOpen: boolean; url: string }>({ isOpen: false, url: "" });
   const [flowUser, setFlowUser] = useState<FlowMusicUser>(() => getFlowMusicSession());
+  const [flowStatus, setFlowStatus] = useState<FlowMusicStatus>(() => getFlowMusicStatus());
   const [authUser, setAuthUser] = useState<{ name: string; email: string; picture: string } | null>(() => {
     try {
       const saved = localStorage.getItem("ultra_ai_user");
@@ -60,11 +71,6 @@ function App() {
       return null;
     }
   });
-  useEffect(() => {
-    if (authUser) {
-      console.log("Authenticated user:", authUser);
-    }
-  }, [authUser]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = useCallback(() => {
@@ -74,6 +80,26 @@ function App() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, scrollToBottom]);
+
+  // Track the REAL Flow Music session status reported by the native WebView.
+  useEffect(() => {
+    const handleStatus = (e: any) => {
+      const detail: FlowMusicStatus = e?.detail || {};
+      setFlowStatus(detail);
+      if (detail.signedIn && detail.email) {
+        const updated = syncFlowMusicProfile({
+          name: detail.name || detail.email,
+          email: detail.email,
+          picture: authUser?.picture || "",
+        });
+        setFlowUser(updated);
+      }
+    };
+    window.addEventListener("pkai:flowmusic_status", handleStatus);
+    // Also poll once on mount (bridge may already have a cached value).
+    setFlowStatus(getFlowMusicStatus());
+    return () => window.removeEventListener("pkai:flowmusic_status", handleStatus);
+  }, [authUser?.picture]);
 
   const handleSelectModel = (model: AIModel) => {
     setSelectedModel(model);
@@ -96,120 +122,55 @@ function App() {
   const handleSelectSession = (id: string) => {
     setActiveSessionId(id);
     setSidebarOpen(false);
-    // In a real app, load messages for this session
     setMessages([createWelcomeMessage(selectedModel)]);
   };
 
   const simulateAIResponse = useCallback((userText: string): Message => {
     const lower = userText.toLowerCase();
-    let responseText = "";
-    let type: Message["type"] = "text";
 
-    // 1. IMAGE GENERATION - STRICT PROMPT OBEDIENCE VIA FLOWMUSIC VISUAL ENGINE
-    if (lower.includes("image") || lower.includes("photo") || lower.includes("picture") || lower.includes("draw") || lower.includes("tasveer") || lower.includes("pic") || lower.includes("wallpaper")) {
-      type = "real_image";
+    // IMAGE GENERATION (real, keyless Flux)
+    if (/(image|photo|picture|draw|tasveer|pic|wallpaper)/.test(lower)) {
       const visual = generateStrictVisual(userText);
-      const updatedUser = getFlowMusicSession();
-      setFlowUser(updatedUser);
-
-      responseText = `Maine FlowMusic Backend Engine ke zariye aapke prompt "${visual.prompt}" ke mutabiq authentic HD image generate kar di hai:\n(⚡ ${visual.creditsCost} FlowMusic Credits istemal huye | ${visual.creditsRemaining}/50 Daily Credits baqi hain)`;
-
+      setFlowUser(getFlowMusicSession());
       return {
         id: generateId(),
         sender: "ai",
-        text: responseText,
+        text: `Aapke prompt "${visual.prompt}" ke mutabiq HD image generate kar di gayi hai:`,
         timestamp: getTimestamp(),
-        type,
+        type: "real_image",
         imageUrl: visual.imageUrl,
-        modelName: `${selectedModel.name} × FlowMusic`,
+        modelName: `${selectedModel.name} × Ultra AI`,
         isGeneratingMedia: false,
         mediaCategory: "image",
       };
     }
 
-    // 2. REAL AI MUSIC GENERATION - FLOWMUSIC.APP BACKEND ENGINE
-    if (lower.includes("song") || lower.includes("music") || lower.includes("audio") || lower.includes("gana") || lower.includes("gaana") || lower.includes("track") || lower.includes("beat")) {
-      type = "real_song";
-      const track = generateFlowMusicTrack(userText);
-      const updatedUser = getFlowMusicSession();
-      setFlowUser(updatedUser);
-
-      responseText = `Maine FlowMusic Audio Engine (https://www.flowmusic.app/) se aapke request ke mutabiq "${track.songTitle}" mukammal tayyar kar diya hai:\n(⚡ ${track.creditsCost} FlowMusic Credits istemal huye | ${track.creditsRemaining}/50 Daily Credits baqi hain)\n\n${track.lyrics}`;
-
-      return {
-        id: generateId(),
-        sender: "ai",
-        text: responseText,
-        timestamp: getTimestamp(),
-        type,
-        audioUrl: track.audioUrl,
-        coverImageUrl: track.coverImageUrl,
-        songTitle: track.songTitle,
-        duration: track.duration,
-        lyricsText: track.lyrics,
-        modelName: `${selectedModel.name} × FlowMusic`,
-        isGeneratingMedia: false,
-        mediaCategory: "song",
-      };
-    }
-
-    // 3. REAL AI VIDEO GENERATION
-    if (lower.includes("video") || lower.includes("clip") || lower.includes("film")) {
-      type = "real_video";
-      const remainingCredits = deductFlowCredits(4);
-      setFlowUser(getFlowMusicSession());
-
-      responseText = `Maine FlowMusic Visual Engine se aapke liye video generate kar di hai:\n(⚡ 4 FlowMusic Credits istemal huye | ${remainingCredits}/50 Daily Credits baqi hain)`;
-      return {
-        id: generateId(),
-        sender: "ai",
-        text: responseText,
-        timestamp: getTimestamp(),
-        type,
-        videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-        modelName: `${selectedModel.name} × FlowMusic`,
-        isGeneratingMedia: false,
-        mediaCategory: "video",
-      };
-    }
-
-    if (lower.includes("code") || lower.includes("function") || lower.includes("program")) {
-      type = "code";
-      responseText = "Yeh raha aapke request ke mutabiq code:";
-      const codeSnippet = `function helloUltraAI() {\n  // Ultra AI 4 powered by FlowMusic Engine (https://www.flowmusic.app/)\n  console.log("Connected to FlowMusic Creator Engine - 50 Daily Credits");\n}`;
-      return {
-        id: generateId(),
-        sender: "ai",
-        text: responseText,
-        timestamp: getTimestamp(),
-        type,
-        codeSnippet,
-        modelName: selectedModel.name,
-      };
-    }
-
-    if (lower.includes("lyrics") || lower.includes("geet") || lower.includes("song words") || lower.includes("shairi")) {
-      type = "real_lyrics";
+    // LYRICS (text)
+    if (/(lyrics|geet|song words|shairi)/.test(lower)) {
       const remainingCredits = deductFlowCredits(1);
       setFlowUser(getFlowMusicSession());
-
-      let lyricsText = "";
-      if (lower.includes("bollywood") || lower.includes("romantic") || lower.includes("love") || lower.includes("pyar")) {
-        lyricsText = `[Bollywood Romantic - FlowMusic Composition]\n\nMukhda:\nDil ki galiyon mein tera hi basera hai\nTu subah meri, tu hi mera savera hai\n\nAntra 1:\nFaasle mita ke aa kareeb tu zara\nTere bina lage har ek lamha sazaa\nAnkhon se bayan ho rahi yeh daastan\nTu hi meri rooh, tu hi mera aasmaan\n\nChorus:\nTum hi ho meri duniya, tum hi ho qarar\nDil karta hai tumse be-inteha pyar!`;
-      } else if (lower.includes("sad") || lower.includes("dard")) {
-        lyricsText = `[Sad Melancholic - FlowMusic Composition]\n\nMukhda:\nKhaali hain haath, bheege hain yeh naina\nAb tere bina mushkil hai mera rehna\n\nAntra 1:\nKayi khwaab toote hain is raat ke andhere mein\nBas tera hi saaya hai yaadon ke ghere mein\n\nChorus:\nJaane kyun bewajah juda ho gaye hum\nAb har taraf bas dhuwan aur gham!`;
-      } else {
-        lyricsText = `[FlowMusic AI Original]\n\nVerse 1:\nAaj ki raat nayi dhun bajegi\nHar ek saaz pe zindagi sajegi\n\nChorus:\nFlowMusic ka yeh jaadu chale\nKhushi ke deep har ek pal jale!`;
-      }
-      responseText = `Maine FlowMusic Engine se aapke liye song lyrics generate kar diye hain:\n(⚡ 1 FlowMusic Credit istemal hua | ${remainingCredits}/50 Daily Credits baqi hain)`;
+      const lyricsText = `[FlowMusic AI Original]\n\nVerse 1:\nAaj ki raat nayi dhun bajegi\nHar ek saaz pe zindagi sajegi\n\nChorus:\nFlowMusic ka yeh jaadu chale\nKhushi ke deep har ek pal jale!`;
       return {
         id: generateId(),
         sender: "ai",
-        text: responseText,
+        text: `Yeh raha aapke liye likha gaya lyrics (${remainingCredits}/50 daily credits baqi):`,
         timestamp: getTimestamp(),
-        type,
+        type: "real_lyrics",
         lyricsText,
-        modelName: `${selectedModel.name} × FlowMusic`,
+        modelName: `${selectedModel.name} × Ultra AI`,
+      };
+    }
+
+    if (/(code|function|program)/.test(lower)) {
+      const codeSnippet = `function helloUltraAI() {\n  // Ultra AI 4 + real Flow Music session\n  console.log("Connected to Flow Music Engine");\n}`;
+      return {
+        id: generateId(),
+        sender: "ai",
+        text: "Yeh raha aapka code:",
+        timestamp: getTimestamp(),
+        type: "code",
+        codeSnippet,
+        modelName: selectedModel.name,
       };
     }
 
@@ -219,45 +180,106 @@ function App() {
       "Yeh bahut behtareen request hai. Ultra AI 4 engine iska behtar result generate kar raha hai.",
       "Ji haan, bilkul. Main aapke liye step-by-step complete solution provide karta hoon.",
     ];
-    responseText = responses[Math.floor(Math.random() * responses.length)];
     return {
       id: generateId(),
       sender: "ai",
-      text: responseText,
+      text: responses[Math.floor(Math.random() * responses.length)],
       timestamp: getTimestamp(),
       modelName: selectedModel.name,
     };
   }, [selectedModel]);
 
-  const handleSend = useCallback(
+  const updateSessionTitle = useCallback(
     (text: string) => {
+      setSessions((prev) =>
+        prev.map((s) =>
+          s.id === activeSessionId && s.title === "New Chat"
+            ? { ...s, title: text.slice(0, 40) + (text.length > 40 ? "..." : "") }
+            : s
+        )
+      );
+    },
+    [activeSessionId]
+  );
+
+  const handleSend = useCallback(
+    async (text: string) => {
       const userMessage: Message = {
         id: generateId(),
         sender: "user",
         text,
         timestamp: getTimestamp(),
       };
-
       setMessages((prev) => [...prev, userMessage]);
-      setIsGenerating(true);
+      updateSessionTitle(text);
 
-      // Simulate network delay
+      // ---- REAL Flow Music generation path -------------------------------
+      if (isMusicPrompt(text)) {
+        const connected = getFlowMusicStatus().signedIn;
+        const placeholderId = generateId();
+        const placeholder: Message = {
+          id: placeholderId,
+          sender: "ai",
+          text: connected
+            ? "🎵 Flow Music is creating your song..."
+            : "🎵 Flow Music connect karein — header ke 'Connect' button se apne account se sign in karein, phir dobara try karein.",
+          timestamp: getTimestamp(),
+          type: "real_song",
+          modelName: "🎵 Flow Music AI",
+          isGeneratingMedia: connected,
+          mediaCategory: "song",
+        };
+        setMessages((prev) => [...prev, placeholder]);
+
+        if (!connected) {
+          // Open the real Flow Music sign-in WebView so the user can connect.
+          connectFlowMusic();
+          return;
+        }
+
+        setIsGenerating(false);
+        const result = await requestFlowMusicTrack(text);
+        if (result.ok && result.audioUrl) {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === placeholderId
+                ? {
+                    ...m,
+                    text: "🎵 Flow Music AI ne aapka track tayyar kar diya hai:",
+                    audioUrl: result.audioUrl,
+                    songTitle: result.title || text,
+                    duration: null,
+                    isGeneratingMedia: false,
+                  }
+                : m
+            )
+          );
+        } else {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === placeholderId
+                ? {
+                    ...m,
+                    type: "text",
+                    text: `⚠️ Flow Music generation mukammal nahi ho saki.\n\n${result.error || "Unknown error."}\n\nTip: Header se "Connect" tap karke apne Flow Music account se sign in karein, Flow Music studio load hone dein, phir dobara try karein.`,
+                    isGeneratingMedia: false,
+                  }
+                : m
+            )
+          );
+        }
+        return;
+      }
+
+      // ---- Standard assistant path ---------------------------------------
+      setIsGenerating(true);
       setTimeout(() => {
         const aiMessage = simulateAIResponse(text);
         setMessages((prev) => [...prev, aiMessage]);
         setIsGenerating(false);
-
-        // Update session title if it's the first message
-        setSessions((prev) =>
-          prev.map((s) =>
-            s.id === activeSessionId && s.title === "New Chat"
-              ? { ...s, title: text.slice(0, 40) + (text.length > 40 ? "..." : "") }
-              : s
-          )
-        );
-      }, 800 + Math.random() * 1500);
+      }, 700 + Math.random() * 900);
     },
-    [simulateAIResponse, activeSessionId]
+    [simulateAIResponse, updateSessionTitle]
   );
 
   const handleRegenerate = useCallback(() => {
@@ -265,7 +287,6 @@ function App() {
     const lastUserMessage = [...messages].reverse().find((m) => m.sender === "user");
     if (!lastUserMessage) return;
 
-    // Remove last AI message
     setMessages((prev) => {
       const withoutLastAI = [...prev];
       const lastIndex = withoutLastAI.length - 1;
@@ -275,115 +296,120 @@ function App() {
       return withoutLastAI;
     });
 
-    setIsGenerating(true);
-    setTimeout(() => {
-      const aiMessage = simulateAIResponse(lastUserMessage.text);
-      setMessages((prev) => [...prev, aiMessage]);
-      setIsGenerating(false);
-    }, 800 + Math.random() * 1500);
-  }, [messages, simulateAIResponse]);
+    handleSend(lastUserMessage.text);
+  }, [messages, handleSend]);
 
   const handleGenerateSongFromLyrics = useCallback(
-    (_soundPrompt: string, title: string) => {
+    async (_soundPrompt: string, title: string) => {
+      const placeholderId = generateId();
       const songMessage: Message = {
-        id: generateId(),
+        id: placeholderId,
         sender: "ai",
-        text: `Generating song "${title}" from your lyrics...`,
+        text: `🎵 Flow Music is creating "${title}"...`,
         timestamp: getTimestamp(),
         type: "real_song",
-        audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-        coverImageUrl: `https://picsum.photos/seed/${generateId()}/128/128`,
         songTitle: title,
-        duration: 185,
-        modelName: selectedModel.name,
+        modelName: "🎵 Flow Music AI",
         isGeneratingMedia: true,
         mediaCategory: "song",
       };
       setMessages((prev) => [...prev, songMessage]);
 
-      // Simulate generation completion
-      setTimeout(() => {
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === songMessage.id
-              ? { ...m, isGeneratingMedia: false, text: `Here is your song "${title}":` }
-              : m
-          )
-        );
-      }, 3000);
+      const result = await requestFlowMusicTrack(title);
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === placeholderId
+            ? result.ok && result.audioUrl
+              ? { ...m, text: `Here is your song "${title}":`, audioUrl: result.audioUrl, isGeneratingMedia: false }
+              : { ...m, type: "text", text: `⚠️ ${result.error || "Generation failed."}`, isGeneratingMedia: false }
+            : m
+        )
+      );
+    },
+    []
+  );
+
+  const handleVoiceTranscript = useCallback(
+    (text: string) => {
+      handleSend(text);
+    },
+    [handleSend]
+  );
+
+  const handleImageUpload = useCallback(
+    (file: File) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const imageMessage: Message = {
+          id: generateId(),
+          sender: "user",
+          text: "",
+          timestamp: getTimestamp(),
+          type: "real_image",
+          imageUrl: reader.result as string,
+        };
+        setMessages((prev) => [...prev, imageMessage]);
+
+        setTimeout(() => {
+          const aiMessage: Message = {
+            id: generateId(),
+            sender: "ai",
+            text: "I can see the image you uploaded. Let me analyze it for you.",
+            timestamp: getTimestamp(),
+            modelName: selectedModel.name,
+          };
+          setMessages((prev) => [...prev, aiMessage]);
+        }, 1000);
+      };
+      reader.readAsDataURL(file);
     },
     [selectedModel]
   );
 
-  const handleVoiceTranscript = useCallback((text: string) => {
-    handleSend(text);
-  }, [handleSend]);
+  const handleAuthSuccess = useCallback(
+    (_token: string, user: { name: string; email: string; picture: string }) => {
+      setAuthUser(user);
+      try {
+        localStorage.setItem("ultra_ai_user", JSON.stringify(user));
+      } catch {}
+      setFlowUser(syncFlowMusicProfile(user));
+      setAuthOpen(false);
+    },
+    []
+  );
 
-  const handleImageUpload = useCallback((file: File) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const imageMessage: Message = {
+  const handleFlowStudioTrackGenerated = useCallback(
+    (trackUrl: string) => {
+      const aiMessage: Message = {
         id: generateId(),
-        sender: "user",
-        text: "",
+        sender: "ai",
+        text: "I have generated a track for you using Flow Studio.",
         timestamp: getTimestamp(),
-        type: "real_image",
-        imageUrl: reader.result as string,
+        type: "real_song",
+        audioUrl: trackUrl,
+        songTitle: "Flow Studio Generated Track",
+        duration: null,
+        modelName: "🎵 Flow Music AI",
+        isGeneratingMedia: false,
+        mediaCategory: "song",
       };
-      setMessages((prev) => [...prev, imageMessage]);
+      setMessages((prev) => [...prev, aiMessage]);
+      setFlowStudioOpen(false);
+    },
+    []
+  );
 
-      // AI response
-      setTimeout(() => {
-        const aiMessage: Message = {
-          id: generateId(),
-          sender: "ai",
-          text: "I can see the image you uploaded. Let me analyze it for you.",
-          timestamp: getTimestamp(),
-          modelName: selectedModel.name,
-        };
-        setMessages((prev) => [...prev, aiMessage]);
-      }, 1000);
-    };
-    reader.readAsDataURL(file);
-  }, [selectedModel]);
+  const handleOpenFlowMusic = useCallback(() => {
+    // Prefer the real Flow Music WebView session; fall back to the auth modal.
+    const bridge = (window as any).AndroidOAuth;
+    if (bridge && typeof bridge.connectFlowMusic === "function") {
+      connectFlowMusic();
+    } else {
+      setAuthOpen(true);
+    }
+  }, []);
 
-  const handleAuthSuccess = useCallback((_token: string, user: { name: string; email: string; picture: string }) => {
-    setAuthUser(user);
-    try {
-      localStorage.setItem("ultra_ai_user", JSON.stringify(user));
-    } catch {}
-    const updated = bindGoogleToFlowMusic(user);
-    setFlowUser(updated);
-    setAuthOpen(false);
-
-    const welcomeMsg: Message = {
-      id: generateId(),
-      sender: "ai",
-      text: `🎉 **FlowMusic Account Connected!**\n\nKhush-aamdeed **${user.name}**! Aapka Google / FlowMusic account safely connect ho chuka hai.\n⚡ **50 Daily Creation Credits** activate ho chuke hain (https://www.flowmusic.app/). Ab aap Ultra AI 4 ke tamam songs, lyrics, voice aur creative features be-fiker use kar sakte hain.`,
-      timestamp: getTimestamp(),
-      modelName: `${selectedModel.name} × FlowMusic`,
-    };
-    setMessages((prev) => [...prev, welcomeMsg]);
-  }, [selectedModel.name]);
-
-  const handleFlowStudioTrackGenerated = useCallback((trackUrl: string) => {
-    const aiMessage: Message = {
-      id: generateId(),
-      sender: "ai",
-      text: `I have generated a track for you using Flow Studio.`,
-      timestamp: getTimestamp(),
-      type: "real_song",
-      audioUrl: trackUrl,
-      coverImageUrl: `https://picsum.photos/seed/${generateId()}/128/128`,
-      songTitle: "Flow Studio Generated Track",
-      duration: null,
-      modelName: selectedModel.name,
-      isGeneratingMedia: false,
-      mediaCategory: "song",
-    };
-    setMessages((prev) => [...prev, aiMessage]);
-    setFlowStudioOpen(false);
-  }, [selectedModel]);
+  const flowConnected = flowStatus.signedIn;
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-950">
@@ -400,7 +426,7 @@ function App() {
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenVoice={() => setVoiceOpen(true)}
         authUser={authUser}
-        onOpenAuth={() => setAuthOpen(true)}
+        onOpenAuth={handleOpenFlowMusic}
         onSignOut={() => {
           setAuthUser(null);
           try {
@@ -416,18 +442,25 @@ function App() {
           selectedModel={selectedModel}
           onOpenVoice={() => setVoiceOpen(true)}
           onOpenSettings={() => setSettingsOpen(true)}
-          onOpenFlowStudio={() => {
-            const androidOAuth = (window as any).AndroidOAuth;
-            if (androidOAuth && typeof androidOAuth.openFlowMusicSignUp === "function") {
-              androidOAuth.openFlowMusicSignUp();
-            } else {
-              setFlowStudioOpen(true);
-            }
-          }}
-          onOpenAuth={() => setAuthOpen(true)}
+          onOpenFlowStudio={handleOpenFlowMusic}
+          onOpenAuth={handleOpenFlowMusic}
           authUser={authUser}
           flowCredits={flowUser.dailyCreditsRemaining}
+          flowConnected={flowConnected}
         />
+
+        {!flowConnected && (
+          <div className="shrink-0 px-4 py-2 bg-gradient-to-r from-pink-950/60 via-purple-950/40 to-slate-950 border-b border-pink-900/40 flex items-center justify-center gap-2 text-[12px] text-pink-200">
+            <Plug className="w-3.5 h-3.5 text-pink-400" />
+            <span>Flow Music connect nahi hai — real songs generate karne ke liye</span>
+            <button
+              onClick={handleOpenFlowMusic}
+              className="font-semibold text-pink-300 underline underline-offset-2 hover:text-white"
+            >
+              Connect karein
+            </button>
+          </div>
+        )}
 
         <main className="flex-1 overflow-y-auto custom-scrollbar">
           <div className="py-6 space-y-6">
@@ -495,7 +528,10 @@ function App() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
             <div className="flex items-center justify-between p-4 border-b border-slate-800">
-              <h2 className="text-lg font-semibold text-slate-100">Flow Studio</h2>
+              <h2 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
+                <Music2 className="w-5 h-5 text-pink-400" />
+                Flow Studio
+              </h2>
               <button
                 onClick={() => setFlowStudioOpen(false)}
                 className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/60 transition-colors"
@@ -505,7 +541,7 @@ function App() {
             </div>
             <div className="flex-1 overflow-hidden p-4">
               <FlowStudioEmbed
-                userName={authUser?.name || "Prince Laghari"}
+                userName={authUser?.name || "Ultra AI User"}
                 onTrackGenerated={handleFlowStudioTrackGenerated}
                 onClose={() => setFlowStudioOpen(false)}
                 onError={(err) => console.error("Flow Studio error:", err)}

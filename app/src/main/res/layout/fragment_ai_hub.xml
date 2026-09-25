@@ -16,12 +16,12 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- FlowMusic Engine Background WebView (Invisible backend executor for music & media) -->
+    <!-- FlowMusic Engine Background WebView (persistent real session + automation executor) -->
     <WebView
         android:id="@+id/webview_flowmusic_backend"
         android:layout_width="1dp"
         android:layout_height="1dp"
-        android:visibility="invisible"
+        android:alpha="0.01"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
@@ -62,7 +62,7 @@
                         android:layout_height="wrap_content"
                         android:layout_centerVertical="true"
                         android:fontFamily="sans-serif-medium"
-                        android:text="FlowMusic Sign Up &amp; Account"
+                        android:text="Connect Flow Music Account"
                         android:textColor="#F8FAFC"
                         android:textSize="16sp" />
 

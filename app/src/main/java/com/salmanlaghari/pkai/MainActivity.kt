@@ -111,7 +111,7 @@ class MainActivity : AppCompatActivity() {
     private fun handleFlowMusicDeepLink(intent: Intent?) {
         val data = intent?.data ?: return
         if (data.scheme == "pkai" && data.host == "auth-callback") {
-            FlowMusicOAuth.onCallback?.invoke(data)
+            FlowMusicOAuth.deliver(data)
         }
     }
 

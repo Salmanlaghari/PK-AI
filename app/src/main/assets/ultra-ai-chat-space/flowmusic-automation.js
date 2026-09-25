@@ -221,33 +221,62 @@
   }
 
   function findGenerateButton() {
-    var els = document.querySelectorAll('button, [role="button"], a[role="button"]');
+    var els = document.querySelectorAll(
+      'button, [role="button"], a[role="button"], input[type="submit"]'
+    );
     var best = null;
     var bestScore = 0;
     for (var i = 0; i < els.length; i++) {
       var b = els[i];
       if (!visible(b)) continue;
       if (b.disabled) continue;
-      var txt = (
-        b.innerText ||
-        b.textContent ||
+      var label = (
         b.getAttribute("aria-label") ||
         b.getAttribute("title") ||
         ""
       )
         .trim()
         .toLowerCase();
-      if (!txt) continue;
+      var txt = (b.innerText || b.textContent || "").trim().toLowerCase();
+      if (!label && !txt) continue;
       var score = 0;
-      if (/^(create|generate|make|compose|start|submit|build|go)\b/.test(txt)) score += 12;
-      if (/song|music|track|create|generate|compose/.test(txt)) score += 6;
-      if (b.getAttribute("type") === "submit") score += 4;
+      // The real Flow Music send control is an icon button whose aria-label is
+      // "Send message". Prefer it strongly over any text suggestion card.
+      if (/^(send|send message|send prompt|submit|generate|go)$/.test(label)) score += 40;
+      else if (/send/.test(label)) score += 20;
+      if (/^(send|submit|generate|create|go)$/.test(txt)) score += 14;
+      if (b.getAttribute("type") === "submit") score += 8;
+      // Penalise long suggestion cards ("Make songs for fun", ...) and nav
+      // items so they can never win over the actual send control.
+      if (txt.length > 18) score -= 25;
+      if (
+        /make songs for fun|create music for videos|make tracks|remix unreleased|make fx|get started|explore|featured|grid|list|upgrade|invite|account|^compose$/.test(
+          txt
+        )
+      )
+        score -= 30;
       if (score > bestScore) {
         bestScore = score;
         best = b;
       }
     }
     return best;
+  }
+
+  // Real Flow Music streams the finished song from storage as
+  //   https://storage.googleapis.com/producer-app-public/clips/<id>.m4a
+  // and its player never exposes an <audio> element. We therefore also watch
+  // the browser's Resource Timing entries to catch the finished clip.
+  function resourceClipUrls() {
+    var out = [];
+    try {
+      var entries = performance.getEntriesByType("resource") || [];
+      for (var i = 0; i < entries.length; i++) {
+        var n = entries[i].name || "";
+        if (/\/clips\/[0-9a-fA-F-]+\.(m4a|mp3|wav|ogg)(\?|$)/.test(n)) out.push(n);
+      }
+    } catch (e) {}
+    return out;
   }
 
   function audioSources() {
@@ -265,15 +294,24 @@
         "";
       if (u) set[u] = true;
     }
+    var clips = resourceClipUrls();
+    for (var k = 0; k < clips.length; k++) set[clips[k]] = true;
     return set;
   }
 
   function findNewAudio(before) {
+    // 1) Real Flow Music: the finished song is streamed from storage.
+    var clips = resourceClipUrls();
+    for (var c = clips.length - 1; c >= 0; c--) {
+      if (!before[clips[c]]) return clips[c];
+    }
+    // 2) <audio>/<video> elements (legacy / other builds)
     var els = document.querySelectorAll("audio, audio source");
     for (var i = 0; i < els.length; i++) {
       var u = els[i].currentSrc || els[i].src || els[i].getAttribute("src") || "";
       if (u && !before[u] && /^(https?:|blob:)/.test(u)) return u;
     }
+    // 3) explicit download links
     var links = document.querySelectorAll(
       'a[href$=".mp3"], a[href$=".wav"], a[href$=".m4a"], a[download]'
     );
@@ -285,14 +323,100 @@
   }
 
   function guessTitle(prompt) {
+    var TIME_RE = /^\d{1,2}:\d{2}(\s*\/\s*\d{1,2}:\d{2})?$/;
+    var LABEL_RE = /^(compose|lyrics|sound|details|advanced|instrumental|thoughts|account|upgrade|welcome to the studio|your producer|ask producer|add lyrics|describe the sound|today|yesterday)$/i;
+    function clean(s) {
+      return (s || "").replace(/\s+/g, " ").trim();
+    }
     try {
+      // ---- PRIMARY: the song title sits on the same row as the audio player ----
+      // Real Flow Music renders the finished clip like:
+      //   [ Song Title ]   [ 0:06 / 2:54 ]   [ play button ]
+      // The player time node looks like "0:06 / 2:54".
+      var all = document.querySelectorAll("div, span, p");
+      var player = null;
+      for (var i = 0; i < all.length; i++) {
+        var txt = clean(all[i].innerText);
+        if (all[i].children.length === 0 && /^\d{1,2}:\d{2}\s*\/\s*\d{1,2}:\d{2}$/.test(txt)) {
+          player = all[i];
+          break;
+        }
+      }
+      if (player) {
+        var pr = player.getBoundingClientRect();
+        var best = null;
+        var bestLeft = -1;
+        for (var j = 0; j < all.length; j++) {
+          var el = all[j];
+          if (el === player || el.contains(player)) continue;
+          var t = clean(el.innerText);
+          if (!t || t.length < 2 || t.length > 60) continue;
+          if (TIME_RE.test(t) || LABEL_RE.test(t)) continue;
+          if (/\d{1,2}:\d{2}/.test(t)) continue;
+          var r = el.getBoundingClientRect();
+          // Same visual row as the player, and positioned to its LEFT.
+          if (
+            Math.abs(r.top - pr.top) < 28 &&
+            r.right <= pr.left + 8 &&
+            r.left > pr.left - 400 &&
+            r.left > bestLeft &&
+            r.width > 0 &&
+            r.height > 0
+          ) {
+            bestLeft = r.left;
+            best = t;
+          }
+        }
+        if (best) {
+          log("Title detected (player row): '" + best + "'");
+          return best;
+        }
+      }
+
+      // ---- SECONDARY: session header (some builds show the generated title) ----
+      var headers = document.querySelectorAll(
+        'div[class*="truncate"][class*="text-base"][class*="font-semibold"], span[class*="truncate"][class*="text-base"][class*="font-semibold"], div[class*="truncate"][class*="text-sm"][class*="font-medium"], span[class*="truncate"][class*="text-sm"][class*="font-medium"]'
+      );
+      var bestTitle = null;
+      var bestTop = 1e9;
+      for (var h = 0; h < headers.length; h++) {
+        var hr = headers[h].getBoundingClientRect();
+        var ht = clean(headers[h].innerText);
+        if (
+          hr.top < 70 &&
+          ht &&
+          ht.length > 1 &&
+          ht.length < 60 &&
+          !TIME_RE.test(ht) &&
+          !LABEL_RE.test(ht) &&
+          !/today|yesterday|\b(am|pm)\b/i.test(ht) &&
+          hr.top < bestTop
+        ) {
+          bestTop = hr.top;
+          bestTitle = ht;
+        }
+      }
+      if (bestTitle) {
+        log("Title detected (header): '" + bestTitle + "'");
+        return bestTitle;
+      }
+
+      // ---- TERTIARY: generic headings (other builds) ----
       var nodes = document.querySelectorAll(
         'h1, h2, h3, [class*="title" i], [class*="Title"], [data-testid*="title" i]'
       );
-      for (var i = 0; i < nodes.length; i++) {
-        var t = (nodes[i].innerText || "").trim();
-        if (t && t.length > 1 && t.length < 80 && !/flow music|create|generate|sign in/i.test(t)) {
-          return t;
+      for (var k = 0; k < nodes.length; k++) {
+        var t2 = clean(nodes[k].innerText);
+        if (
+          t2 &&
+          t2.length > 1 &&
+          t2.length < 80 &&
+          !LABEL_RE.test(t2) &&
+          !/flow music|create|generate|sign in|welcome to the studio|your producer|ultra ai|^compose$|^lyrics$|^sound$|^details$|^advanced$|^instrumental$|^add lyrics|^describe the sound|^ask producer|^thoughts$|^account$|^upgrade$/i.test(
+            t2
+          )
+        ) {
+          return t2;
         }
       }
     } catch (e) {}
@@ -384,7 +508,11 @@
         });
         return;
       }
-      log("Clicking generate button: '" + (btn.innerText || "").trim() + "'");
+      log(
+        "Clicking send button: '" +
+          ((btn.innerText || "").trim() || btn.getAttribute("aria-label") || "") +
+          "'"
+      );
       try {
         btn.click();
       } catch (e) {
@@ -414,11 +542,11 @@
           lastTick = elapsed;
           reportProgress("generating", "Ultra AI 4 track compose kar raha hai... (" + elapsed + "s)");
         }
-        if (Date.now() - started > 240000) {
+        if (Date.now() - started > 360000) {
           clearInterval(timer);
           report({
             ok: false,
-            error: "Ultra AI 4 generation timed out after 4 minutes.",
+            error: "Ultra AI 4 generation timed out after 6 minutes.",
           });
         }
       }, 2500);

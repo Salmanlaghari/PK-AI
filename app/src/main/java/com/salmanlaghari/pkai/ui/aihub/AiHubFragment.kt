@@ -202,6 +202,23 @@ class AiHubFragment : Fragment() {
                 }
                 val urlString = url.toString()
 
+                if (urlString.contains("flowmusic_track") || urlString.contains("soundhelix.com") || urlString.endsWith(".wav") || urlString.endsWith(".mp3")) {
+                    try {
+                        val stream: InputStream = requireContext().assets.open("ultra-ai-chat-space/assets/flowmusic_track.wav")
+                        val mimeType = if (urlString.endsWith(".mp3")) "audio/mpeg" else "audio/wav"
+                        val customResponse = WebResourceResponse(mimeType, "UTF-8", stream)
+                        val headers = HashMap<String, String>()
+                        headers["Access-Control-Allow-Origin"] = "*"
+                        headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, HEAD"
+                        headers["Access-Control-Allow-Headers"] = "*"
+                        headers["Accept-Ranges"] = "bytes"
+                        customResponse.responseHeaders = headers
+                        return customResponse
+                    } catch (e: Exception) {
+                        Log.w("AiHubFragment", "Audio asset fallback error: " + e.message)
+                    }
+                }
+
                 if (urlString.contains("ultra-ai-chat-space")) {
                     try {
                         val path = when {

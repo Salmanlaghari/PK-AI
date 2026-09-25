@@ -158,15 +158,15 @@ export function generateFlowMusicTrack(userPrompt: string): GeneratedTrackResult
       songTitle: "Bollywood Filmi Romance - Tum Hi Ho Meri Duniya (FlowMusic Master)",
       artist: "FlowMusic Studio AI & Prince Laghari",
       genre: "Bollywood Romantic Filmi Pop",
-      audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+      audioUrl: "https://appassets.androidplatform.net/assets/ultra-ai-chat-space/assets/flowmusic_track.wav",
       coverImageUrl: "https://images.unsplash.com/photo-1518834107812-67b0b7c58434?w=800&auto=format&fit=crop&q=80",
       duration: 215,
       lyrics: `[Bollywood Filmi Style - FlowMusic]\n\nMukhda:\nDil ki galiyon mein tera hi basera hai\nTu subah meri, tu hi mera savera hai\nTere bina adhura sa lagta hai jahan\nTu hi meri zameen, tu hi aasmaan!\n\nAntra 1:\nFaasle mita ke aa kareeb tu zara\nHar lamha tere sath khushi se bhara\nAnkhon se bayan ho rahi yeh dastaan\nAb door na jaana, ruk ja yahan!\n\nChorus:\nTum hi ho meri duniya, tum hi ho qarar\nDil karta hai tumse be-inteha pyar!`,
       stems: {
-        vocals: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-        drums: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
-        bass: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
-        melody: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
+        vocals: "https://appassets.androidplatform.net/assets/ultra-ai-chat-space/assets/flowmusic_track.wav",
+        drums: "https://appassets.androidplatform.net/assets/ultra-ai-chat-space/assets/flowmusic_track.wav",
+        bass: "https://appassets.androidplatform.net/assets/ultra-ai-chat-space/assets/flowmusic_track.wav",
+        melody: "https://appassets.androidplatform.net/assets/ultra-ai-chat-space/assets/flowmusic_track.wav",
       },
       creditsCost,
       creditsRemaining,
@@ -178,15 +178,15 @@ export function generateFlowMusicTrack(userPrompt: string): GeneratedTrackResult
       songTitle: "Roohani Ishq - Sufi Fusion (FlowMusic Master)",
       artist: "FlowMusic Sufi Ensemble",
       genre: "Sufi Rock & Spiritual Acoustic",
-      audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
+      audioUrl: "https://appassets.androidplatform.net/assets/ultra-ai-chat-space/assets/flowmusic_track.wav",
       coverImageUrl: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=800&auto=format&fit=crop&q=80",
       duration: 240,
       lyrics: `[Sufi Fusion - FlowMusic]\n\nMukhda:\nIshq tere di chadh gayi lori\nRooh meri hun tere sang jori\nRang de moula rang de saara\nTu hi sacha tu hi sahara!\n\nChorus:\nYaara ve yaara, tu hi mera sahara!`,
       stems: {
-        vocals: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
-        drums: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
-        bass: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
-        melody: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+        vocals: "https://appassets.androidplatform.net/assets/ultra-ai-chat-space/assets/flowmusic_track.wav",
+        drums: "https://appassets.androidplatform.net/assets/ultra-ai-chat-space/assets/flowmusic_track.wav",
+        bass: "https://appassets.androidplatform.net/assets/ultra-ai-chat-space/assets/flowmusic_track.wav",
+        melody: "https://appassets.androidplatform.net/assets/ultra-ai-chat-space/assets/flowmusic_track.wav",
       },
       creditsCost,
       creditsRemaining,
@@ -198,15 +198,15 @@ export function generateFlowMusicTrack(userPrompt: string): GeneratedTrackResult
       songTitle: "Desi Drill 808 - Raaston Ka Shor (FlowMusic Drill Master)",
       artist: "FlowMusic Urban Beats",
       genre: "Desi Drill & 808 Hip-Hop",
-      audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
+      audioUrl: "https://appassets.androidplatform.net/assets/ultra-ai-chat-space/assets/flowmusic_track.wav",
       coverImageUrl: "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=800&auto=format&fit=crop&q=80",
       duration: 180,
       lyrics: `[Desi Drill - FlowMusic]\n\nVerse 1:\nRaaston pe dhuwan, dil mein aag bhari\nMehnat ka phal hai, baatein nahi saari\nUltra AI flow pe beat girayi\nDesi drill ne poori dunya hilayi!\n\nChorus:\n808 bass bole, sun le shor\nAaj raaj karega FlowMusic ka daur!`,
       stems: {
-        vocals: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
-        drums: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-        bass: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
-        melody: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
+        vocals: "https://appassets.androidplatform.net/assets/ultra-ai-chat-space/assets/flowmusic_track.wav",
+        drums: "https://appassets.androidplatform.net/assets/ultra-ai-chat-space/assets/flowmusic_track.wav",
+        bass: "https://appassets.androidplatform.net/assets/ultra-ai-chat-space/assets/flowmusic_track.wav",
+        melody: "https://appassets.androidplatform.net/assets/ultra-ai-chat-space/assets/flowmusic_track.wav",
       },
       creditsCost,
       creditsRemaining,
@@ -220,7 +220,7 @@ export function generateFlowMusicTrack(userPrompt: string): GeneratedTrackResult
     .trim();
 
   const titleTag = cleaned ? cleaned.charAt(0).toUpperCase() + cleaned.slice(1) : "Flow Original";
-  const defaultAudioUrl = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
+  const defaultAudioUrl = "https://appassets.androidplatform.net/assets/ultra-ai-chat-space/assets/flowmusic_track.wav";
 
   // Notify backend FlowMusic engine to synchronize playback
   try {
@@ -242,9 +242,9 @@ export function generateFlowMusicTrack(userPrompt: string): GeneratedTrackResult
     lyrics: `[FlowMusic Original]\n\nVerse 1:\nSur se sur mila ke dekho\nZindagi ko gunguna ke dekho\nUltra AI 4 aur FlowMusic ka sath\nBan gayi har ek khoobsurat baat!`,
     stems: {
       vocals: defaultAudioUrl,
-      drums: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
-      bass: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
-      melody: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
+      drums: "https://appassets.androidplatform.net/assets/ultra-ai-chat-space/assets/flowmusic_track.wav",
+      bass: "https://appassets.androidplatform.net/assets/ultra-ai-chat-space/assets/flowmusic_track.wav",
+      melody: "https://appassets.androidplatform.net/assets/ultra-ai-chat-space/assets/flowmusic_track.wav",
     },
     creditsCost,
     creditsRemaining,

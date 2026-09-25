@@ -8,6 +8,7 @@ interface FlowStudioEmbedProps {
   onError?: (error: Error) => void;
   userName?: string;
   onClose?: () => void;
+  onOpenAuth?: () => void;
 }
 
 const PRESET_GENRES = [
@@ -20,9 +21,9 @@ const PRESET_GENRES = [
 ];
 
 const SAMPLE_AUDIO_TRACKS = [
-  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
-  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
+  "https://appassets.androidplatform.net/assets/ultra-ai-chat-space/assets/flowmusic_track.wav",
+  "https://appassets.androidplatform.net/assets/ultra-ai-chat-space/assets/flowmusic_track.wav",
+  "https://appassets.androidplatform.net/assets/ultra-ai-chat-space/assets/flowmusic_track.wav",
 ];
 
 export default function FlowStudioEmbed({
@@ -30,6 +31,7 @@ export default function FlowStudioEmbed({
   onTrackGenerated,
   userName = "Prince Laghari",
   onClose,
+  onOpenAuth,
 }: FlowStudioEmbedProps) {
   const [prompt, setPrompt] = useState("");
   const [selectedGenre, setSelectedGenre] = useState(PRESET_GENRES[0]);
@@ -154,16 +156,22 @@ export default function FlowStudioEmbed({
         <div className="flex items-center gap-2">
           <button
             onClick={() => {
-              const androidOAuth = (window as any).AndroidOAuth;
-              if (androidOAuth && typeof androidOAuth.openFlowMusicSignUp === "function") {
-                androidOAuth.openFlowMusicSignUp();
+              if (onOpenAuth) {
+                onOpenAuth();
               } else {
-                window.open("https://flowmusic.app", "_blank");
+                const androidOAuth = (window as any).AndroidOAuth;
+                if (androidOAuth && typeof androidOAuth.startGoogleSignIn === "function") {
+                  androidOAuth.startGoogleSignIn();
+                } else if (androidOAuth && typeof androidOAuth.openFlowMusicSignUp === "function") {
+                  androidOAuth.openFlowMusicSignUp();
+                } else {
+                  window.open("https://flowmusic.app", "_blank");
+                }
               }
             }}
             className="flex items-center gap-1.5 text-xs text-pink-300 bg-pink-950/60 hover:bg-pink-900/80 px-3 py-1.5 rounded-xl border border-pink-700/60 transition-colors"
           >
-            <span>Sign Up on FlowMusic</span>
+            <span>Sign Up / Connect FlowMusic</span>
           </button>
           <div className="hidden sm:flex items-center gap-2 text-xs text-slate-400 bg-slate-900/80 px-3 py-1.5 rounded-xl border border-slate-800">
             <Sparkles className="w-3.5 h-3.5 text-yellow-400" />

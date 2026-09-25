@@ -114,7 +114,7 @@ export default function ChatMessage({ message, userName, onRegenerate, onGenerat
                   <Disc className="w-5 h-5 text-cyan-400 animate-spin" style={{ animationDuration: '6s' }} />
                   <div>
                     <div className="font-bold text-slate-100 text-sm">{message.songTitle || "AI Generated Track"}</div>
-                    <div className="text-[10px] text-pink-400 font-mono">FlowMusic AI Audio Engine</div>
+                    <div className="text-[10px] text-pink-400 font-mono">Ultra AI 4 Audio Engine</div>
                   </div>
                 </div>
                 <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-pink-950 text-pink-300 border border-pink-800 font-semibold">
@@ -184,7 +184,7 @@ export default function ChatMessage({ message, userName, onRegenerate, onGenerat
                 className="w-full h-auto max-h-[400px] object-contain"
               />
               <div className="p-3 flex items-center justify-between bg-slate-900/80">
-                <span className="text-[10px] text-pink-400 font-mono">FlowMusic Visual Engine</span>
+                <span className="text-[10px] text-pink-400 font-mono">Ultra AI 4 Visual Engine</span>
                 <div className="flex gap-2">
                   <button
                     onClick={() => {

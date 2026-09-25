@@ -174,7 +174,7 @@ export default function FlowAuthModal({ isOpen, onClose, onAuthSuccess }: FlowAu
       <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
         <div className="flex items-center justify-between p-4 border-b border-slate-800">
           <h2 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
-            <span>Connect FlowMusic Account</span>
+            <span>Connect Ultra Chat AI Account</span>
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-pink-950 text-pink-300 border border-pink-800">
               50 Daily Credits
             </span>
@@ -189,7 +189,7 @@ export default function FlowAuthModal({ isOpen, onClose, onAuthSuccess }: FlowAu
 
         <div className="p-6 space-y-4">
           <p className="text-sm text-slate-400 leading-relaxed">
-            Sign in with your Google account to link your <strong className="text-slate-200">FlowMusic.app</strong> profile with Ultra AI 4. You get <span className="text-pink-400 font-semibold">50 Free Daily Credits</span> every day to generate songs, lyrics, and high-resolution media.
+            Sign in with your Google account to link your <strong className="text-slate-200">Ultra Chat AI</strong> profile with Ultra AI 4. You get <span className="text-pink-400 font-semibold">50 Free Daily Credits</span> every day to generate songs, lyrics, and high-resolution media.
           </p>
 
           <button
@@ -229,7 +229,7 @@ export default function FlowAuthModal({ isOpen, onClose, onAuthSuccess }: FlowAu
             }}
             className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-pink-600 via-rose-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-medium text-sm transition-all shadow-lg shadow-pink-600/20 active:scale-[0.98]"
           >
-            <span>Sign Up Directly on FlowMusic.app</span>
+            <span>Sign in Ultra AI 4</span>
           </button>
 
           {error && (

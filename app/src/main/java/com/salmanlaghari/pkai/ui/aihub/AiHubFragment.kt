@@ -522,6 +522,24 @@ class AiHubFragment : Fragment() {
     /** Persists the real session into the engine WebView and reloads it. */
     private fun injectSessionIntoEngine(session: JSONObject) {
         activity?.runOnUiThread {
+            // Current Google Flow Music stores its Supabase session in chunked
+            // @supabase/ssr COOKIES (sb-sb-auth-token.0, .1, ...), NOT in
+            // localStorage. Setting these cookies is what actually boots the
+            // engine WebView already signed in.
+            val cookieManager = CookieManager.getInstance()
+            cookieManager.setAcceptCookie(true)
+            val nowSec = System.currentTimeMillis() / 1000L
+            val expiresAt = session.optLong(
+                "expires_at",
+                nowSec + session.optLong("expires_in", 3600L)
+            )
+            val maxAge = (expiresAt - nowSec).coerceAtLeast(60L)
+            FlowMusicOAuth.buildSessionCookies(session).forEach { (name, value) ->
+                val header = "$name=$value; path=/; domain=.flowmusic.app; " +
+                    "max-age=$maxAge; secure; samesite=lax"
+                cookieManager.setCookie(FlowMusicOAuth.COOKIE_HOST, header, null)
+            }
+            // Keep a legacy localStorage copy too, for older engine builds.
             val quotedSession = JSONObject.quote(session.toString())
             val quotedKey = JSONObject.quote(FlowMusicOAuth.STORAGE_KEY)
             val js = """
@@ -533,6 +551,7 @@ class AiHubFragment : Fragment() {
                 })();
             """.trimIndent()
             _binding?.webviewFlowmusicBackend?.evaluateJavascript(js) { _ ->
+                cookieManager.flush()
                 // Reload so the engine boots with the freshly injected session.
                 _binding?.webviewFlowmusicBackend?.reload()
                 lastStatusJson = ""

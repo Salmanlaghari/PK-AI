@@ -17,7 +17,7 @@ export interface FlowMusicUser {
   name: string;
   email: string;
   picture: string;
-  membership: "FlowMusic Creator (Free Tier)" | "FlowMusic Pro";
+  membership: "Ultra AI 4 Creator (Free Tier)" | "Ultra AI 4 Pro";
   dailyCreditsTotal: number;
   dailyCreditsRemaining: number;
   lastResetDate: string; // YYYY-MM-DD
@@ -138,7 +138,7 @@ export function getFlowMusicSession(): FlowMusicUser {
     name: "",
     email: "",
     picture: "",
-    membership: "FlowMusic Creator (Free Tier)",
+    membership: "Ultra AI 4 Creator (Free Tier)",
     dailyCreditsTotal: 50,
     dailyCreditsRemaining: 50,
     lastResetDate: today,
@@ -191,7 +191,7 @@ export function requestFlowMusicTrack(
       resolve({
         ok: false,
         error:
-          "Flow Music generation is only available inside the PK-AI Android app with a connected Flow Music account.",
+          "Ultra AI 4 generation is only available inside the PK-AI Android app with a connected Ultra Chat AI account.",
       });
       return;
     }
@@ -210,7 +210,7 @@ export function requestFlowMusicTrack(
       if (settled) return;
       settled = true;
       cleanup();
-      resolve({ ok: false, error: "Flow Music generation timed out. Please try again." });
+      resolve({ ok: false, error: "Ultra AI 4 generation timed out. Please try again." });
     }, 270000);
 
     function cleanup() {
@@ -223,7 +223,7 @@ export function requestFlowMusicTrack(
       if (settled) return;
       settled = true;
       cleanup();
-      resolve(data || { ok: false, error: "No response from Flow Music." });
+      resolve(data || { ok: false, error: "No response from Ultra AI 4." });
     };
 
     try {

@@ -106,7 +106,7 @@ export default function FlowStudioEmbed({
       if (!getFlowMusicStatus().signedIn) {
         connectFlowMusic();
         setGenError(
-          "Pehle apne Flow Music account se sign in karein. Sign-in window khul gayi hai — connect hone ke baad dobara Generate dabayein."
+          "Pehle apne Ultra Chat AI account se sign in karein. Sign-in window khul gayi hai — connect hone ke baad dobara Generate dabayein."
         );
         setIsGenerating(false);
         return;
@@ -122,12 +122,12 @@ export default function FlowStudioEmbed({
         setIsPlaying(false);
         setCurrentTime(0);
       } else {
-        const msg = result.error || "Flow Music se track generate nahi ho saka.";
+        const msg = result.error || "Ultra AI 4 se track generate nahi ho saka.";
         setGenError(msg);
         onError?.(new Error(msg));
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Flow Music generation error.";
+      const msg = err instanceof Error ? err.message : "Ultra AI 4 generation error.";
       setGenError(msg);
       onError?.(err instanceof Error ? err : new Error(msg));
     } finally {
@@ -162,7 +162,7 @@ export default function FlowStudioEmbed({
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-base font-bold text-slate-100">FlowMusic Studio</h3>
+              <h3 className="text-base font-bold text-slate-100">Ultra Studio</h3>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300 border border-pink-500/30 font-semibold">
                 AI Engine
               </span>
@@ -191,7 +191,7 @@ export default function FlowStudioEmbed({
             }}
             className="flex items-center gap-1.5 text-xs text-pink-300 bg-pink-950/60 hover:bg-pink-900/80 px-3 py-1.5 rounded-xl border border-pink-700/60 transition-colors"
           >
-            <span>Sign Up / Connect FlowMusic</span>
+            <span>Sign in Ultra AI 4</span>
           </button>
           <div className="hidden sm:flex items-center gap-2 text-xs text-slate-400 bg-slate-900/80 px-3 py-1.5 rounded-xl border border-slate-800">
             <Sparkles className="w-3.5 h-3.5 text-yellow-400" />
@@ -255,12 +255,12 @@ export default function FlowStudioEmbed({
           {isGenerating ? (
             <>
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              <span>FlowMusic Synthesizing Melody...</span>
+              <span>Ultra AI 4 Synthesizing Melody...</span>
             </>
           ) : (
             <>
               <Sparkles className="w-4 h-4" />
-              <span>Generate FlowMusic Track</span>
+              <span>Generate Ultra AI 4 Track</span>
             </>
           )}
         </button>
@@ -287,7 +287,7 @@ export default function FlowStudioEmbed({
               </button>
               <div className="min-w-0">
                 <div className="text-sm font-semibold text-slate-100 truncate">{generatedTrack.title}</div>
-                <div className="text-xs text-purple-400 font-medium">{generatedTrack.genre} • FlowMusic Engine</div>
+                <div className="text-xs text-purple-400 font-medium">{generatedTrack.genre} • Ultra AI 4 Engine</div>
               </div>
             </div>
 

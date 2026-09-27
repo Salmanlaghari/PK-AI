@@ -81,6 +81,9 @@ class AiHubFragment : Fragment() {
     /** PKCE code_verifier for the in-flight OAuth connection (Custom Tab flow). */
     private var pendingCodeVerifier: String? = null
 
+    /** Pending prompt queued to run after native Google connection completes. */
+    private var pendingPromptAfterConnect: String? = null
+
     /** Cached automation engine, injected into the Flow Music WebView. */
     private val automationScript: String by lazy {
         try {
@@ -249,7 +252,6 @@ class AiHubFragment : Fragment() {
                     probeFlowMusicSession()
                 }
             }
-            loadUrl(FLOW_MUSIC_URL)
         }
 
         statusHandler.post(statusPoll)
@@ -264,6 +266,16 @@ class AiHubFragment : Fragment() {
                 lastStatusJson = decoded
                 dispatchStatusToJs(decoded)
                 maybeAutoCloseSignInModal(decoded)
+            }
+            try {
+                val obj = JSONObject(decoded)
+                if (obj.optBoolean("signedIn", false) && pendingPromptAfterConnect != null) {
+                    val promptToRun = pendingPromptAfterConnect
+                    pendingPromptAfterConnect = null
+                    promptToRun?.let { startFlowMusicGeneration(it) }
+                }
+            } catch (e: Exception) {
+                Log.w("AiHubFragment", "Pending prompt check failed: ${e.message}")
             }
         }
     }
@@ -345,16 +357,6 @@ class AiHubFragment : Fragment() {
         wv.evaluateJavascript(js, null)
     }
 
-    fun showFlowMusicStudio() {
-        activity?.runOnUiThread {
-            binding.containerFlowmusicSignup.visibility = View.VISIBLE
-            val currentUrl = binding.webviewFlowmusicSignup.url
-            if (currentUrl.isNullOrBlank() || currentUrl == "about:blank") {
-                binding.webviewFlowmusicSignup.loadUrl(FLOW_MUSIC_URL)
-            }
-        }
-    }
-
     /**
      * Starts the Flow Music connection via Google Sign In / Sign Up popup directly.
      */
@@ -433,11 +435,23 @@ class AiHubFragment : Fragment() {
                 }
             } catch (e: androidx.credentials.exceptions.GetCredentialCancellationException) {
                 Log.d("AiHubFragment", "Native connect cancelled by user")
+                if (pendingPromptAfterConnect != null) {
+                    pendingPromptAfterConnect = null
+                    dispatchTrackResultToJs("""{"ok":false,"error":"Music generation cancelled: Google Sign-In required."}""")
+                }
             } catch (e: androidx.credentials.exceptions.NoCredentialException) {
                 Log.w("AiHubFragment", "No Google account on device; using fallback")
+                if (pendingPromptAfterConnect != null) {
+                    pendingPromptAfterConnect = null
+                    dispatchTrackResultToJs("""{"ok":false,"error":"No Google account found on device."}""")
+                }
                 startCustomTabFlowMusicConnect()
             } catch (e: Exception) {
                 Log.e("AiHubFragment", "Native connect failed; using fallback", e)
+                if (pendingPromptAfterConnect != null) {
+                    pendingPromptAfterConnect = null
+                    dispatchTrackResultToJs("""{"ok":false,"error":"Google Sign-In failed: ${e.message}"}""")
+                }
                 startCustomTabFlowMusicConnect()
             }
         }
@@ -821,9 +835,12 @@ class AiHubFragment : Fragment() {
                             false
                         }
                         if (!signedIn) {
+                            // Avoid race condition: defer generation until native Google Sign-In completes and session is injected
+                            pendingPromptAfterConnect = prompt
                             startNativeFlowMusicConnect()
+                        } else {
+                            startFlowMusicGeneration(prompt)
                         }
-                        startFlowMusicGeneration(prompt)
                     }
                 }
 

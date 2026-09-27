@@ -34,7 +34,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- Flow Music Producer Studio Embedded Container (Shown when user clicks Connect or sends music prompt) -->
+    <!-- Flow Music Sign Up / Account Overlay Container (Hidden by default, background connection used) -->
     <FrameLayout
         android:id="@+id/container_flowmusic_signup"
         android:layout_width="0dp"

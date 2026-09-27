@@ -187,6 +187,12 @@ class AiHubFragment : Fragment() {
             webViewClient = object : WebViewClient() {
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
+                    val injectCss = """
+                        var style = document.createElement('style');
+                        style.innerHTML = 'header, nav, .top-bar, div[role="dialog"], footer { display: none !important; } body { padding-top: 0 !important; margin-top: 0 !important; background-color: #0d1117 !important; }';
+                        document.head.appendChild(style);
+                    """.trimIndent()
+                    view?.evaluateJavascript(injectCss, null)
                     Log.d("AiHubFragment", "Flow Music engine page finished: $url")
                     if (automationScript.isNotBlank()) {
                         view?.evaluateJavascript(automationScript, null)
@@ -230,6 +236,12 @@ class AiHubFragment : Fragment() {
             webViewClient = object : WebViewClient() {
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
+                    val injectCss = """
+                        var style = document.createElement('style');
+                        style.innerHTML = 'header, nav, .top-bar, div[role="dialog"], footer { display: none !important; } body { padding-top: 0 !important; margin-top: 0 !important; background-color: #0d1117 !important; }';
+                        document.head.appendChild(style);
+                    """.trimIndent()
+                    view?.evaluateJavascript(injectCss, null)
                     Log.d("AiHubFragment", "Flow Music sign-in page finished: $url")
                     // Flush cookies so the session survives app restarts.
                     CookieManager.getInstance().flush()
@@ -237,6 +249,7 @@ class AiHubFragment : Fragment() {
                     probeFlowMusicSession()
                 }
             }
+            loadUrl(FLOW_MUSIC_URL)
         }
 
         statusHandler.post(statusPoll)
@@ -332,26 +345,21 @@ class AiHubFragment : Fragment() {
         wv.evaluateJavascript(js, null)
     }
 
+    fun showFlowMusicStudio() {
+        activity?.runOnUiThread {
+            binding.containerFlowmusicSignup.visibility = View.VISIBLE
+            val currentUrl = binding.webviewFlowmusicSignup.url
+            if (currentUrl.isNullOrBlank() || currentUrl == "about:blank") {
+                binding.webviewFlowmusicSignup.loadUrl(FLOW_MUSIC_URL)
+            }
+        }
+    }
+
     /**
-     * Starts the real account connection - the BROWSER-FREE path.
-     *
-     * The Google account picker pops up INSIDE Ultra Chat AI (the very same
-     * native Credential Manager sheet the PK-AI sign-in uses). The resulting
-     * Google ID token is exchanged with the music backend via
-     * `grant_type=id_token`, so no Chrome / external page ever opens and the
-     * user never leaves the Ultra AI interface.
-     *
-     * If the backend rejects the ID token (e.g. the client id is not on the
-     * backend's allow-list), we transparently fall back to the Chrome Custom
-     * Tab PKCE flow so the feature always works.
+     * Starts the Flow Music connection via Google Sign In / Sign Up popup directly.
      */
     fun connectFlowMusic() {
         activity?.runOnUiThread {
-            Toast.makeText(
-                requireContext(),
-                "Ultra Chat AI account connect ho raha hai...",
-                Toast.LENGTH_SHORT
-            ).show()
             startNativeFlowMusicConnect()
         }
     }
@@ -455,10 +463,7 @@ class AiHubFragment : Fragment() {
 
                 val opened = openCustomTab(url)
                 if (!opened) {
-                    // Last resort: in-app WebView overlay.
-                    signInModalAutoClosed = false
-                    binding.containerFlowmusicSignup.visibility = View.VISIBLE
-                    binding.webviewFlowmusicSignup.loadUrl(FLOW_MUSIC_URL)
+                    Log.d("AiHubFragment", "Custom tab not available")
                 }
             }
         }
@@ -808,7 +813,18 @@ class AiHubFragment : Fragment() {
                         dispatchTrackResultToJs("""{"ok":false,"error":"Empty music prompt."}""")
                         return
                     }
-                    activity?.runOnUiThread { startFlowMusicGeneration(prompt) }
+                    activity?.runOnUiThread {
+                        val signedIn = try {
+                            val obj = JSONObject(lastStatusJson)
+                            obj.optBoolean("signedIn", false)
+                        } catch (e: Exception) {
+                            false
+                        }
+                        if (!signedIn) {
+                            startNativeFlowMusicConnect()
+                        }
+                        startFlowMusicGeneration(prompt)
+                    }
                 }
 
                 @JavascriptInterface

@@ -1,5 +1,7 @@
 # Node modules
 node_modules/
+**/node_modules/
+ultra-ai-chat-space/node_modules/
 
 # Gradle files
 .gradle/

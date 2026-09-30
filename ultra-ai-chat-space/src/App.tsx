@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Bot, Loader2, X, Music2, Plug } from "lucide-react";
+import { Bot, Loader2, Plug } from "lucide-react";
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
 import ChatMessage from "./components/ChatMessage";
@@ -8,7 +8,6 @@ import SettingsModal from "./components/SettingsModal";
 import VoiceModal from "./components/VoiceModal";
 import ImageModal from "./components/ImageModal";
 import FlowAuthModal from "./components/FlowAuthModal";
-import FlowStudioEmbed from "./components/FlowStudioEmbed";
 import { models, defaultModel } from "./data/models";
 import { sessions as initialSessions } from "./data/sessions";
 import type { Message, AIModel } from "./types";
@@ -59,7 +58,6 @@ function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
-  const [flowStudioOpen, setFlowStudioOpen] = useState(false);
   const [imageModal, setImageModal] = useState<{ isOpen: boolean; url: string }>({ isOpen: false, url: "" });
   const [flowUser, setFlowUser] = useState<FlowMusicUser>(() => getFlowMusicSession());
   const [flowStatus, setFlowStatus] = useState<FlowMusicStatus>(() => getFlowMusicStatus());
@@ -395,27 +393,6 @@ function App() {
     []
   );
 
-  const handleFlowStudioTrackGenerated = useCallback(
-    (trackUrl: string) => {
-      const aiMessage: Message = {
-        id: generateId(),
-        sender: "ai",
-        text: "I have generated a track for you using Ultra Studio.",
-        timestamp: getTimestamp(),
-        type: "real_song",
-        audioUrl: trackUrl,
-        songTitle: "Ultra Studio Generated Track",
-        duration: null,
-        modelName: "🎵 Ultra AI 4",
-        isGeneratingMedia: false,
-        mediaCategory: "song",
-      };
-      setMessages((prev) => [...prev, aiMessage]);
-      setFlowStudioOpen(false);
-    },
-    []
-  );
-
   const handleOpenFlowMusic = useCallback(() => {
     // Prefer the real Flow Music WebView session; fall back to the auth modal.
     const bridge = (window as any).AndroidOAuth;
@@ -541,32 +518,6 @@ function App() {
         onClose={() => setAuthOpen(false)}
         onAuthSuccess={handleAuthSuccess}
       />
-      {flowStudioOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b border-slate-800">
-              <h2 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
-                <Music2 className="w-5 h-5 text-pink-400" />
-                Ultra Studio
-              </h2>
-              <button
-                onClick={() => setFlowStudioOpen(false)}
-                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/60 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-hidden p-4">
-              <FlowStudioEmbed
-                userName={authUser?.name || "Ultra AI User"}
-                onTrackGenerated={handleFlowStudioTrackGenerated}
-                onClose={() => setFlowStudioOpen(false)}
-                onError={(err) => console.error("Ultra Studio error:", err)}
-              />
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

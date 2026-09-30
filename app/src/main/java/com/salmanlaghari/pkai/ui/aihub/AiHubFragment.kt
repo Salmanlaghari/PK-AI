@@ -16,7 +16,9 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.content.DialogInterface
 import android.view.WindowManager
+import android.view.inputmethod.EditorInfo
 import android.webkit.ConsoleMessage
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
@@ -729,11 +731,24 @@ class AiHubFragment : Fragment() {
         activity?.runOnUiThread {
             if (!isAdded) return@runOnUiThread
             try {
+                var importDialog: AlertDialog? = null
                 val input = EditText(requireContext()).apply {
                     hint = getString(R.string.hint_paste_session)
                     isSingleLine = false
                     isVerticalScrollBarEnabled = true
                     movementMethod = ScrollingMovementMethod.getInstance()
+                    // Keyboard's Done/✓ key acts as Connect, so the user never
+                    // needs to scroll for the button.
+                    imeOptions = EditorInfo.IME_ACTION_DONE
+                    setOnEditorActionListener { _, actionId, _ ->
+                        if (actionId == EditorInfo.IME_ACTION_DONE) {
+                            importDialog?.getButton(DialogInterface.BUTTON_POSITIVE)
+                                ?.performClick()
+                            true
+                        } else {
+                            false
+                        }
+                    }
                     setOnTouchListener { v, event ->
                         // Let the field consume vertical scrolls itself instead
                         // of the dialog/window fighting over them.
@@ -763,7 +778,7 @@ class AiHubFragment : Fragment() {
                         )
                     )
                 }
-                AlertDialog.Builder(requireContext())
+                importDialog = AlertDialog.Builder(requireContext())
                     .setTitle(getString(R.string.title_import_session))
                     .setMessage(getString(R.string.msg_import_session_paste))
                     .setView(container)

@@ -85,6 +85,13 @@ class AiHubFragment : Fragment() {
     private var backendPageLoaded = false
 
     /**
+     * Set when [autoInjectSession] already reloaded the engine with a fresh
+     * session: the following [onEngineConnected] must show the toast but
+     * skip its own reload, otherwise every cold open stacks two reloads.
+     */
+    private var suppressNextEngineReload = false
+
+    /**
      * Session captured by the silent auto-connect while the backend engine
      * WebView had not loaded yet - injected into localStorage on page finish.
      * (Cookies are always injected immediately; they do not need the page.)
@@ -275,6 +282,10 @@ class AiHubFragment : Fragment() {
      * One silent Credential Manager attempt: only already-authorized Google
      * accounts, auto-select enabled. Returns true when a credential arrived
      * WITHOUT any user-visible UI and the bridge session was stored.
+     *
+     * The returned credential is matched against the PK-AI signed-in email:
+     * on multi-account devices the bridge must never bind to a different
+     * Google account than the one the user signed into PK-AI with.
      */
     private suspend fun silentGoogleBridgeConnect(): Boolean {
         val clientId = try {
@@ -284,10 +295,22 @@ class AiHubFragment : Fragment() {
         }
         if (clientId.isBlank()) return false
 
+        // The PK-AI account this bridge must bind to. Guests have no Google
+        // account, so there is nothing silent to do for them.
+        val pkaiEmail = try {
+            authRepository.getSession().first().email?.takeIf { it.isNotBlank() }
+        } catch (e: Exception) {
+            null
+        }
+        if (pkaiEmail.isNullOrBlank()) return false
+
         return try {
             val credentialManager = CredentialManager.create(requireContext())
-            // filterByAuthorizedAccounts = true is what makes this silent: the
-            // system only returns an already-authorized account, no picker UI.
+            // filterByAuthorizedAccounts = true keeps this silent in the
+            // common case: the system only returns an already-authorized
+            // account without a picker. (It does not strictly guarantee no
+            // UI - the system may still show a sheet in edge cases - which
+            // is why any exception below simply falls back to manual.)
             val googleIdOption = GetGoogleIdOption.Builder()
                 .setFilterByAuthorizedAccounts(true)
                 .setServerClientId(clientId)
@@ -304,11 +327,13 @@ class AiHubFragment : Fragment() {
                 credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
             ) {
                 val googleIdToken = GoogleIdTokenCredential.createFrom(credential.data)
-                Log.i("AiHubFragment", "Silent Google bridge credential for ${googleIdToken.id}")
-                flowMusicSessionManager.connectWithIdToken(
-                    googleIdToken.idToken,
-                    googleIdToken.id
-                )
+                if (!googleIdToken.id.equals(pkaiEmail, ignoreCase = true)) {
+                    // Wrong account on a multi-account device: never bind the
+                    // bridge to it; the user can connect manually instead.
+                    Log.w("AiHubFragment", "Silent bridge credential is for a different account; skipping")
+                    return false
+                }
+                flowMusicSessionManager.connectWithIdToken(googleIdToken.idToken)
             } else {
                 false
             }
@@ -334,6 +359,10 @@ class AiHubFragment : Fragment() {
                 pendingAutoSession = session
             }
             lastStatusJson = ""
+            // The reload above (or the pending one on page finish) already
+            // boots the engine with this session; onEngineConnected must not
+            // reload a second time when the probe reports signedIn.
+            suppressNextEngineReload = true
             statusHandler.postDelayed({ probeFlowMusicSession() }, 3000)
         }
     }
@@ -344,8 +373,12 @@ class AiHubFragment : Fragment() {
             val signedIn = obj.optBoolean("signedIn", false)
             if (signedIn && !engineConnectedToastShown) {
                 engineConnectedToastShown = true
-                // Reload the engine so it picks up the freshly created session.
-                _binding?.webviewFlowmusicBackend?.reload()
+                if (suppressNextEngineReload) {
+                    suppressNextEngineReload = false
+                } else {
+                    // Reload the engine so it picks up the freshly created session.
+                    _binding?.webviewFlowmusicBackend?.reload()
+                }
                 Toast.makeText(requireContext(), "Ultra Chat AI connected ✓", Toast.LENGTH_SHORT).show()
             }
         } catch (e: Exception) {

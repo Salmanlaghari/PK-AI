@@ -122,35 +122,9 @@ class PreferencesManager @Inject constructor(
             preferences[emailKey] = ""
             preferences[profileImageUrlKey] = ""
         }
-        // Signing out of PK-AI also disconnects the Flow Music bridge session.
-        clearFlowMusicSession()
     }
 
     // ------------------------------------------------------------------
-    // Flow Music bridge session (auto-connect, no Browse UI)
-    //
-    // The FULL Supabase session JSON is persisted (access + refresh tokens and
-    // the user object), so the bridge can be revived silently with the refresh
-    // token - the user never sees another sign-in popup for the music engine.
-    // ------------------------------------------------------------------
-    private val flowMusicSessionJsonKey = stringPreferencesKey("flowmusic_session_json")
-
-    val flowMusicSessionJson: Flow<String?> = context.dataStore.data.map { preferences ->
-        preferences[flowMusicSessionJsonKey]?.takeIf { it.isNotBlank() }
-    }
-
-    suspend fun saveFlowMusicSessionJson(sessionJson: String) {
-        context.dataStore.edit { preferences ->
-            preferences[flowMusicSessionJsonKey] = sessionJson
-        }
-    }
-
-    suspend fun clearFlowMusicSession() {
-        context.dataStore.edit { preferences ->
-            preferences.remove(flowMusicSessionJsonKey)
-        }
-    }
-
     // Guest message limit (10 AI messages for guest users)
     private val guestMessageCountKey = intPreferencesKey("guest_message_count")
 

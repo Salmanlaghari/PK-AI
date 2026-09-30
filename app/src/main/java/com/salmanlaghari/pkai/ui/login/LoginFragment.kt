@@ -34,6 +34,14 @@ class LoginFragment : Fragment() {
     @Inject
     lateinit var flowMusicSessionManager: FlowMusicSessionManager
 
+    /**
+     * The Flow Music auto-connect notification popup. Kept as a field so it
+     * is always dismissed in [onDestroyView]: if the device rotates while
+     * the background exchange is running, a dialog still attached to the
+     * old window would leak it (WindowLeaked).
+     */
+    private var bridgeDialog: AlertDialog? = null
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
@@ -153,6 +161,16 @@ class LoginFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        bridgeDialog?.let { dialog ->
+            if (dialog.isShowing) {
+                try {
+                    dialog.dismiss()
+                } catch (e: Exception) {
+                    // Best effort; the window may already be gone.
+                }
+            }
+        }
+        bridgeDialog = null
         super.onDestroyView()
         _binding = null
     }
@@ -171,28 +189,32 @@ class LoginFragment : Fragment() {
      * navigation to Home that follows a successful sign-in.
      */
     private fun autoConnectFlowMusicBridge(idToken: String, email: String?) {
-        val accountLabel = email?.takeIf { it.isNotBlank() } ?: "aapka Google account"
-        val dialog = AlertDialog.Builder(requireContext())
-            .setTitle("\uD83C\uDFB5 Music Engine")
-            .setMessage(
-                "$accountLabel se Ultra AI music engine connect ho raha hai...\n\n" +
-                    "Aapka wohi Google account use hoga jis se aap ne sign-in kiya hai."
-            )
+        val accountLabel = email?.takeIf { it.isNotBlank() } ?: getString(R.string.msg_music_engine_default_account)
+        // Resolve all UI strings now: the fragment may be detached (navigated
+        // to Home) by the time the background exchange finishes.
+        val connectedMessage = getString(R.string.msg_music_connected)
+        bridgeDialog = AlertDialog.Builder(requireContext())
+            .setTitle(getString(R.string.title_music_engine))
+            .setMessage(getString(R.string.msg_music_engine_connecting, accountLabel))
             .setCancelable(false)
             .create()
-        dialog.show()
+            .also { it.show() }
 
         // Capture the app context now: the login fragment may be gone
         // (navigated to Home) by the time the exchange finishes.
         val appContext = requireContext().applicationContext
         requireActivity().lifecycleScope.launch {
             val connected = try {
-                flowMusicSessionManager.connectWithIdToken(idToken, email)
+                flowMusicSessionManager.connectWithIdToken(idToken)
             } catch (e: Exception) {
                 android.util.Log.e("PKAI_AUTH", "Flow Music auto-connect failed", e)
                 false
             }
-            if (dialog.isShowing) {
+            // Dismiss via the field; onDestroyView() already handles the
+            // rotation case, this covers the normal completion path.
+            val dialog = bridgeDialog
+            bridgeDialog = null
+            if (dialog?.isShowing == true) {
                 try {
                     dialog.dismiss()
                 } catch (e: Exception) {
@@ -200,11 +222,7 @@ class LoginFragment : Fragment() {
                 }
             }
             if (connected) {
-                Toast.makeText(
-                    appContext,
-                    "Ultra AI music connected \u2713",
-                    Toast.LENGTH_SHORT
-                ).show()
+                Toast.makeText(appContext, connectedMessage, Toast.LENGTH_SHORT).show()
             } else {
                 // Silent fallback: AI Hub retries automatically on next open.
                 android.util.Log.w(

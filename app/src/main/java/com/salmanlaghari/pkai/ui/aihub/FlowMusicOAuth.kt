@@ -33,6 +33,16 @@ object FlowMusicOAuth {
 
     private const val TAG = "FlowMusicOAuth"
 
+    /**
+     * True only for a genuine refresh-token rejection: Supabase answers a
+     * bad/rotated token with 400/401 and an `invalid_grant`-style body.
+     * 429 (rate limit), 408 and every other failure are transient.
+     */
+    private fun isAuthRejection(httpCode: Int, body: String): Boolean {
+        if (httpCode != 400 && httpCode != 401) return false
+        return body.contains("invalid_grant") || body.contains("refresh_token_not_found")
+    }
+
     /** Public Supabase project URL of the music engine backend. */
     const val SUPABASE_URL = "https://sb.flowmusic.app"
 
@@ -240,9 +250,12 @@ object FlowMusicOAuth {
                 val text = resp.body?.string().orEmpty()
                 if (!resp.isSuccessful) {
                     Log.w(TAG, "Session refresh failed (${resp.code}): $text")
-                    // 4xx = the refresh token itself was rejected; 5xx / anything
-                    // else is treated as a transport/server problem.
-                    return if (resp.code in 400..499) RefreshResult.AuthRejected
+                    // Only a genuine auth failure drops the session: Supabase
+                    // answers a bad/rotated refresh token with 400/401 plus
+                    // an invalid_grant body. Everything else - 429 rate
+                    // limiting, 408 timeouts, 5xx, proxy-generated 4xx - is
+                    // transient and must NOT destroy the stored session.
+                    return if (isAuthRejection(resp.code, text)) RefreshResult.AuthRejected
                     else RefreshResult.TransportError
                 }
                 val json = JSONObject(text)

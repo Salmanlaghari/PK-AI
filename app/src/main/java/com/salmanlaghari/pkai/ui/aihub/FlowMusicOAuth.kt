@@ -42,13 +42,22 @@ object FlowMusicOAuth {
     private const val TAG = "FlowMusicOAuth"
 
     /**
-     * True only for a genuine refresh-token rejection: Supabase answers a
-     * bad/rotated token with 400/401 and an `invalid_grant`-style body.
-     * 429 (rate limit), 408 and every other failure are transient.
+     * True for a genuine refresh-token rejection.
+     *
+     * Supabase answers a bad/rotated refresh token with 400/401. Matching the
+     * body for `invalid_grant` is too fragile (gateway HTML pages, empty
+     * bodies, wording changes), so the status code decides: any 400/401 from
+     * the token endpoint is a rejection. Only unambiguously transient codes
+     * (408 timeout, 429 rate limit, 5xx) keep the stored session for a later
+     * retry — otherwise a dead token would retry forever.
      */
     private fun isAuthRejection(httpCode: Int, body: String): Boolean {
-        if (httpCode != 400 && httpCode != 401) return false
-        return body.contains("invalid_grant") || body.contains("refresh_token_not_found")
+        if (httpCode == 408 || httpCode == 429 || httpCode in 500..599) return false
+        if (httpCode == 400 || httpCode == 401) {
+            Log.w(TAG, "Refresh token rejected ($httpCode): ${body.take(160)}")
+            return true
+        }
+        return false
     }
 
     /** Public Supabase project URL of the music engine backend. */
@@ -282,11 +291,9 @@ object FlowMusicOAuth {
             val (code, text) = postJson("$SUPABASE_URL/auth/v1/token?grant_type=refresh_token", payload)
             if (code !in 200..299) {
                 Log.w(TAG, "Session refresh failed ($code): $text")
-                // Only a genuine auth failure drops the session: Supabase
-                // answers a bad/rotated refresh token with 400/401 plus
-                // an invalid_grant body. Everything else - 429 rate
-                // limiting, 408 timeouts, 5xx, proxy-generated 4xx - is
-                // transient and must NOT destroy the stored session.
+                // A genuine auth failure drops the session; transient codes
+                // (408/429/5xx) keep it for a later retry. 400/401 is decided
+                // by status code, not body text (see isAuthRejection).
                 return if (isAuthRejection(code, text)) RefreshResult.AuthRejected
                 else RefreshResult.TransportError
             }

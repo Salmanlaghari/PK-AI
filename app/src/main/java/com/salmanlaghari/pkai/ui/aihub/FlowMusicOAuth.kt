@@ -215,9 +215,18 @@ object FlowMusicOAuth {
      * This is what keeps the Flow Music bridge connected SILENTLY across app
      * restarts - no Google popup, no Custom Tab, no user interaction at all.
      *
-     * Returns the full refreshed session JSON (with `expires_at`) or null.
+     * The result distinguishes a real AUTH REJECTION (revoked / rotated /
+     * expired refresh token - the stored session must be dropped) from a
+     * TRANSPORT failure (timeout, no network - the stored session must be
+     * KEPT so the next attempt can retry instead of forcing manual re-auth).
      */
-    fun refreshSession(refreshToken: String): JSONObject? {
+    sealed interface RefreshResult {
+        data class Success(val session: JSONObject) : RefreshResult
+        data object AuthRejected : RefreshResult
+        data object TransportError : RefreshResult
+    }
+
+    fun refreshSession(refreshToken: String): RefreshResult {
         return try {
             val payload = JSONObject().put("refresh_token", refreshToken)
             val body = payload.toString().toRequestBody("application/json".toMediaType())
@@ -231,18 +240,21 @@ object FlowMusicOAuth {
                 val text = resp.body?.string().orEmpty()
                 if (!resp.isSuccessful) {
                     Log.w(TAG, "Session refresh failed (${resp.code}): $text")
-                    return null
+                    // 4xx = the refresh token itself was rejected; 5xx / anything
+                    // else is treated as a transport/server problem.
+                    return if (resp.code in 400..499) RefreshResult.AuthRejected
+                    else RefreshResult.TransportError
                 }
                 val json = JSONObject(text)
                 if (!json.has("expires_at")) {
                     val expiresIn = json.optLong("expires_in", 3600L)
                     json.put("expires_at", System.currentTimeMillis() / 1000L + expiresIn)
                 }
-                json
+                RefreshResult.Success(json)
             }
         } catch (e: Exception) {
             Log.e(TAG, "refreshSession error", e)
-            null
+            RefreshResult.TransportError
         }
     }
 

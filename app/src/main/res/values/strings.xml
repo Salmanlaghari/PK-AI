@@ -15,6 +15,11 @@
     <string name="btn_guest_mode">Continue as Guest</string>
     <string name="error_auth_failed">Authentication failed. Please try again.</string>
     <string name="lbl_loading">Securing credentials…</string>
+    <!-- Flow Music bridge auto-connect (same Google account, background) -->
+    <string name="title_music_engine">\uD83C\uDFB5 Music Engine</string>
+    <string name="msg_music_engine_connecting">%1$s se Ultra AI music engine connect ho raha hai…\n\nAapka wohi Google account use hoga jis se aap ne sign-in kiya hai.</string>
+    <string name="msg_music_engine_default_account">aapka Google account</string>
+    <string name="msg_music_connected">Ultra AI music connected \u2713</string>
     <string name="default_web_client_id" translatable="false">193399978595-7m1be36k2ud87o0bgu95b4q012b5psnj.apps.googleusercontent.com</string>
 
     <!-- Profile Screen -->

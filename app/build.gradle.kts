@@ -185,6 +185,9 @@ dependencies {
     implementation("androidx.webkit:webkit:1.12.1")
     implementation(libs.google.identity.googleid)
 
+    // Encrypted storage for the Flow Music bridge session (refresh token)
+    implementation(libs.androidx.security.crypto)
+
     // Chrome Custom Tabs - used for the Google OAuth hand-off so the sign-in
     // never happens inside an embedded WebView (which Google blocks with
     // "Browser not supported" / disallowed_useragent).

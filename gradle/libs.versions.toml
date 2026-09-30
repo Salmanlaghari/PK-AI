@@ -23,6 +23,7 @@ coreTesting = "2.2.0"
 mockito = "5.11.0"
 admob = "23.6.0"
 browser = "1.8.0"
+securityCrypto = "1.1.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -68,6 +69,9 @@ google-identity-googleid = { group = "com.google.android.libraries.identity.goog
 
 # Chrome Custom Tabs (Google-recommended OAuth surface)
 androidx-browser = { group = "androidx.browser", name = "browser", version.ref = "browser" }
+
+# Encrypted storage for the Flow Music bridge session (refresh token)
+androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "securityCrypto" }
 
 # Google AdMob
 google-admob = { group = "com.google.android.gms", name = "play-services-ads", version.ref = "admob" }

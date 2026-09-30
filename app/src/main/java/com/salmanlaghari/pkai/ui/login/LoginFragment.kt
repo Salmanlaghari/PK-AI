@@ -4,6 +4,8 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.CustomCredential
@@ -15,9 +17,11 @@ import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.salmanlaghari.pkai.R
 import com.salmanlaghari.pkai.databinding.FragmentLoginBinding
+import com.salmanlaghari.pkai.ui.aihub.FlowMusicSessionManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class LoginFragment : Fragment() {
@@ -26,6 +30,9 @@ class LoginFragment : Fragment() {
     private val binding get() = _binding!!
 
     private val viewModel: LoginViewModel by viewModels()
+
+    @Inject
+    lateinit var flowMusicSessionManager: FlowMusicSessionManager
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -115,6 +122,9 @@ class LoginFragment : Fragment() {
                         email = email,
                         photoUrl = photoUrl
                     )
+                    // Same Google account -> Flow Music bridge auto-connect
+                    // (notification popup + background session exchange).
+                    autoConnectFlowMusicBridge(idToken, email)
                 } else {
                     binding.tvErrorBanner.visibility = View.VISIBLE
                     binding.tvErrorBanner.text = getString(R.string.error_auth_failed)
@@ -145,5 +155,63 @@ class LoginFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+
+    /**
+     * Step 2 of sign-up: the SAME Google account the user just signed into
+     * PK-AI with is connected to the Flow Music bridge automatically.
+     *
+     * A small notification popup tells the user what is happening while the
+     * ID-token -> Supabase session exchange runs in the background. When this
+     * Google account already owns a Flow Music account, Supabase signs it
+     * into that EXISTING account - the user just continues with their own
+     * account, nothing manual needed.
+     *
+     * Uses the Activity lifecycle scope so the exchange survives the
+     * navigation to Home that follows a successful sign-in.
+     */
+    private fun autoConnectFlowMusicBridge(idToken: String, email: String?) {
+        val accountLabel = email?.takeIf { it.isNotBlank() } ?: "aapka Google account"
+        val dialog = AlertDialog.Builder(requireContext())
+            .setTitle("\uD83C\uDFB5 Music Engine")
+            .setMessage(
+                "$accountLabel se Ultra AI music engine connect ho raha hai...\n\n" +
+                    "Aapka wohi Google account use hoga jis se aap ne sign-in kiya hai."
+            )
+            .setCancelable(false)
+            .create()
+        dialog.show()
+
+        // Capture the app context now: the login fragment may be gone
+        // (navigated to Home) by the time the exchange finishes.
+        val appContext = requireContext().applicationContext
+        requireActivity().lifecycleScope.launch {
+            val connected = try {
+                flowMusicSessionManager.connectWithIdToken(idToken, email)
+            } catch (e: Exception) {
+                android.util.Log.e("PKAI_AUTH", "Flow Music auto-connect failed", e)
+                false
+            }
+            if (dialog.isShowing) {
+                try {
+                    dialog.dismiss()
+                } catch (e: Exception) {
+                    android.util.Log.w("PKAI_AUTH", "Popup dismiss skipped: ${e.message}")
+                }
+            }
+            if (connected) {
+                Toast.makeText(
+                    appContext,
+                    "Ultra AI music connected \u2713",
+                    Toast.LENGTH_SHORT
+                ).show()
+            } else {
+                // Silent fallback: AI Hub retries automatically on next open.
+                android.util.Log.w(
+                    "PKAI_AUTH",
+                    "Flow Music auto-connect deferred; AI Hub will retry silently"
+                )
+            }
+        }
     }
 }

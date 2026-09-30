@@ -10,10 +10,13 @@ import android.os.Bundle
 import android.os.Environment
 import android.os.Handler
 import android.os.Looper
+import android.text.method.ScrollingMovementMethod
 import android.util.Log
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.webkit.ConsoleMessage
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
@@ -729,7 +732,25 @@ class AiHubFragment : Fragment() {
                 val input = EditText(requireContext()).apply {
                     hint = getString(R.string.hint_paste_session)
                     minLines = 3
+                    // Cap the visible height: a pasted session is one very long
+                    // line (~4KB). Without maxLines it inflates the dialog and
+                    // pushes Cancel/Connect off-screen; with it the text scrolls
+                    // *inside* the field and the buttons stay put.
+                    maxLines = 5
                     isSingleLine = false
+                    isVerticalScrollBarEnabled = true
+                    movementMethod = ScrollingMovementMethod.getInstance()
+                    setOnTouchListener { v, event ->
+                        // Let the field consume vertical scrolls itself instead
+                        // of the dialog/window fighting over them.
+                        v.parent?.requestDisallowInterceptTouchEvent(true)
+                        if (event.action == MotionEvent.ACTION_UP ||
+                            event.action == MotionEvent.ACTION_CANCEL
+                        ) {
+                            v.parent?.requestDisallowInterceptTouchEvent(false)
+                        }
+                        false
+                    }
                 }
                 val container = FrameLayout(requireContext()).apply {
                     // Dialog message padding, roughly.
@@ -754,6 +775,13 @@ class AiHubFragment : Fragment() {
                         importPastedSession(pasted)
                     }
                     .show()
+                    .also { dlg ->
+                        // Shrink the dialog above the keyboard instead of letting
+                        // the keyboard cover the buttons.
+                        dlg.window?.setSoftInputMode(
+                            WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+                        )
+                    }
             } catch (e: Exception) {
                 Log.w("AiHubFragment", "Could not show session-import dialog: ${e.message}")
             }

@@ -605,10 +605,26 @@ class AiHubFragment : Fragment() {
                         is FlowMusicOAuth.ExchangeResult.Rejected -> {
                             // Backend refused the ID token - no browser
                             // fallback; report the real reason in-app.
-                            Log.w("AiHubFragment", "ID-token rejected (${exchange.httpCode}): ${exchange.errorBody}")
+                            // Classify by status so a 429 / 5xx is not
+                            // misreported as "account refused".
+                            val snippet = FlowMusicOAuth.sanitizedErrorSnippet(exchange.errorBody)
+                            Log.w("AiHubFragment", "ID-token rejected (${exchange.httpCode})" + (snippet?.let { ": $it" } ?: ""))
+                            val reason = when (exchange.httpCode) {
+                                429 -> "Bahut zyada koshishen ho gayin - thodi der baad dobara try karein (429)."
+                                in 500..599 -> "FlowMusic ka server abhi masla kar raha hai (code ${exchange.httpCode}) - thodi der baad try karein."
+                                else -> buildString {
+                                    append("FlowMusic ne Google account qabool nahi kiya (code ${exchange.httpCode}).")
+                                    if (!snippet.isNullOrBlank()) append("\nWajah: $snippet")
+                                }
+                            }
+                            onFlowMusicConnectFailed(reason = reason, retryable = true)
+                        }
+                        is FlowMusicOAuth.ExchangeResult.MalformedResponse -> {
+                            // 2xx but unusable body: a bad server response,
+                            // not a network problem.
+                            Log.w("AiHubFragment", "ID-token exchange: malformed server response")
                             onFlowMusicConnectFailed(
-                                reason = "FlowMusic ne Google account qabool nahi kiya " +
-                                    "(backend code ${exchange.httpCode}).",
+                                reason = "Server se ghalat jawab aaya - dobara try karein.",
                                 retryable = true
                             )
                         }
@@ -651,7 +667,10 @@ class AiHubFragment : Fragment() {
      * reason. The FlowMusic website is never opened.
      */
     private fun onFlowMusicConnectFailed(reason: String, retryable: Boolean) {
-        dispatchConnectFailedToJs(reason)
+        // Non-retryable failures (e.g. a build-time misconfiguration) must
+        // NOT flip the web banner to "Dobara try karein" - that would loop
+        // forever on a problem retrying can never fix.
+        if (retryable) dispatchConnectFailedToJs(reason)
         if (!isAdded) return
         activity?.runOnUiThread {
             if (!isAdded) return@runOnUiThread
@@ -667,6 +686,9 @@ class AiHubFragment : Fragment() {
                         startNativeFlowMusicConnect()
                     }
                 }
+                // Clear the field on dismiss so a dismissed dialog (holding
+                // the Activity context) is not retained by the fragment.
+                builder.setOnDismissListener { connectFailedDialog = null }
                 connectFailedDialog = builder.create()
                 connectFailedDialog?.show()
             } catch (e: Exception) {
@@ -1223,11 +1245,6 @@ class AiHubFragment : Fragment() {
         // Persist the Flow Music session cookies to disk.
         CookieManager.getInstance().flush()
     }
-
-    override fun onResume() {
-        super.onResume()
-    }
-
 
     override fun onDestroyView() {
         statusHandler.removeCallbacksAndMessages(null)

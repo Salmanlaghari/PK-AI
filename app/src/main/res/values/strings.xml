@@ -25,6 +25,15 @@
     <!-- Shown when the in-app (native Google picker) connect fails -->
     <string name="title_music_connect_failed">Connect nahi ho saka</string>
     <string name="btn_retry">Dobara try karein</string>
+    <!-- Manual session import: FlowMusic's server does not accept our Google
+         ID token (audience mismatch) and we cannot change their config, so the
+         user pastes their own FlowMusic web session once. -->
+    <string name="btn_import_session">Session paste karein</string>
+    <string name="title_import_session">FlowMusic session paste karein</string>
+    <string name="msg_import_session_howto">FlowMusic ka server Google login qabool nahi karta, is liye session ek dafa haath se dena hoga:\n\n1. Chrome mein flowmusic.app kholein (login hon).\n2. Ek naya bookmark banayein — naam: FM Session, link:\njavascript:prompt(\'S:\',localStorage.getItem(\'sb-sb-auth-token\'))\n3. flowmusic.app par wo bookmark kholein, jo text mile wo copy karke neeche paste karein aur Connect dabayein.\n\nYe sirf ek dafa karna hai — uske baad app khud session taaza rakhegi.</string>
+    <string name="hint_paste_session">Session yahan paste karein…</string>
+    <string name="btn_import_connect">Connect karein</string>
+    <string name="msg_import_session_invalid">Session theek nahi — dobara copy karke poora text paste karein.</string>
     <string name="default_web_client_id" translatable="false">193399978595-7m1be36k2ud87o0bgu95b4q012b5psnj.apps.googleusercontent.com</string>
 
     <!-- Profile Screen -->

@@ -30,7 +30,7 @@
          user pastes their own FlowMusic web session once. -->
     <string name="btn_import_session">Session paste karein</string>
     <string name="title_import_session">FlowMusic session paste karein</string>
-    <string name="msg_import_session_howto">FlowMusic ka server Google login qabool nahi karta, is liye session ek dafa haath se dena hoga:\n\n1. Chrome mein flowmusic.app kholein (login hon).\n2. Ek naya bookmark banayein — naam: FM Session, link:\njavascript:prompt(\'S:\',localStorage.getItem(\'sb-sb-auth-token\'))\n3. flowmusic.app par wo bookmark kholein, jo text mile wo copy karke neeche paste karein aur Connect dabayein.\n\nYe sirf ek dafa karna hai — uske baad app khud session taaza rakhegi.</string>
+    <string name="msg_import_session_paste">Session yahan paste karein.</string>
     <string name="hint_paste_session">Session yahan paste karein…</string>
     <string name="btn_import_connect">Connect karein</string>
     <string name="msg_import_session_invalid">Session theek nahi — dobara copy karke poora text paste karein.</string>

@@ -210,6 +210,43 @@ object FlowMusicOAuth {
     }
 
     /**
+     * Refreshes an existing Supabase session with its refresh token.
+     *
+     * This is what keeps the Flow Music bridge connected SILENTLY across app
+     * restarts - no Google popup, no Custom Tab, no user interaction at all.
+     *
+     * Returns the full refreshed session JSON (with `expires_at`) or null.
+     */
+    fun refreshSession(refreshToken: String): JSONObject? {
+        return try {
+            val payload = JSONObject().put("refresh_token", refreshToken)
+            val body = payload.toString().toRequestBody("application/json".toMediaType())
+            val request = Request.Builder()
+                .url("$SUPABASE_URL/auth/v1/token?grant_type=refresh_token")
+                .addHeader("apikey", SUPABASE_ANON_KEY)
+                .addHeader("Content-Type", "application/json")
+                .post(body)
+                .build()
+            http.newCall(request).execute().use { resp ->
+                val text = resp.body?.string().orEmpty()
+                if (!resp.isSuccessful) {
+                    Log.w(TAG, "Session refresh failed (${resp.code}): $text")
+                    return null
+                }
+                val json = JSONObject(text)
+                if (!json.has("expires_at")) {
+                    val expiresIn = json.optLong("expires_in", 3600L)
+                    json.put("expires_at", System.currentTimeMillis() / 1000L + expiresIn)
+                }
+                json
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "refreshSession error", e)
+            null
+        }
+    }
+
+    /**
      * Exchanges the PKCE authorization code for a real session object.
      * Returns the full Supabase session JSON (with `expires_at`) or null.
      */

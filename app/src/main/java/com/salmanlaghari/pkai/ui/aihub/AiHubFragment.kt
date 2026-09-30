@@ -76,10 +76,23 @@ class AiHubFragment : Fragment() {
 
     private val statusHandler = Handler(Looper.getMainLooper())
     private var lastStatusJson = ""
-    private var signInModalAutoClosed = false
+    private var engineConnectedToastShown = false
 
     /** PKCE code_verifier for the in-flight OAuth connection (Custom Tab flow). */
     private var pendingCodeVerifier: String? = null
+
+    /** True once the hidden backend engine WebView finished its first page load. */
+    private var backendPageLoaded = false
+
+    /**
+     * Session captured by the silent auto-connect while the backend engine
+     * WebView had not loaded yet - injected into localStorage on page finish.
+     * (Cookies are always injected immediately; they do not need the page.)
+     */
+    private var pendingAutoSession: JSONObject? = null
+
+    @Inject
+    lateinit var flowMusicSessionManager: FlowMusicSessionManager
 
     /** Cached automation engine, injected into the Flow Music WebView. */
     private val automationScript: String by lazy {
@@ -112,9 +125,9 @@ class AiHubFragment : Fragment() {
         setupWebView()
         setupFlowMusicEngine()
 
-        binding.btnCloseFlowmusicSignup.setOnClickListener {
-            closeFlowMusicSignUp()
-        }
+        // Silent auto-connect: the PK-AI Google account powers the Flow Music
+        // bridge automatically - no Browse UI, no extra popup here.
+        restoreFlowMusicSessionSilently()
 
         // Receive the OAuth deep link forwarded by MainActivity (flushes any
         // link that arrived during a cold start).
@@ -122,10 +135,6 @@ class AiHubFragment : Fragment() {
 
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                if (binding.containerFlowmusicSignup.visibility == View.VISIBLE) {
-                    closeFlowMusicSignUp()
-                    return
-                }
                 val webView = _binding?.webviewUltraAi
                 if (webView != null && webView.canGoBack()) {
                     webView.goBack()
@@ -197,56 +206,13 @@ class AiHubFragment : Fragment() {
                     if (automationScript.isNotBlank()) {
                         view?.evaluateJavascript(automationScript, null)
                     }
-                }
-            }
-            loadUrl(FLOW_MUSIC_URL)
-        }
-
-        // ---- Visible sign-in WebView (shares cookies/storage with the engine)
-        binding.webviewFlowmusicSignup.apply {
-            settings.javaScriptEnabled = true
-            settings.domStorageEnabled = true
-            settings.databaseEnabled = true
-            settings.allowFileAccess = true
-            settings.mediaPlaybackRequiresUserGesture = false
-            settings.userAgentString = CHROME_MOBILE_UA
-            // Some OAuth flows open a popup window; allow it and route it back
-            // into this same WebView so the user can complete Google sign-in.
-            settings.setSupportMultipleWindows(true)
-            settings.javaScriptCanOpenWindowsAutomatically = true
-            CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
-            webChromeClient = object : WebChromeClient() {
-                override fun onPermissionRequest(request: PermissionRequest?) {
-                    request?.grant(request.resources)
-                }
-
-                override fun onCreateWindow(
-                    view: WebView?,
-                    isDialog: Boolean,
-                    isUserGesture: Boolean,
-                    resultMsg: android.os.Message?
-                ): Boolean {
-                    // Reuse the same (visible) WebView to render the popup content.
-                    val transport = resultMsg?.obj as? WebView.WebViewTransport ?: return false
-                    transport.webView = view
-                    resultMsg.sendToTarget()
-                    return true
-                }
-            }
-            webViewClient = object : WebViewClient() {
-                override fun onPageFinished(view: WebView?, url: String?) {
-                    super.onPageFinished(view, url)
-                    val injectCss = """
-                        var style = document.createElement('style');
-                        style.innerHTML = 'header, nav, .top-bar, div[role="dialog"], footer { display: none !important; } body { padding-top: 0 !important; margin-top: 0 !important; background-color: #0d1117 !important; }';
-                        document.head.appendChild(style);
-                    """.trimIndent()
-                    view?.evaluateJavascript(injectCss, null)
-                    Log.d("AiHubFragment", "Flow Music sign-in page finished: $url")
-                    // Flush cookies so the session survives app restarts.
-                    CookieManager.getInstance().flush()
-                    // Probe immediately so we can auto-close the modal after sign-in.
-                    probeFlowMusicSession()
+                    // Flush a session captured by the silent auto-connect before
+                    // the engine finished loading.
+                    backendPageLoaded = true
+                    pendingAutoSession?.let { session ->
+                        pendingAutoSession = null
+                        injectLocalStorageAndReload(session)
+                    }
                 }
             }
             loadUrl(FLOW_MUSIC_URL)
@@ -263,24 +229,127 @@ class AiHubFragment : Fragment() {
             if (decoded != lastStatusJson) {
                 lastStatusJson = decoded
                 dispatchStatusToJs(decoded)
-                maybeAutoCloseSignInModal(decoded)
+                onEngineConnected(decoded)
             }
         }
     }
 
-    private fun maybeAutoCloseSignInModal(statusJson: String) {
+    /**
+     * Silent auto-connect for the Flow Music bridge.
+     *
+     * Order of attempts (all invisible to the user):
+     *  1. Persisted Supabase session - returned as-is when still valid,
+     *     otherwise refreshed silently with the refresh token.
+     *  2. For Google-signed-in (non-guest) users with no usable session: one
+     *     silent Credential Manager attempt limited to already-authorized
+     *     accounts. When the device can hand back a credential without UI,
+     *     its ID token is exchanged for a bridge session.
+     *
+     * When everything fails the user keeps the manual connect entry points
+     * (header button / banner) - guests always use those.
+     */
+    private fun restoreFlowMusicSessionSilently() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            val session = flowMusicSessionManager.getValidSessionJson()
+            if (session != null) {
+                autoInjectSession(session)
+                return@launch
+            }
+            val user = try {
+                authRepository.getSession().first()
+            } catch (e: Exception) {
+                Log.w("AiHubFragment", "restoreFlowMusicSessionSilently: no user session")
+                return@launch
+            }
+            if (user.isGuest || user.email.isNullOrBlank()) {
+                // Guest users connect manually; nothing silent to do.
+                return@launch
+            }
+            if (silentGoogleBridgeConnect()) {
+                flowMusicSessionManager.getValidSessionJson()?.let { autoInjectSession(it) }
+            }
+        }
+    }
+
+    /**
+     * One silent Credential Manager attempt: only already-authorized Google
+     * accounts, auto-select enabled. Returns true when a credential arrived
+     * WITHOUT any user-visible UI and the bridge session was stored.
+     */
+    private suspend fun silentGoogleBridgeConnect(): Boolean {
+        val clientId = try {
+            getString(R.string.default_web_client_id)
+        } catch (e: Exception) {
+            ""
+        }
+        if (clientId.isBlank()) return false
+
+        return try {
+            val credentialManager = CredentialManager.create(requireContext())
+            // filterByAuthorizedAccounts = true is what makes this silent: the
+            // system only returns an already-authorized account, no picker UI.
+            val googleIdOption = GetGoogleIdOption.Builder()
+                .setFilterByAuthorizedAccounts(true)
+                .setServerClientId(clientId)
+                .setAutoSelectEnabled(true)
+                .build()
+            val request = GetCredentialRequest.Builder()
+                .addCredentialOption(googleIdOption)
+                .build()
+            val result = withContext(Dispatchers.IO) {
+                credentialManager.getCredential(request = request, context = requireContext())
+            }
+            val credential = result.credential
+            if (credential is CustomCredential &&
+                credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
+            ) {
+                val googleIdToken = GoogleIdTokenCredential.createFrom(credential.data)
+                Log.i("AiHubFragment", "Silent Google bridge credential for ${googleIdToken.id}")
+                flowMusicSessionManager.connectWithIdToken(
+                    googleIdToken.idToken,
+                    googleIdToken.id
+                )
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            // Any failure (incl. "UI would be required") simply means the user
+            // stays on the manual connect path.
+            Log.d("AiHubFragment", "Silent bridge connect unavailable: ${e.message}")
+            false
+        }
+    }
+
+    /**
+     * Injects a silently-obtained session into the hidden backend engine.
+     * Cookies are set immediately (they do not need the page); the
+     * localStorage copy + reload wait for the engine's first page load.
+     */
+    private fun autoInjectSession(session: JSONObject) {
+        activity?.runOnUiThread {
+            injectSessionCookies(session)
+            if (backendPageLoaded) {
+                injectLocalStorageAndReload(session)
+            } else {
+                pendingAutoSession = session
+            }
+            lastStatusJson = ""
+            statusHandler.postDelayed({ probeFlowMusicSession() }, 3000)
+        }
+    }
+
+    private fun onEngineConnected(statusJson: String) {
         try {
             val obj = JSONObject(statusJson)
             val signedIn = obj.optBoolean("signedIn", false)
-            if (signedIn && binding.containerFlowmusicSignup.visibility == View.VISIBLE && !signInModalAutoClosed) {
-                signInModalAutoClosed = true
+            if (signedIn && !engineConnectedToastShown) {
+                engineConnectedToastShown = true
                 // Reload the engine so it picks up the freshly created session.
                 _binding?.webviewFlowmusicBackend?.reload()
                 Toast.makeText(requireContext(), "Ultra Chat AI connected ✓", Toast.LENGTH_SHORT).show()
-                statusHandler.postDelayed({ closeFlowMusicSignUp() }, 1200)
             }
         } catch (e: Exception) {
-            Log.w("AiHubFragment", "maybeAutoCloseSignInModal: ${e.message}")
+            Log.w("AiHubFragment", "onEngineConnected: ${e.message}")
         }
     }
 
@@ -345,18 +414,12 @@ class AiHubFragment : Fragment() {
         wv.evaluateJavascript(js, null)
     }
 
-    fun showFlowMusicStudio() {
-        activity?.runOnUiThread {
-            binding.containerFlowmusicSignup.visibility = View.VISIBLE
-            val currentUrl = binding.webviewFlowmusicSignup.url
-            if (currentUrl.isNullOrBlank() || currentUrl == "about:blank") {
-                binding.webviewFlowmusicSignup.loadUrl(FLOW_MUSIC_URL)
-            }
-        }
-    }
-
     /**
      * Starts the Flow Music connection via Google Sign In / Sign Up popup directly.
+     *
+     * Manual fallback path (kept for guests and for cases where the silent
+     * auto-connect could not obtain a session). Google-signed-in users
+     * normally never reach this - the bridge connects automatically.
      */
     fun connectFlowMusic() {
         activity?.runOnUiThread {
@@ -421,6 +484,12 @@ class AiHubFragment : Fragment() {
                         FlowMusicOAuth.exchangeIdTokenForSession(idToken)
                     }
                     if (session != null) {
+                        // Persist so the silent auto-connect revives it later.
+                        try {
+                            flowMusicSessionManager.connectWithSessionJson(session)
+                        } catch (e: Exception) {
+                            Log.w("AiHubFragment", "Could not persist bridge session: ${e.message}")
+                        }
                         injectSessionIntoEngine(session)
                     } else {
                         // Backend rejected the ID token -> browser fallback.
@@ -520,62 +589,80 @@ class AiHubFragment : Fragment() {
                 return@launch
             }
             pendingCodeVerifier = null
+            // Persist so the silent auto-connect revives this session later.
+            try {
+                flowMusicSessionManager.connectWithSessionJson(session)
+            } catch (e: Exception) {
+                Log.w("AiHubFragment", "Could not persist bridge session: ${e.message}")
+            }
             injectSessionIntoEngine(session)
+        }
+    }
+
+    /**
+     * Sets the chunked `@supabase/ssr` session cookies for the engine host.
+     * Works even before the engine page has loaded.
+     */
+    private fun injectSessionCookies(session: JSONObject) {
+        // Current Google Flow Music stores its Supabase session in chunked
+        // @supabase/ssr COOKIES (sb-sb-auth-token.0, .1, ...), NOT in
+        // localStorage. Setting these cookies is what actually boots the
+        // engine WebView already signed in.
+        val cookieManager = CookieManager.getInstance()
+        cookieManager.setAcceptCookie(true)
+        val nowSec = System.currentTimeMillis() / 1000L
+        val expiresAt = session.optLong(
+            "expires_at",
+            nowSec + session.optLong("expires_in", 3600L)
+        )
+        val maxAge = (expiresAt - nowSec).coerceAtLeast(60L)
+        FlowMusicOAuth.buildSessionCookies(session).forEach { (name, value) ->
+            val header = "$name=$value; path=/; domain=.flowmusic.app; " +
+                "max-age=$maxAge; secure; samesite=lax"
+            cookieManager.setCookie(FlowMusicOAuth.COOKIE_HOST, header, null)
+        }
+        cookieManager.flush()
+    }
+
+    /** Writes the legacy localStorage copy, then reloads the engine. */
+    private fun injectLocalStorageAndReload(session: JSONObject) {
+        val quotedSession = JSONObject.quote(session.toString())
+        val quotedKey = JSONObject.quote(FlowMusicOAuth.STORAGE_KEY)
+        val js = """
+            (function(){
+                try {
+                    localStorage.setItem($quotedKey, $quotedSession);
+                    return 'ok';
+                } catch(e) { return 'err:' + e; }
+            })();
+        """.trimIndent()
+        _binding?.webviewFlowmusicBackend?.evaluateJavascript(js) { _ ->
+            CookieManager.getInstance().flush()
+            // Reload so the engine boots with the freshly injected session.
+            _binding?.webviewFlowmusicBackend?.reload()
         }
     }
 
     /** Persists the real session into the engine WebView and reloads it. */
     private fun injectSessionIntoEngine(session: JSONObject) {
         activity?.runOnUiThread {
-            // Current Google Flow Music stores its Supabase session in chunked
-            // @supabase/ssr COOKIES (sb-sb-auth-token.0, .1, ...), NOT in
-            // localStorage. Setting these cookies is what actually boots the
-            // engine WebView already signed in.
-            val cookieManager = CookieManager.getInstance()
-            cookieManager.setAcceptCookie(true)
-            val nowSec = System.currentTimeMillis() / 1000L
-            val expiresAt = session.optLong(
-                "expires_at",
-                nowSec + session.optLong("expires_in", 3600L)
-            )
-            val maxAge = (expiresAt - nowSec).coerceAtLeast(60L)
-            FlowMusicOAuth.buildSessionCookies(session).forEach { (name, value) ->
-                val header = "$name=$value; path=/; domain=.flowmusic.app; " +
-                    "max-age=$maxAge; secure; samesite=lax"
-                cookieManager.setCookie(FlowMusicOAuth.COOKIE_HOST, header, null)
-            }
-            // Keep a legacy localStorage copy too, for older engine builds.
-            val quotedSession = JSONObject.quote(session.toString())
-            val quotedKey = JSONObject.quote(FlowMusicOAuth.STORAGE_KEY)
-            val js = """
-                (function(){
-                    try {
-                        localStorage.setItem($quotedKey, $quotedSession);
-                        return 'ok';
-                    } catch(e) { return 'err:' + e; }
-                })();
-            """.trimIndent()
-            _binding?.webviewFlowmusicBackend?.evaluateJavascript(js) { _ ->
-                cookieManager.flush()
-                // Reload so the engine boots with the freshly injected session.
-                _binding?.webviewFlowmusicBackend?.reload()
-                lastStatusJson = ""
-                signInModalAutoClosed = false
-                closeFlowMusicSignUp()
-                Toast.makeText(requireContext(), "Ultra Chat AI connected \u2713", Toast.LENGTH_SHORT).show()
-                statusHandler.postDelayed({ probeFlowMusicSession() }, 3000)
-            }
+            injectSessionCookies(session)
+            injectLocalStorageAndReload(session)
+            lastStatusJson = ""
+            engineConnectedToastShown = false
+            Toast.makeText(requireContext(), "Ultra Chat AI connected ✓", Toast.LENGTH_SHORT).show()
+            statusHandler.postDelayed({ probeFlowMusicSession() }, 3000)
         }
     }
 
-    fun closeFlowMusicSignUp() {
-        activity?.runOnUiThread {
-            binding.containerFlowmusicSignup.visibility = View.GONE
-            CookieManager.getInstance().flush()
-        }
-    }
-
+    /**
+     * Disconnects the Flow Music account. Also drops the persisted bridge
+     * session so the silent auto-connect does not immediately reconnect.
+     */
     private fun disconnectFlowMusic() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            flowMusicSessionManager.clear()
+        }
         activity?.runOnUiThread {
             try {
                 CookieManager.getInstance().removeAllCookies(null)

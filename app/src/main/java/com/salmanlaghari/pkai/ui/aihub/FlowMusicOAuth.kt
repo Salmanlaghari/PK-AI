@@ -44,20 +44,34 @@ object FlowMusicOAuth {
     /**
      * True for a genuine refresh-token rejection.
      *
-     * Supabase answers a bad/rotated refresh token with 400/401. Matching the
-     * body for `invalid_grant` is too fragile (gateway HTML pages, empty
-     * bodies, wording changes), so the status code decides: any 400/401 from
-     * the token endpoint is a rejection. Only unambiguously transient codes
-     * (408 timeout, 429 rate limit, 5xx) keep the stored session for a later
-     * retry — otherwise a dead token would retry forever.
+     * Supabase answers a bad/rotated refresh token with 400/401 and a JSON
+     * error body. A body-string match on `invalid_grant` alone is too fragile
+     * (wording changes), but status-only matching is too eager: an
+     * intermediate layer (corporate proxy, WAF, captive portal, CDN) can also
+     * produce 400/401, usually as an HTML page or an empty body. Middle
+     * ground: 400/401 counts as a rejection only when the body looks like a
+     * real JSON error from the token endpoint. Only unambiguously transient
+     * codes (408 timeout, 429 rate limit, 5xx) keep the stored session for a
+     * later retry — otherwise a dead token would retry forever.
      */
     private fun isAuthRejection(httpCode: Int, body: String): Boolean {
         if (httpCode == 408 || httpCode == 429 || httpCode in 500..599) return false
-        if (httpCode == 400 || httpCode == 401) {
-            Log.w(TAG, "Refresh token rejected ($httpCode): ${body.take(160)}")
-            return true
+        if (httpCode != 400 && httpCode != 401) return false
+        val trimmed = body.trim()
+        if (trimmed.isEmpty()) {
+            Log.w(TAG, "Empty $httpCode body on refresh; keeping session (possible proxy/captive portal)")
+            return false
         }
-        return false
+        if (trimmed.startsWith("<")) {
+            Log.w(TAG, "HTML $httpCode body on refresh; keeping session (possible proxy/WAF page)")
+            return false
+        }
+        if (!trimmed.startsWith("{")) {
+            Log.w(TAG, "Non-JSON $httpCode body on refresh; keeping session")
+            return false
+        }
+        Log.w(TAG, "Refresh token rejected ($httpCode): ${trimmed.take(160)}")
+        return true
     }
 
     /** Public Supabase project URL of the music engine backend. */

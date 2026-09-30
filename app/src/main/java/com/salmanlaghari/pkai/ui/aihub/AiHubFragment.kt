@@ -490,14 +490,15 @@ class AiHubFragment : Fragment() {
     }
 
     /** Drives a REAL Flow Music AI chat answer inside the backend session. */
-    private fun startFlowMusicChat(prompt: String) {
+    private fun startFlowMusicChat(requestId: String?, prompt: String) {
         val wv = _binding?.webviewFlowmusicBackend
         if (wv == null) {
-            dispatchChatResultToJs("""{"ok":false,"error":"Ultra AI 4 engine unavailable."}""")
+            dispatchChatResultToJs("""{"ok":false,"error":"Ultra AI 4 engine unavailable.","requestId":${JSONObject.quote(requestId ?: "")}}""")
             return
         }
-        val quoted = JSONObject.quote(prompt)
-        val js = "if (window.__FLOW_AUTOMATION__ && window.__FLOW_AUTOMATION__.chat) { window.__FLOW_AUTOMATION__.chat($quoted); } else { window.FlowMusicNative && window.FlowMusicNative.onChatResult(JSON.stringify({ok:false,error:'Ultra AI 4 engine not ready. Please reconnect Ultra Chat AI.'})); }"
+        val quotedPrompt = JSONObject.quote(prompt)
+        val quotedId = JSONObject.quote(requestId ?: "")
+        val js = "if (window.__FLOW_AUTOMATION__ && window.__FLOW_AUTOMATION__.chat) { window.__FLOW_AUTOMATION__.chat($quotedId, $quotedPrompt); } else { window.FlowMusicNative && window.FlowMusicNative.onChatResult(JSON.stringify({ok:false,error:'Ultra AI 4 engine not ready. Please reconnect Ultra Chat AI.',requestId:$quotedId})); }"
         wv.evaluateJavascript(js, null)
     }
 
@@ -518,14 +519,15 @@ class AiHubFragment : Fragment() {
         }
     }
 
-    private fun startFlowMusicGeneration(prompt: String) {
+    private fun startFlowMusicGeneration(requestId: String?, prompt: String) {
         val wv = _binding?.webviewFlowmusicBackend
         if (wv == null) {
-            dispatchTrackResultToJs("""{"ok":false,"error":"Ultra AI 4 engine unavailable."}""")
+            dispatchTrackResultToJs("""{"ok":false,"error":"Ultra AI 4 engine unavailable.","requestId":${JSONObject.quote(requestId ?: "")}}""")
             return
         }
-        val quoted = JSONObject.quote(prompt)
-        val js = "if (window.__FLOW_AUTOMATION__ && window.__FLOW_AUTOMATION__.generate) { window.__FLOW_AUTOMATION__.generate($quoted); } else { window.FlowMusicNative && window.FlowMusicNative.onTrackResult(JSON.stringify({ok:false,error:'Ultra AI 4 engine not ready. Please reconnect Ultra Chat AI.'})); }"
+        val quotedPrompt = JSONObject.quote(prompt)
+        val quotedId = JSONObject.quote(requestId ?: "")
+        val js = "if (window.__FLOW_AUTOMATION__ && window.__FLOW_AUTOMATION__.generate) { window.__FLOW_AUTOMATION__.generate($quotedId, $quotedPrompt); } else { window.FlowMusicNative && window.FlowMusicNative.onTrackResult(JSON.stringify({ok:false,error:'Ultra AI 4 engine not ready. Please reconnect Ultra Chat AI.',requestId:$quotedId})); }"
         wv.evaluateJavascript(js, null)
     }
 
@@ -821,14 +823,18 @@ class AiHubFragment : Fragment() {
         @JavascriptInterface
         fun onTrackResult(json: String?) {
             if (json.isNullOrBlank()) return
-            Log.d("AiHubFragment", "Flow Music track result: $json")
+            val ok = try { JSONObject(json).optBoolean("ok", false) } catch (e: Exception) { false }
+            Log.d("AiHubFragment", "Flow Music track result received (ok=$ok, len=${json.length})")
             dispatchTrackResultToJs(json)
         }
 
         @JavascriptInterface
         fun onChatResult(json: String?) {
             if (json.isNullOrBlank()) return
-            Log.d("AiHubFragment", "Flow Music chat result: ${json.take(200)}")
+            // Never log the answer text: it can contain PII and Log.d is not
+            // stripped in release builds.
+            val ok = try { JSONObject(json).optBoolean("ok", false) } catch (e: Exception) { false }
+            Log.d("AiHubFragment", "Flow Music chat result received (ok=$ok, len=${json.length})")
             dispatchChatResultToJs(json)
         }
     }
@@ -1025,10 +1031,12 @@ class AiHubFragment : Fragment() {
 
                 /** Drive real music generation inside the Flow Music session. */
                 @JavascriptInterface
-                fun generateFlowMusicTrack(prompt: String?) {
-                    Log.d("AiHubFragment", "generateFlowMusicTrack called from JS: $prompt")
+                fun generateFlowMusicTrack(requestId: String?, prompt: String?) {
+                    // Never log the prompt itself: prompts can contain PII and
+                    // Log.d is not stripped in release builds.
+                    Log.d("AiHubFragment", "generateFlowMusicTrack called from JS (prompt len=${prompt?.length ?: 0})")
                     if (prompt.isNullOrBlank()) {
-                        dispatchTrackResultToJs("""{"ok":false,"error":"Empty music prompt."}""")
+                        dispatchTrackResultToJs("""{"ok":false,"error":"Empty music prompt.","requestId":${JSONObject.quote(requestId ?: "")}}""")
                         return
                     }
                     activity?.runOnUiThread {
@@ -1041,16 +1049,18 @@ class AiHubFragment : Fragment() {
                         if (!signedIn) {
                             startNativeFlowMusicConnect()
                         }
-                        startFlowMusicGeneration(prompt)
+                        startFlowMusicGeneration(requestId, prompt)
                     }
                 }
 
                 /** Real Flow Music AI text answer for a chat prompt. */
                 @JavascriptInterface
-                fun generateFlowMusicChat(prompt: String?) {
-                    Log.d("AiHubFragment", "generateFlowMusicChat called from JS: $prompt")
+                fun generateFlowMusicChat(requestId: String?, prompt: String?) {
+                    // Never log the prompt itself: prompts routinely contain
+                    // PII and Log.d is not stripped in release builds.
+                    Log.d("AiHubFragment", "generateFlowMusicChat called from JS (prompt len=${prompt?.length ?: 0})")
                     if (prompt.isNullOrBlank()) {
-                        dispatchChatResultToJs("""{"ok":false,"error":"Empty prompt."}""")
+                        dispatchChatResultToJs("""{"ok":false,"error":"Empty prompt.","requestId":${JSONObject.quote(requestId ?: "")}}""")
                         return
                     }
                     activity?.runOnUiThread {
@@ -1061,10 +1071,10 @@ class AiHubFragment : Fragment() {
                             false
                         }
                         if (!signedIn) {
-                            dispatchChatResultToJs("""{"ok":false,"error":"Ultra Chat AI is not connected."}""")
+                            dispatchChatResultToJs("""{"ok":false,"error":"Ultra Chat AI is not connected.","requestId":${JSONObject.quote(requestId ?: "")}}""")
                             return@runOnUiThread
                         }
-                        startFlowMusicChat(prompt)
+                        startFlowMusicChat(requestId, prompt)
                     }
                 }
 

@@ -35,8 +35,18 @@
     } catch (e) {}
   }
 
+  // Correlation ids for the single in-flight requests. The native side has
+  // one result channel per flow, so a second overlapping call would clobber
+  // the first prompt and steal its reply — hence the re-entrancy guards in
+  // FLOW.generate / FLOW.chat.
+  var activeTrackRequestId = null;
+  var activeChatRequestId = null;
+
   function report(obj) {
     try {
+      // Correlate the result with the track request that produced it.
+      if (activeTrackRequestId) obj.requestId = activeTrackRequestId;
+      activeTrackRequestId = null;
       var n = native();
       if (n && typeof n.onTrackResult === "function") {
         n.onTrackResult(JSON.stringify(obj));
@@ -58,6 +68,16 @@
       if (n && typeof n.onProgress === "function") n.onProgress(JSON.stringify(payload));
     } catch (e) {}
     console.log("[FlowMusic Automation][progress] " + stage + " :: " + (message || ""));
+  }
+
+  /** Progress for the in-flight chat request (carries its correlation id). */
+  function reportChatProgress(stage, message) {
+    reportProgress(stage, message, { requestId: activeChatRequestId });
+  }
+
+  /** Progress for the in-flight track request (carries its correlation id). */
+  function reportTrackProgress(stage, message) {
+    reportProgress(stage, message, { requestId: activeTrackRequestId });
   }
 
   // --------------------------------------------------------------------------
@@ -456,14 +476,32 @@
     return false;
   }
 
-  FLOW.generate = function (prompt) {
-    log("Generation requested: " + prompt);
+  FLOW.generate = function (requestId, prompt) {
+    // Single-flight: a second generation would clobber the first prompt and
+    // steal its result on the single native channel.
+    if (activeTrackRequestId !== null) {
+      try {
+        var n0 = native();
+        if (n0 && typeof n0.onTrackResult === "function") {
+          n0.onTrackResult(
+            JSON.stringify({
+              ok: false,
+              error: "Ek track pehle se ban raha hai. Pehle uska intezar karein.",
+              requestId: requestId,
+            })
+          );
+        }
+      } catch (e) {}
+      return;
+    }
+    activeTrackRequestId = requestId;
+    log("Generation requested (id=" + requestId + ").");
     if (!prompt || !prompt.trim()) {
       report({ ok: false, error: "Empty music prompt." });
       return;
     }
 
-    reportProgress("queued", "Ultra Chat AI se connect ho gaya. Ultra Studio tayyar ho raha hai...");
+    reportTrackProgress("queued", "Ultra Chat AI se connect ho gaya. Ultra Studio tayyar ho raha hai...");
 
     var attempts = 0;
     var maxAttempts = 24; // ~12s for the SPA to settle
@@ -481,7 +519,7 @@
         }
         // Every few attempts, try to navigate into the studio from the landing page.
         if (attempts % 4 === 0) enterStudio();
-        reportProgress("waiting_studio", "Ultra Studio load ho raha hai... (" + attempts + ")");
+        reportTrackProgress("waiting_studio", "Ultra Studio load ho raha hai... (" + attempts + ")");
         setTimeout(locateAndRun, 500);
         return;
       }
@@ -497,7 +535,7 @@
       return;
     }
     log("Prompt written into Ultra Studio input.");
-    reportProgress("prompt_entered", "Prompt Ultra Studio mein likh diya gaya hai.");
+    reportTrackProgress("prompt_entered", "Prompt Ultra Studio mein likh diya gaya hai.");
 
     setTimeout(function () {
       var btn = findGenerateButton();
@@ -519,7 +557,7 @@
         report({ ok: false, error: "Failed to click the Ultra AI 4 generate button." });
         return;
       }
-      reportProgress("generating", "Ultra AI 4 track compose kar raha hai...");
+      reportTrackProgress("generating", "Ultra AI 4 track compose kar raha hai...");
 
       var started = Date.now();
       var lastTick = 0;
@@ -528,7 +566,7 @@
         if (url) {
           clearInterval(timer);
           log("Track detected: " + url);
-          reportProgress("finalizing", "Track mil gaya, finalize ho raha hai...");
+          reportTrackProgress("finalizing", "Track mil gaya, finalize ho raha hai...");
           report({
             ok: true,
             audioUrl: url,
@@ -540,7 +578,7 @@
         var elapsed = Math.round((Date.now() - started) / 1000);
         if (elapsed - lastTick >= 6) {
           lastTick = elapsed;
-          reportProgress("generating", "Ultra AI 4 track compose kar raha hai... (" + elapsed + "s)");
+          reportTrackProgress("generating", "Ultra AI 4 track compose kar raha hai... (" + elapsed + "s)");
         }
         if (Date.now() - started > 360000) {
           clearInterval(timer);
@@ -567,6 +605,10 @@
   // "new visible text that was not there before we sent".
   function reportChat(obj) {
     try {
+      // Correlate the result with the chat request that produced it, then
+      // release the single-flight guard.
+      obj.requestId = activeChatRequestId;
+      activeChatRequestId = null;
       var n = native();
       if (n && typeof n.onChatResult === "function") {
         n.onChatResult(JSON.stringify(obj));
@@ -613,8 +655,11 @@
       var v = document.querySelector('button[aria-label="Send message"]');
       if (v && visible(v) && !v.disabled) return v;
     } catch (e) {}
-    // 2) Generic fallback (shared music-studio heuristic).
-    return findGenerateButton();
+    // 2) No generic fallback: the shared music-studio heuristic resolves to
+    // the song GENERATE button, and clicking it would start a real song
+    // generation (spending credits) for a chat prompt. Failing loudly here
+    // is strictly better than submitting to the wrong control.
+    return null;
   }
 
   function isGeneratingNow() {
@@ -697,14 +742,33 @@
     return best;
   }
 
-  FLOW.chat = function (prompt) {
-    log("Chat requested: " + prompt);
+  FLOW.chat = function (requestId, prompt) {
+    // Single-flight: a second chat would type into the same composer
+    // (clobbering the first prompt) and steal its reply on the single native
+    // channel. The in-flight request is untouched; the new caller fails fast.
+    if (activeChatRequestId !== null) {
+      try {
+        var n0 = native();
+        if (n0 && typeof n0.onChatResult === "function") {
+          n0.onChatResult(
+            JSON.stringify({
+              ok: false,
+              error: "Ek jawab pehle se tayyar ho raha hai. Pehle uska intezar karein.",
+              requestId: requestId,
+            })
+          );
+        }
+      } catch (e) {}
+      return;
+    }
+    activeChatRequestId = requestId;
+    log("Chat requested (id=" + requestId + ").");
     if (!prompt || !prompt.trim()) {
       reportChat({ ok: false, error: "Empty prompt." });
       return;
     }
 
-    reportProgress("queued", "Ultra AI 4 se connect ho gaya. Jawab tayyar ho raha hai...");
+    reportChatProgress("queued", "Ultra AI 4 se connect ho gaya. Jawab tayyar ho raha hai...");
 
     var attempts = 0;
     var maxAttempts = 24; // ~12s for the SPA to settle
@@ -719,7 +783,7 @@
           });
           return;
         }
-        reportProgress("waiting_chat", "Ultra AI 4 chat load ho raha hai... (" + attempts + ")");
+        reportChatProgress("waiting_chat", "Ultra AI 4 chat load ho raha hai... (" + attempts + ")");
         setTimeout(locateAndRun, 500);
         return;
       }
@@ -735,7 +799,7 @@
       return;
     }
     log("Prompt written into chat input.");
-    reportProgress("prompt_entered", "Sawal Ultra AI 4 ko bhej diya gaya hai.");
+    reportChatProgress("prompt_entered", "Sawal Ultra AI 4 ko bhej diya gaya hai.");
 
     setTimeout(function () {
       var btn = findChatSendButton();
@@ -762,7 +826,7 @@
         } catch (e) {}
       }, 1200);
 
-      reportProgress("thinking", "Ultra AI 4 jawab soch raha hai...");
+      reportChatProgress("thinking", "Ultra AI 4 jawab soch raha hai...");
       watchChatReply(before, prompt.trim());
     }, 1400);
   }
@@ -781,7 +845,7 @@
 
       if (current && !announcedReplying) {
         announcedReplying = true;
-        reportProgress("replying", "Ultra AI 4 jawab likh raha hai...");
+        reportChatProgress("replying", "Ultra AI 4 jawab likh raha hai...");
       }
 
       if (current === lastText && current) {
@@ -804,7 +868,7 @@
       var elapsed = Math.round((Date.now() - started) / 1000);
       if (elapsed - lastTick >= 8) {
         lastTick = elapsed;
-        reportProgress(
+        reportChatProgress(
           isGeneratingNow() || announcedReplying ? "replying" : "thinking",
           "Ultra AI 4 jawab tayyar kar raha hai... (" + elapsed + "s)"
         );

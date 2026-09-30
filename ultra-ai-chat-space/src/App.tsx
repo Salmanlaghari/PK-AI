@@ -317,41 +317,48 @@ function App() {
         };
         setMessages((prev) => [...prev, placeholder]);
 
-        const result = await requestFlowMusicChat(text, (progress) => {
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === placeholderId
-                ? { ...m, text: progress.message || "Ultra AI 4 jawab tayyar kar raha hai..." }
-                : m
-            )
-          );
-        });
-        if (result.ok && result.text) {
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === placeholderId
-                ? {
-                    ...m,
-                    text: result.text as string,
-                    modelName: "Ultra AI 4",
-                    isGeneratingMedia: false,
-                  }
-                : m
-            )
-          );
-        } else {
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === placeholderId
-                ? {
-                    ...m,
-                    type: "text",
-                    text: `⚠️ Ultra AI 4 se jawab nahi mil saka.\n\n${result.error || "Unknown error."}\n\nDobara try karein — ya header se "Connect" tap karke Ultra Chat AI dobara connect karein.`,
-                    isGeneratingMedia: false,
-                  }
-                : m
-            )
-          );
+        // Lock the input for the whole round trip (up to 270s): without this
+        // a second prompt could overlap the first and clobber its reply.
+        setIsGenerating(true);
+        try {
+          const result = await requestFlowMusicChat(text, (progress) => {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === placeholderId
+                  ? { ...m, text: progress.message || "Ultra AI 4 jawab tayyar kar raha hai..." }
+                  : m
+              )
+            );
+          });
+          if (result.ok && result.text) {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === placeholderId
+                  ? {
+                      ...m,
+                      text: result.text as string,
+                      modelName: "Ultra AI 4",
+                      isGeneratingMedia: false,
+                    }
+                  : m
+              )
+            );
+          } else {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === placeholderId
+                  ? {
+                      ...m,
+                      type: "text",
+                      text: `⚠️ Ultra AI 4 se jawab nahi mil saka.\n\n${result.error || "Unknown error."}\n\nDobara try karein — ya header se "Connect" tap karke Ultra Chat AI dobara connect karein.`,
+                      isGeneratingMedia: false,
+                    }
+                  : m
+              )
+            );
+          }
+        } finally {
+          setIsGenerating(false);
         }
         return;
       }

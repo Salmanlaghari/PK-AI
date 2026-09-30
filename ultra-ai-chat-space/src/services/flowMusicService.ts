@@ -41,6 +41,8 @@ export interface FlowMusicTrackResult {
   title?: string;
   prompt?: string;
   error?: string;
+  /** Echoed by native/automation so a result is matched to its request. */
+  requestId?: string;
 }
 
 export interface FlowMusicChatResult {
@@ -48,6 +50,8 @@ export interface FlowMusicChatResult {
   text?: string;
   partial?: boolean;
   error?: string;
+  /** Echoed by native/automation so a result is matched to its request. */
+  requestId?: string;
 }
 
 export interface FlowMusicProgress {
@@ -200,6 +204,19 @@ export function deductFlowCredits(amount: number): number {
 // ---------------------------------------------------------------------------
 // Real music generation via the native Flow Music WebView session
 // ---------------------------------------------------------------------------
+
+let bridgeRequestSeq = 0;
+/** Unique per-request correlation id, echoed back by native/automation. */
+function nextBridgeRequestId(kind: string): string {
+  bridgeRequestSeq += 1;
+  return `${kind}-${Date.now().toString(36)}-${bridgeRequestSeq}`;
+}
+
+// Single-flight guards: the native side exposes one result callback slot per
+// flow, so a second overlapping request would clobber the first handler.
+let trackRequestInFlight = false;
+let chatRequestInFlight = false;
+
 export function requestFlowMusicTrack(
   prompt: string,
   onProgress?: (progress: FlowMusicProgress) => void
@@ -214,14 +231,22 @@ export function requestFlowMusicTrack(
       });
       return;
     }
+    if (trackRequestInFlight) {
+      resolve({ ok: false, error: "Ek track pehle se ban raha hai. Pehle uska intezar karein." });
+      return;
+    }
+    trackRequestInFlight = true;
+    const requestId = nextBridgeRequestId("track");
 
     let settled = false;
 
-    // Live progress listener (queued -> generating -> done), streamed by native.
+    // Live progress listener — filtered to this request so a concurrent chat
+    // cannot repaint this bubble with its own stages.
     const progressHandler = (e: Event) => {
       if (settled) return;
       const detail = (e as CustomEvent).detail as FlowMusicProgress;
-      if (detail && typeof onProgress === "function") onProgress(detail);
+      if (!detail || detail.requestId !== requestId) return;
+      if (typeof onProgress === "function") onProgress(detail);
     };
     window.addEventListener("pkai:flowmusic_progress", progressHandler);
 
@@ -234,19 +259,27 @@ export function requestFlowMusicTrack(
 
     function cleanup() {
       clearTimeout(timeout);
+      trackRequestInFlight = false;
       window.removeEventListener("pkai:flowmusic_progress", progressHandler);
-      delete (window as any).onFlowMusicTrackResult;
+      // Only remove the global if it is still the handler THIS call installed:
+      // a newer request may already have replaced it.
+      if ((window as any).onFlowMusicTrackResult === resultHandler) {
+        delete (window as any).onFlowMusicTrackResult;
+      }
     }
 
-    (window as any).onFlowMusicTrackResult = (data: FlowMusicTrackResult) => {
+    const resultHandler = (data: FlowMusicTrackResult) => {
       if (settled) return;
+      // Ignore results that belong to a different (stale or newer) request.
+      if (data && data.requestId && data.requestId !== requestId) return;
       settled = true;
       cleanup();
       resolve(data || { ok: false, error: "No response from Ultra AI 4." });
     };
+    (window as any).onFlowMusicTrackResult = resultHandler;
 
     try {
-      bridge.generateFlowMusicTrack(prompt);
+      bridge.generateFlowMusicTrack(requestId, prompt);
     } catch (err) {
       settled = true;
       cleanup();
@@ -272,14 +305,23 @@ export function requestFlowMusicChat(
       });
       return;
     }
+    if (chatRequestInFlight) {
+      resolve({ ok: false, error: "Ek jawab pehle se tayyar ho raha hai. Pehle uska intezar karein." });
+      return;
+    }
+    chatRequestInFlight = true;
+    const requestId = nextBridgeRequestId("chat");
 
     let settled = false;
 
-    // Live progress listener (queued -> thinking -> replying), streamed by native.
+    // Live progress listener (queued -> thinking -> replying), streamed by
+    // native — filtered to this request so a concurrent track generation
+    // cannot repaint this bubble with its own stages.
     const progressHandler = (e: Event) => {
       if (settled) return;
       const detail = (e as CustomEvent).detail as FlowMusicProgress;
-      if (detail && typeof onProgress === "function") onProgress(detail);
+      if (!detail || detail.requestId !== requestId) return;
+      if (typeof onProgress === "function") onProgress(detail);
     };
     window.addEventListener("pkai:flowmusic_progress", progressHandler);
 
@@ -292,19 +334,27 @@ export function requestFlowMusicChat(
 
     function cleanup() {
       clearTimeout(timeout);
+      chatRequestInFlight = false;
       window.removeEventListener("pkai:flowmusic_progress", progressHandler);
-      delete (window as any).onFlowMusicChatResult;
+      // Only remove the global if it is still the handler THIS call installed:
+      // a newer request may already have replaced it.
+      if ((window as any).onFlowMusicChatResult === resultHandler) {
+        delete (window as any).onFlowMusicChatResult;
+      }
     }
 
-    (window as any).onFlowMusicChatResult = (data: FlowMusicChatResult) => {
+    const resultHandler = (data: FlowMusicChatResult) => {
       if (settled) return;
+      // Ignore results that belong to a different (stale or newer) request.
+      if (data && data.requestId && data.requestId !== requestId) return;
       settled = true;
       cleanup();
       resolve(data || { ok: false, error: "No response from Ultra AI 4." });
     };
+    (window as any).onFlowMusicChatResult = resultHandler;
 
     try {
-      bridge.generateFlowMusicChat(prompt);
+      bridge.generateFlowMusicChat(requestId, prompt);
     } catch (err) {
       settled = true;
       cleanup();

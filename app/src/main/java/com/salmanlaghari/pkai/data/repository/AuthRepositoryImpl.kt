@@ -2,17 +2,15 @@ package com.salmanlaghari.pkai.data.repository
 
 import com.salmanlaghari.pkai.data.local.datastore.PreferencesManager
 import com.salmanlaghari.pkai.data.local.datastore.UserSession
-import com.salmanlaghari.pkai.data.local.secure.FlowMusicSecureStore
-import kotlinx.coroutines.Dispatchers
+import com.salmanlaghari.pkai.ui.aihub.FlowMusicSessionManager
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class AuthRepositoryImpl @Inject constructor(
     private val preferencesManager: PreferencesManager,
-    private val flowMusicSecureStore: FlowMusicSecureStore
+    private val flowMusicSessionManager: FlowMusicSessionManager
 ) : AuthRepository {
 
     override fun getSession(): Flow<UserSession> {
@@ -75,11 +73,11 @@ class AuthRepositoryImpl @Inject constructor(
         return try {
             preferencesManager.clearSession()
             // Signing out of PK-AI also disconnects the Flow Music bridge.
-            // The encrypted store touches the Keystore on first use, so keep
-            // it off the caller's thread (logout is invoked from Main).
-            withContext(Dispatchers.IO) {
-                flowMusicSecureStore.clearSession()
-            }
+            // Route through the session manager (not the raw store) so the
+            // clear takes the same mutex as refresh/connect: an in-flight
+            // refresh cannot re-save the session right after sign-out
+            // clears it.
+            flowMusicSessionManager.clear()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

@@ -3,7 +3,7 @@ package com.salmanlaghari.pkai.di
 import android.content.Context
 import androidx.room.Room
 import com.salmanlaghari.pkai.data.local.datastore.PreferencesManager
-import com.salmanlaghari.pkai.data.local.secure.FlowMusicSecureStore
+import com.salmanlaghari.pkai.ui.aihub.FlowMusicSessionManager
 import com.salmanlaghari.pkai.data.local.room.AppDatabase
 import com.salmanlaghari.pkai.data.local.room.AppLogDao
 import com.salmanlaghari.pkai.data.remote.ApiService
@@ -98,9 +98,9 @@ object AppModule {
     @Singleton
     fun provideAuthRepository(
         preferencesManager: PreferencesManager,
-        flowMusicSecureStore: FlowMusicSecureStore
+        flowMusicSessionManager: FlowMusicSessionManager
     ): AuthRepository {
-        return AuthRepositoryImpl(preferencesManager, flowMusicSecureStore)
+        return AuthRepositoryImpl(preferencesManager, flowMusicSessionManager)
     }
 
     @Provides

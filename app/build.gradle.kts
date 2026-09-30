@@ -227,9 +227,14 @@ val syncWebAssets by tasks.registering(Exec::class) {
     inputs.file(webDir.resolve("package.json"))
     inputs.file(webDir.resolve("package-lock.json")).optional()
     outputs.dir(webDistDir)
+    // Declared so Gradle notices when the shipped assets are deleted or
+    // hand-edited and re-runs the sync instead of staying "up-to-date".
+    outputs.dir(webAssetsDir)
 
     workingDir = webDir
-    // Best-effort: the Android build must never fail because of the web toolchain.
+    // Best-effort: the Android build must never fail because of the web
+    // toolchain. The exit code is still inspected below — a failed build
+    // never touches the shipped assets.
     isIgnoreExitValue = true
 
     val isWindows = System.getProperty("os.name").lowercase().contains("windows")
@@ -246,20 +251,44 @@ val syncWebAssets by tasks.registering(Exec::class) {
     }
     if (!nodeOk) {
         logger.warn("syncWebAssets: node not found - keeping committed web assets.")
-        commandLine(if (isWindows) listOf("cmd", "/c", "exit", "0") else listOf("true"))
+        if (isWindows) {
+            commandLine("cmd", "/c", "exit", "0")
+        } else {
+            commandLine("true")
+        }
     } else {
-        commandLine(
-            if (isWindows) listOf("cmd", "/c") else listOf("sh", "-c"),
-            "$npmCmd ci --no-audit --no-fund && $npmCmd run build"
-        )
+        // NOTE: pass each token as its own argument - commandLine does NOT
+        // flatten a List, it would stringify it to "[sh, -c]".
+        if (isWindows) {
+            commandLine("cmd", "/c", "$npmCmd ci --no-audit --no-fund && $npmCmd run build")
+        } else {
+            commandLine("sh", "-c", "$npmCmd ci --no-audit --no-fund && $npmCmd run build")
+        }
     }
 
     doLast {
-        if (webDistDir.isDirectory) {
-            webAssetsDir.deleteRecursively()
-            webDistDir.copyRecursively(webAssetsDir, overwrite = true)
-            logger.lifecycle("syncWebAssets: web UI synced into Android assets.")
+        // `vite build` empties dist/ before writing, so a build that dies
+        // mid-way leaves an empty/partial directory: only sync when npm
+        // exited 0 AND dist/index.html actually exists.
+        val exit = executionResult.get().exitValue
+        val builtIndex = webDistDir.resolve("index.html")
+        if (exit != 0 || !builtIndex.isFile) {
+            logger.warn("syncWebAssets: web build failed (exit=$exit) or dist/index.html missing - keeping existing assets.")
+            return@doLast
         }
+        // Copy to a temp dir and verify BEFORE touching the shipped assets,
+        // so a partial copy can never leave the APK with a dead web UI.
+        val tmp = layout.buildDirectory.dir("tmp/web-assets-sync").get().asFile
+        tmp.deleteRecursively()
+        webDistDir.copyRecursively(tmp, overwrite = true)
+        if (tmp.resolve("index.html").isFile) {
+            webAssetsDir.deleteRecursively()
+            tmp.copyRecursively(webAssetsDir, overwrite = true)
+            logger.lifecycle("syncWebAssets: web UI synced into Android assets.")
+        } else {
+            logger.warn("syncWebAssets: copy verification failed - keeping existing assets.")
+        }
+        tmp.deleteRecursively()
     }
 }
 

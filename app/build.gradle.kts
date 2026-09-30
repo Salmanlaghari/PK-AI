@@ -227,9 +227,15 @@ val syncWebAssets by tasks.registering(Exec::class) {
     inputs.file(webDir.resolve("package.json"))
     inputs.file(webDir.resolve("package-lock.json")).optional()
     outputs.dir(webDistDir)
-    // Declared so Gradle notices when the shipped assets are deleted or
-    // hand-edited and re-runs the sync instead of staying "up-to-date".
-    outputs.dir(webAssetsDir)
+    // NOTE: src/main/assets/ultra-ai-chat-space is intentionally NOT declared
+    // as an output. Other tasks (merge assets, lint model, ...) consume
+    // src/main/assets without depending on this task, and declaring it as an
+    // output fails Gradle validation ("uses this output ... without declaring
+    // an explicit or implicit dependency"). Re-run the sync if the shipped
+    // assets ever go missing instead.
+    outputs.upToDateWhen {
+        webAssetsDir.resolve("index.html").isFile
+    }
 
     workingDir = webDir
     // Best-effort: the Android build must never fail because of the web

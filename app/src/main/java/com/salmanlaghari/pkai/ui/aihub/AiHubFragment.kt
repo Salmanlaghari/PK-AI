@@ -731,12 +731,6 @@ class AiHubFragment : Fragment() {
             try {
                 val input = EditText(requireContext()).apply {
                     hint = getString(R.string.hint_paste_session)
-                    minLines = 3
-                    // Cap the visible height: a pasted session is one very long
-                    // line (~4KB). Without maxLines it inflates the dialog and
-                    // pushes Cancel/Connect off-screen; with it the text scrolls
-                    // *inside* the field and the buttons stay put.
-                    maxLines = 5
                     isSingleLine = false
                     isVerticalScrollBarEnabled = true
                     movementMethod = ScrollingMovementMethod.getInstance()
@@ -755,11 +749,17 @@ class AiHubFragment : Fragment() {
                 val container = FrameLayout(requireContext()).apply {
                     // Dialog message padding, roughly.
                     setPadding(64, 16, 64, 4)
+                    // FIXED field height (not maxLines): maxLines does not cap a
+                    // pasted ~4KB single-line session on all devices — the field
+                    // inflated to 30+ lines and pushed Cancel/Connect off-screen.
+                    // An exact height can never grow; overflow scrolls inside it.
+                    val fieldHeightPx =
+                        (120 * requireContext().resources.displayMetrics.density).toInt()
                     addView(
                         input,
                         FrameLayout.LayoutParams(
                             FrameLayout.LayoutParams.MATCH_PARENT,
-                            FrameLayout.LayoutParams.WRAP_CONTENT
+                            fieldHeightPx
                         )
                     )
                 }
@@ -797,11 +797,19 @@ class AiHubFragment : Fragment() {
     private fun importPastedSession(pasted: String) {
         if (!isAdded) return
         viewLifecycleOwner.lifecycleScope.launch {
+            var truncatedPaste = false
             val session: JSONObject? = try {
                 val json = JSONObject(pasted.trim())
                 val accessToken = json.opt("access_token") as? String
                 val refreshToken = json.opt("refresh_token") as? String
                 if (json.has("error") || accessToken.isNullOrBlank() || refreshToken.isNullOrBlank()) null
+                // Guard against a truncated paste (e.g. copied from a chat
+                // message): real Supabase tokens are long; a short one means
+                // the session was cut off and refresh would fail within hours.
+                else if (accessToken.length < 40 || refreshToken.length < 20) {
+                    truncatedPaste = true
+                    null
+                }
                 else json
             } catch (e: JSONException) {
                 null
@@ -811,7 +819,10 @@ class AiHubFragment : Fragment() {
                 if (isAdded) {
                     Toast.makeText(
                         requireContext(),
-                        getString(R.string.msg_import_session_invalid),
+                        getString(
+                            if (truncatedPaste) R.string.msg_session_incomplete
+                            else R.string.msg_import_session_invalid
+                        ),
                         Toast.LENGTH_LONG
                     ).show()
                 }

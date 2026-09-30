@@ -11,6 +11,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
+import org.json.JSONException
 import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.TimeUnit
@@ -197,9 +198,41 @@ object FlowMusicOAuth {
         data class Success(val session: JSONObject) : ExchangeResult
         /** Backend answered but refused (e.g. 400 Bad ID token). */
         data class Rejected(val httpCode: Int, val errorBody: String) : ExchangeResult
+        /** Backend answered 2xx but the body was not usable session JSON. */
+        data class MalformedResponse(val bodySnippet: String) : ExchangeResult
         /** Transport problem (timeout, no network) - safe to retry. */
         data object TransportError : ExchangeResult
     }
+
+    /**
+     * Picks a short, human-readable snippet out of a backend error body for
+     * display in the UI. Prefers Supabase's `error_description` / `error` /
+     * `message` fields (that is exactly what identifies e.g. an untrusted
+     * Google client id on `grant_type=id_token` failures), falls back to the
+     * raw body, and scrubs anything that looks like a token so a misbehaving
+     * backend can never leak secrets into the UI or logs. Null when there is
+     * nothing worth showing.
+     */
+    fun sanitizedErrorSnippet(body: String): String? {
+        if (body.isBlank()) return null
+        val raw = try {
+            val json = JSONObject(body)
+            json.optString("error_description")
+                .ifBlank { json.optString("error") }
+                .ifBlank { json.optString("message") }
+                .ifBlank { json.optString("msg") }
+                .ifBlank { body }
+        } catch (e: JSONException) {
+            body
+        }.trim()
+        if (raw.isBlank()) return null
+        return scrubTokens(raw).take(160).ifBlank { null }
+    }
+
+    /** Removes JWT-shaped strings and named token values from free text. */
+    private fun scrubTokens(text: String): String =
+        text.replace(Regex("[A-Za-z0-9_\\-]{16,}\\.[A-Za-z0-9_\\-]{8,}\\.[A-Za-z0-9_\\-]{8,}"), "[token]")
+            .replace(Regex("(?i)(id_token|access_token|refresh_token)([\"'\\s:=]+)[^\"'\\s,}]{16,}"), "$1$2[token]")
 
     /**
      * Exchanges a NATIVE Google ID token (obtained from the in-app Google
@@ -232,10 +265,19 @@ object FlowMusicOAuth {
                 .put("id_token", idToken)
             val (code, text) = postJson("$SUPABASE_URL/auth/v1/token?grant_type=id_token", payload)
             if (code !in 200..299) {
-                Log.w(TAG, "ID-token exchange failed ($code): $text")
+                Log.w(TAG, "ID-token exchange failed ($code): ${sanitizedErrorSnippet(text) ?: "<no detail>"}")
                 ExchangeResult.Rejected(code, text.take(500))
             } else {
-                ExchangeResult.Success(withExpiry(JSONObject(text)))
+                // A 2xx with an empty / non-JSON body (proxy HTML page,
+                // truncated response, empty 204) is a BAD SERVER RESPONSE,
+                // not a network problem - report it distinctly.
+                val json = try {
+                    JSONObject(text)
+                } catch (e: JSONException) {
+                    Log.w(TAG, "ID-token exchange: 2xx with non-JSON body (${text.length} chars)")
+                    return ExchangeResult.MalformedResponse(text.take(200))
+                }
+                ExchangeResult.Success(withExpiry(json))
             }
         } catch (e: CancellationException) {
             throw e

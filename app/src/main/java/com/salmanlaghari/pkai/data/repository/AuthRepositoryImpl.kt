@@ -3,7 +3,9 @@ package com.salmanlaghari.pkai.data.repository
 import com.salmanlaghari.pkai.data.local.datastore.PreferencesManager
 import com.salmanlaghari.pkai.data.local.datastore.UserSession
 import com.salmanlaghari.pkai.data.local.secure.FlowMusicSecureStore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -73,7 +75,11 @@ class AuthRepositoryImpl @Inject constructor(
         return try {
             preferencesManager.clearSession()
             // Signing out of PK-AI also disconnects the Flow Music bridge.
-            flowMusicSecureStore.clearSession()
+            // The encrypted store touches the Keystore on first use, so keep
+            // it off the caller's thread (logout is invoked from Main).
+            withContext(Dispatchers.IO) {
+                flowMusicSecureStore.clearSession()
+            }
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

@@ -193,6 +193,17 @@ class LoginFragment : Fragment() {
         // Resolve all UI strings now: the fragment may be detached (navigated
         // to Home) by the time the background exchange finishes.
         val connectedMessage = getString(R.string.msg_music_connected)
+        // Never orphan a previous dialog (double-tap / re-entry): dismiss it
+        // before showing the new one so onDestroyView cannot leak its window.
+        bridgeDialog?.let { old ->
+            if (old.isShowing) {
+                try {
+                    old.dismiss()
+                } catch (e: Exception) {
+                    // Best effort; the window may already be gone.
+                }
+            }
+        }
         bridgeDialog = AlertDialog.Builder(requireContext())
             .setTitle(getString(R.string.title_music_engine))
             .setMessage(getString(R.string.msg_music_engine_connecting, accountLabel))

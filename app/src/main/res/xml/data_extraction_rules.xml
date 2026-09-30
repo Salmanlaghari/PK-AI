@@ -2,8 +2,12 @@
 <data-extraction-rules>
     <cloud-backup>
         <include domain="sharedpref" path="."/>
+        <!-- See backup_rules.xml: the Keystore-backed Flow Music session
+             must not travel without its key. -->
+        <exclude domain="sharedpref" path="flowmusic_secure_prefs.xml"/>
     </cloud-backup>
     <device-transfer>
         <include domain="sharedpref" path="."/>
+        <exclude domain="sharedpref" path="flowmusic_secure_prefs.xml"/>
     </device-transfer>
 </data-extraction-rules>

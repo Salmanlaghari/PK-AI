@@ -1,6 +1,7 @@
 package com.salmanlaghari.pkai.ui.aihub
 
 import android.util.Log
+import com.salmanlaghari.pkai.data.local.datastore.PreferencesManager
 import com.salmanlaghari.pkai.data.local.secure.FlowMusicSecureStore
 import com.salmanlaghari.pkai.ui.aihub.FlowMusicOAuth.RefreshResult
 import kotlinx.coroutines.Dispatchers
@@ -33,7 +34,8 @@ import javax.inject.Singleton
  */
 @Singleton
 class FlowMusicSessionManager @Inject constructor(
-    private val secureStore: FlowMusicSecureStore
+    private val secureStore: FlowMusicSecureStore,
+    private val preferencesManager: PreferencesManager
 ) {
 
     companion object {
@@ -47,6 +49,19 @@ class FlowMusicSessionManager @Inject constructor(
     private val refreshMutex = Mutex()
 
     /**
+     * Deletes the legacy PLAINTEXT session left by pre-#88 builds (once).
+     * Runs under the session mutex so it cannot interleave with a
+     * concurrent write/clear.
+     */
+    private suspend fun ensureLegacySessionMigrated() {
+        try {
+            preferencesManager.migrateLegacyFlowMusicSession()
+        } catch (e: Exception) {
+            Log.w(TAG, "Legacy Flow Music session migration skipped: ${e.message}")
+        }
+    }
+
+    /**
      * Exchanges a fresh Google ID token (from the PK-AI sign-in) for a real
      * Flow Music backend session and persists it.
      *
@@ -54,14 +69,17 @@ class FlowMusicSessionManager @Inject constructor(
      */
     suspend fun connectWithIdToken(idToken: String): Boolean =
         withContext(Dispatchers.IO) {
-            val session = FlowMusicOAuth.exchangeIdTokenForSession(idToken)
-            if (session == null) {
-                Log.w(TAG, "ID-token exchange failed")
-                return@withContext false
+            refreshMutex.withLock {
+                ensureLegacySessionMigrated()
+                val session = FlowMusicOAuth.exchangeIdTokenForSession(idToken)
+                if (session == null) {
+                    Log.w(TAG, "ID-token exchange failed")
+                    return@withLock false
+                }
+                secureStore.saveSessionJson(session.toString())
+                Log.i(TAG, "Flow Music bridge connected")
+                true
             }
-            secureStore.saveSessionJson(session.toString())
-            Log.i(TAG, "Flow Music bridge connected")
-            true
         }
 
     /**
@@ -73,6 +91,7 @@ class FlowMusicSessionManager @Inject constructor(
      * hit a transport error (the stored session is kept for a later retry).
      */
     suspend fun getValidSessionJson(): JSONObject? = withContext(Dispatchers.IO) {
+        refreshMutex.withLock { ensureLegacySessionMigrated() }
         val stored = secureStore.getSessionJson() ?: return@withContext null
         val session = try {
             JSONObject(stored)
@@ -134,17 +153,27 @@ class FlowMusicSessionManager @Inject constructor(
      */
     suspend fun connectWithSessionJson(session: JSONObject): Boolean =
         withContext(Dispatchers.IO) {
-            if (session.optString("access_token", "").isBlank() ||
-                session.optString("refresh_token", "").isBlank()
-            ) {
-                return@withContext false
+            refreshMutex.withLock {
+                ensureLegacySessionMigrated()
+                if (session.optString("access_token", "").isBlank() ||
+                    session.optString("refresh_token", "").isBlank()
+                ) {
+                    return@withLock false
+                }
+                secureStore.saveSessionJson(session.toString())
+                Log.i(TAG, "Flow Music bridge session persisted")
+                true
             }
-            secureStore.saveSessionJson(session.toString())
-            Log.i(TAG, "Flow Music bridge session persisted")
-            true
         }
 
     suspend fun clear() {
-        withContext(Dispatchers.IO) { secureStore.clearSession() }
+        withContext(Dispatchers.IO) {
+            // Hold the mutex so an in-flight refresh cannot re-persist the
+            // session right after sign-out clears it.
+            refreshMutex.withLock {
+                ensureLegacySessionMigrated()
+                secureStore.clearSession()
+            }
+        }
     }
 }

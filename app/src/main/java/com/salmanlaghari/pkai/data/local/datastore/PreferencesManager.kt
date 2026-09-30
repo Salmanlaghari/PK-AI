@@ -125,6 +125,25 @@ class PreferencesManager @Inject constructor(
     }
 
     // ------------------------------------------------------------------
+    // One-shot migration: builds before the encrypted store kept the Flow
+    // Music session JSON (with a long-lived refresh token) in PLAINTEXT in
+    // this DataStore under "flowmusic_session_json". Delete it the first
+    // time it is seen so the old value can never linger on existing
+    // installs. Safe to call repeatedly; the flag makes it a no-op after
+    // the first run.
+    private val legacyFlowMusicSessionKey = stringPreferencesKey("flowmusic_session_json")
+    private val flowMusicMigrationDoneKey = booleanPreferencesKey("flowmusic_session_migrated_v1")
+
+    suspend fun migrateLegacyFlowMusicSession() {
+        context.dataStore.edit { preferences ->
+            if (preferences[flowMusicMigrationDoneKey] != true) {
+                preferences.remove(legacyFlowMusicSessionKey)
+                preferences[flowMusicMigrationDoneKey] = true
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------
     // Guest message limit (10 AI messages for guest users)
     private val guestMessageCountKey = intPreferencesKey("guest_message_count")
 

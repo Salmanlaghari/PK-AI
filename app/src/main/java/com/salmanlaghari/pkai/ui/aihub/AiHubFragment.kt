@@ -24,6 +24,8 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AlertDialog
@@ -45,6 +47,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONException
 import org.json.JSONObject
 import org.json.JSONTokener
 import java.io.InputStream
@@ -691,6 +694,14 @@ class AiHubFragment : Fragment() {
                         startNativeFlowMusicConnect()
                     }
                 }
+                // Manual session import: the backend rejects our Google ID
+                // token (audience mismatch) and we cannot change their
+                // config, so the user can paste their own FlowMusic web
+                // session once instead. Never opens the website.
+                builder.setNeutralButton(getString(R.string.btn_import_session)) { d, _ ->
+                    d.dismiss()
+                    showSessionImportDialog()
+                }
                 // Clear the field on dismiss so a dismissed dialog (holding
                 // the Activity context) is not retained by the fragment.
                 builder.setOnDismissListener { connectFailedDialog = null }
@@ -699,6 +710,105 @@ class AiHubFragment : Fragment() {
             } catch (e: Exception) {
                 Log.w("AiHubFragment", "Could not show connect-failed dialog: ${e.message}")
             }
+        }
+    }
+
+    /**
+     * Manual FlowMusic session import ("jugar" for the audience mismatch we
+     * cannot fix server-side). The user copies their own FlowMusic web
+     * session (localStorage `sb-sb-auth-token`) once and pastes it here;
+     * from then on the app persists and refreshes it like a normal session.
+     * The pasted text is a live secret: it is never logged, the field is
+     * cleared on submit, and only the parsed session reaches storage.
+     */
+    private fun showSessionImportDialog() {
+        if (!isAdded) return
+        activity?.runOnUiThread {
+            if (!isAdded) return@runOnUiThread
+            try {
+                val input = EditText(requireContext()).apply {
+                    hint = getString(R.string.hint_paste_session)
+                    minLines = 4
+                    isSingleLine = false
+                }
+                val container = FrameLayout(requireContext()).apply {
+                    // Dialog message padding, roughly.
+                    setPadding(64, 16, 64, 4)
+                    addView(
+                        input,
+                        FrameLayout.LayoutParams(
+                            FrameLayout.LayoutParams.MATCH_PARENT,
+                            FrameLayout.LayoutParams.WRAP_CONTENT
+                        )
+                    )
+                }
+                AlertDialog.Builder(requireContext())
+                    .setTitle(getString(R.string.title_import_session))
+                    .setMessage(getString(R.string.msg_import_session_howto))
+                    .setView(container)
+                    .setNegativeButton(android.R.string.cancel) { d, _ -> d.dismiss() }
+                    .setPositiveButton(getString(R.string.btn_import_connect)) { d, _ ->
+                        val pasted = input.text.toString()
+                        input.text?.clear()
+                        d.dismiss()
+                        importPastedSession(pasted)
+                    }
+                    .show()
+            } catch (e: Exception) {
+                Log.w("AiHubFragment", "Could not show session-import dialog: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Validates pasted session JSON with the same strictness as the OAuth
+     * session guard (real non-blank access_token + refresh_token, no error
+     * key - org.json's optString() would accept a literal "null"), then
+     * persists and injects it exactly like a successful native connect.
+     */
+    private fun importPastedSession(pasted: String) {
+        if (!isAdded) return
+        viewLifecycleOwner.lifecycleScope.launch {
+            val session: JSONObject? = try {
+                val json = JSONObject(pasted.trim())
+                val accessToken = json.opt("access_token") as? String
+                val refreshToken = json.opt("refresh_token") as? String
+                if (json.has("error") || accessToken.isNullOrBlank() || refreshToken.isNullOrBlank()) null
+                else json
+            } catch (e: JSONException) {
+                null
+            }
+            if (session == null) {
+                Log.w("AiHubFragment", "Pasted session invalid (chars=${pasted.length})")
+                if (isAdded) {
+                    Toast.makeText(
+                        requireContext(),
+                        getString(R.string.msg_import_session_invalid),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+                return@launch
+            }
+            val persisted = try {
+                flowMusicSessionManager.connectWithSessionJson(session)
+            } catch (e: Exception) {
+                Log.w("AiHubFragment", "Could not persist pasted session: ${e.message}")
+                false
+            }
+            if (!persisted) {
+                Log.w("AiHubFragment", "Pasted session rejected by session manager")
+                if (isAdded) {
+                    Toast.makeText(
+                        requireContext(),
+                        getString(R.string.msg_import_session_invalid),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+                return@launch
+            }
+            // Same path as a successful native connect: inject into the
+            // engine, toast, and probe the session.
+            injectSessionIntoEngine(session)
         }
     }
 

@@ -3,14 +3,22 @@ package com.salmanlaghari.pkai.ui.aihub
 import android.net.Uri
 import android.util.Base64
 import android.util.Log
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.suspendCancellableCoroutine
+import okhttp3.Call
+import okhttp3.Callback
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
 import org.json.JSONObject
+import java.io.IOException
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 /**
  * Ultra Chat AI music engine - real session bootstrap.
@@ -118,6 +126,48 @@ object FlowMusicOAuth {
             .build()
     }
 
+    /**
+     * POSTs a JSON payload and returns (httpCode, body).
+     *
+     * Cancellable: uses [Call.enqueue] instead of the blocking [Call.execute]
+     * so a cancelled coroutine (fragment gone, logout racing a refresh,
+     * refresh aborted while the session mutex is held) cancels the socket
+     * instead of holding the mutex for up to 60s.
+     */
+    private suspend fun postJson(url: String, payload: JSONObject): Pair<Int, String> =
+        suspendCancellableCoroutine { cont ->
+            val body = payload.toString().toRequestBody("application/json".toMediaType())
+            val request = Request.Builder()
+                .url(url)
+                .addHeader("apikey", SUPABASE_ANON_KEY)
+                .addHeader("Content-Type", "application/json")
+                .post(body)
+                .build()
+            val call = http.newCall(request)
+            cont.invokeOnCancellation { call.cancel() }
+            call.enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    if (cont.isActive) cont.resumeWithException(e)
+                }
+
+                override fun onResponse(call: Call, response: Response) {
+                    response.use {
+                        val text = it.body?.string().orEmpty()
+                        if (cont.isActive) cont.resume(it.code to text)
+                    }
+                }
+            })
+        }
+
+    /** Adds `expires_at` (epoch seconds) when the backend did not send one. */
+    private fun withExpiry(json: JSONObject): JSONObject {
+        if (!json.has("expires_at")) {
+            val expiresIn = json.optLong("expires_in", 3600L)
+            json.put("expires_at", System.currentTimeMillis() / 1000L + expiresIn)
+        }
+        return json
+    }
+
     private fun base64Url(bytes: ByteArray): String =
         Base64.encodeToString(bytes, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
 
@@ -186,33 +236,23 @@ object FlowMusicOAuth {
      * the returned ID token is traded for a backend session with
      * `grant_type=id_token` - no Chrome, no external page.
      *
+     * Suspend + cancellable: safe to call while holding the session mutex.
+     *
      * Returns the full Supabase session JSON (with `expires_at`) or null.
      */
-    fun exchangeIdTokenForSession(idToken: String): JSONObject? {
+    suspend fun exchangeIdTokenForSession(idToken: String): JSONObject? {
         return try {
             val payload = JSONObject()
                 .put("provider", "google")
                 .put("id_token", idToken)
-            val body = payload.toString().toRequestBody("application/json".toMediaType())
-            val request = Request.Builder()
-                .url("$SUPABASE_URL/auth/v1/token?grant_type=id_token")
-                .addHeader("apikey", SUPABASE_ANON_KEY)
-                .addHeader("Content-Type", "application/json")
-                .post(body)
-                .build()
-            http.newCall(request).execute().use { resp ->
-                val text = resp.body?.string().orEmpty()
-                if (!resp.isSuccessful) {
-                    Log.w(TAG, "ID-token exchange failed (${resp.code}): $text")
-                    return null
-                }
-                val json = JSONObject(text)
-                if (!json.has("expires_at")) {
-                    val expiresIn = json.optLong("expires_in", 3600L)
-                    json.put("expires_at", System.currentTimeMillis() / 1000L + expiresIn)
-                }
-                json
+            val (code, text) = postJson("$SUPABASE_URL/auth/v1/token?grant_type=id_token", payload)
+            if (code !in 200..299) {
+                Log.w(TAG, "ID-token exchange failed ($code): $text")
+                return null
             }
+            withExpiry(JSONObject(text))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "exchangeIdTokenForSession error", e)
             null
@@ -236,35 +276,23 @@ object FlowMusicOAuth {
         data object TransportError : RefreshResult
     }
 
-    fun refreshSession(refreshToken: String): RefreshResult {
+    suspend fun refreshSession(refreshToken: String): RefreshResult {
         return try {
             val payload = JSONObject().put("refresh_token", refreshToken)
-            val body = payload.toString().toRequestBody("application/json".toMediaType())
-            val request = Request.Builder()
-                .url("$SUPABASE_URL/auth/v1/token?grant_type=refresh_token")
-                .addHeader("apikey", SUPABASE_ANON_KEY)
-                .addHeader("Content-Type", "application/json")
-                .post(body)
-                .build()
-            http.newCall(request).execute().use { resp ->
-                val text = resp.body?.string().orEmpty()
-                if (!resp.isSuccessful) {
-                    Log.w(TAG, "Session refresh failed (${resp.code}): $text")
-                    // Only a genuine auth failure drops the session: Supabase
-                    // answers a bad/rotated refresh token with 400/401 plus
-                    // an invalid_grant body. Everything else - 429 rate
-                    // limiting, 408 timeouts, 5xx, proxy-generated 4xx - is
-                    // transient and must NOT destroy the stored session.
-                    return if (isAuthRejection(resp.code, text)) RefreshResult.AuthRejected
-                    else RefreshResult.TransportError
-                }
-                val json = JSONObject(text)
-                if (!json.has("expires_at")) {
-                    val expiresIn = json.optLong("expires_in", 3600L)
-                    json.put("expires_at", System.currentTimeMillis() / 1000L + expiresIn)
-                }
-                RefreshResult.Success(json)
+            val (code, text) = postJson("$SUPABASE_URL/auth/v1/token?grant_type=refresh_token", payload)
+            if (code !in 200..299) {
+                Log.w(TAG, "Session refresh failed ($code): $text")
+                // Only a genuine auth failure drops the session: Supabase
+                // answers a bad/rotated refresh token with 400/401 plus
+                // an invalid_grant body. Everything else - 429 rate
+                // limiting, 408 timeouts, 5xx, proxy-generated 4xx - is
+                // transient and must NOT destroy the stored session.
+                return if (isAuthRejection(code, text)) RefreshResult.AuthRejected
+                else RefreshResult.TransportError
             }
+            RefreshResult.Success(withExpiry(JSONObject(text)))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "refreshSession error", e)
             RefreshResult.TransportError
@@ -273,33 +301,22 @@ object FlowMusicOAuth {
 
     /**
      * Exchanges the PKCE authorization code for a real session object.
-     * Returns the full Supabase session JSON (with `expires_at`) or null.
+     * Suspend + cancellable. Returns the full Supabase session JSON
+     * (with `expires_at`) or null.
      */
-    fun exchangeCodeForSession(authCode: String, codeVerifier: String): JSONObject? {
+    suspend fun exchangeCodeForSession(authCode: String, codeVerifier: String): JSONObject? {
         return try {
             val payload = JSONObject()
                 .put("auth_code", authCode)
                 .put("code_verifier", codeVerifier)
-            val body = payload.toString().toRequestBody("application/json".toMediaType())
-            val request = Request.Builder()
-                .url("$SUPABASE_URL/auth/v1/token?grant_type=pkce")
-                .addHeader("apikey", SUPABASE_ANON_KEY)
-                .addHeader("Content-Type", "application/json")
-                .post(body)
-                .build()
-            http.newCall(request).execute().use { resp ->
-                val text = resp.body?.string().orEmpty()
-                if (!resp.isSuccessful) {
-                    Log.e(TAG, "Token exchange failed (${resp.code}): $text")
-                    return null
-                }
-                val json = JSONObject(text)
-                if (!json.has("expires_at")) {
-                    val expiresIn = json.optLong("expires_in", 3600L)
-                    json.put("expires_at", System.currentTimeMillis() / 1000L + expiresIn)
-                }
-                json
+            val (code, text) = postJson("$SUPABASE_URL/auth/v1/token?grant_type=pkce", payload)
+            if (code !in 200..299) {
+                Log.e(TAG, "Token exchange failed ($code): $text")
+                return null
             }
+            withExpiry(JSONObject(text))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "exchangeCodeForSession error", e)
             null

@@ -17,11 +17,9 @@ import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.salmanlaghari.pkai.R
 import com.salmanlaghari.pkai.databinding.FragmentLoginBinding
-import com.salmanlaghari.pkai.ui.aihub.FlowMusicSessionManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 @AndroidEntryPoint
 class LoginFragment : Fragment() {
@@ -31,8 +29,11 @@ class LoginFragment : Fragment() {
 
     private val viewModel: LoginViewModel by viewModels()
 
-    @Inject
-    lateinit var flowMusicSessionManager: FlowMusicSessionManager
+    /**
+     * Owns the Flow Music auto-connect exchange across rotation: the work
+     * runs in the ViewModel's scope, this fragment only renders [FlowMusicBridgeConnectViewModel.ConnectState].
+     */
+    private val bridgeViewModel: FlowMusicBridgeConnectViewModel by viewModels()
 
     /**
      * The Flow Music auto-connect notification popup. Kept as a field so it
@@ -90,6 +91,35 @@ class LoginFragment : Fragment() {
         // Sign in as guest
         binding.btnGuestSignin.setOnClickListener {
             viewModel.loginAsGuest()
+        }
+
+        // Render the Flow Music auto-connect state. The exchange itself lives
+        // in the ViewModel (survives rotation); this observer only shows /
+        // dismisses the notification popup, so a rotation re-shows it instead
+        // of silently aborting the announced work.
+        viewLifecycleOwner.lifecycleScope.launch {
+            bridgeViewModel.state.collectLatest { state ->
+                when (state) {
+                    is FlowMusicBridgeConnectViewModel.ConnectState.Connecting -> {
+                        showBridgeDialog(state.email)
+                    }
+                    is FlowMusicBridgeConnectViewModel.ConnectState.Connected -> {
+                        val hadDialog = dismissBridgeDialog()
+                        if (hadDialog) {
+                            Toast.makeText(
+                                requireContext().applicationContext,
+                                getString(R.string.msg_music_connected),
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                    else -> {
+                        // Idle or Failed: nothing to show. On failure the AI
+                        // Hub retries the bridge silently on next open.
+                        dismissBridgeDialog()
+                    }
+                }
+            }
         }
     }
 
@@ -161,16 +191,7 @@ class LoginFragment : Fragment() {
     }
 
     override fun onDestroyView() {
-        bridgeDialog?.let { dialog ->
-            if (dialog.isShowing) {
-                try {
-                    dialog.dismiss()
-                } catch (e: Exception) {
-                    // Best effort; the window may already be gone.
-                }
-            }
-        }
-        bridgeDialog = null
+        dismissBridgeDialog()
         super.onDestroyView()
         _binding = null
     }
@@ -179,68 +200,55 @@ class LoginFragment : Fragment() {
      * Step 2 of sign-up: the SAME Google account the user just signed into
      * PK-AI with is connected to the Flow Music bridge automatically.
      *
-     * A small notification popup tells the user what is happening while the
-     * ID-token -> Supabase session exchange runs in the background. When this
-     * Google account already owns a Flow Music account, Supabase signs it
-     * into that EXISTING account - the user just continues with their own
-     * account, nothing manual needed.
-     *
-     * Uses the Activity lifecycle scope so the exchange survives the
-     * navigation to Home that follows a successful sign-in.
+     * The exchange runs in [FlowMusicBridgeConnectViewModel] (rotation-safe);
+     * this only kicks it off. The state observer in [onViewCreated] renders
+     * the notification popup. When this Google account already owns a Flow
+     * Music account, Supabase signs it into that EXISTING account - the user
+     * just continues with their own account, nothing manual needed.
      */
     private fun autoConnectFlowMusicBridge(idToken: String, email: String?) {
-        val accountLabel = email?.takeIf { it.isNotBlank() } ?: getString(R.string.msg_music_engine_default_account)
-        // Resolve all UI strings now: the fragment may be detached (navigated
-        // to Home) by the time the background exchange finishes.
-        val connectedMessage = getString(R.string.msg_music_connected)
+        bridgeViewModel.connect(idToken, email)
+    }
+
+    /**
+     * Shows the "connecting" notification popup. Called from the state
+     * observer, so after a rotation the recreated fragment re-shows it for
+     * the still-running exchange. All strings are resolved here, on the UI
+     * thread, while the fragment is attached.
+     */
+    private fun showBridgeDialog(email: String?) {
+        if (bridgeDialog?.isShowing == true) return
+        val message = if (!email.isNullOrBlank()) {
+            getString(R.string.msg_music_engine_connecting_named, email)
+        } else {
+            getString(R.string.msg_music_engine_connecting)
+        }
         // Never orphan a previous dialog (double-tap / re-entry): dismiss it
         // before showing the new one so onDestroyView cannot leak its window.
-        bridgeDialog?.let { old ->
-            if (old.isShowing) {
-                try {
-                    old.dismiss()
-                } catch (e: Exception) {
-                    // Best effort; the window may already be gone.
-                }
-            }
-        }
+        dismissBridgeDialog()
         bridgeDialog = AlertDialog.Builder(requireContext())
             .setTitle(getString(R.string.title_music_engine))
-            .setMessage(getString(R.string.msg_music_engine_connecting, accountLabel))
+            .setMessage(message)
             .setCancelable(false)
             .create()
             .also { it.show() }
+    }
 
-        // Capture the app context now: the login fragment may be gone
-        // (navigated to Home) by the time the exchange finishes.
-        val appContext = requireContext().applicationContext
-        requireActivity().lifecycleScope.launch {
-            val connected = try {
-                flowMusicSessionManager.connectWithIdToken(idToken)
+    /**
+     * Dismisses the notification popup if showing.
+     * @return true when a popup was actually dismissed.
+     */
+    private fun dismissBridgeDialog(): Boolean {
+        val dialog = bridgeDialog
+        bridgeDialog = null
+        if (dialog?.isShowing == true) {
+            try {
+                dialog.dismiss()
             } catch (e: Exception) {
-                android.util.Log.e("PKAI_AUTH", "Flow Music auto-connect failed", e)
-                false
+                android.util.Log.w("PKAI_AUTH", "Popup dismiss skipped: ${e.message}")
             }
-            // Dismiss via the field; onDestroyView() already handles the
-            // rotation case, this covers the normal completion path.
-            val dialog = bridgeDialog
-            bridgeDialog = null
-            if (dialog?.isShowing == true) {
-                try {
-                    dialog.dismiss()
-                } catch (e: Exception) {
-                    android.util.Log.w("PKAI_AUTH", "Popup dismiss skipped: ${e.message}")
-                }
-            }
-            if (connected) {
-                Toast.makeText(appContext, connectedMessage, Toast.LENGTH_SHORT).show()
-            } else {
-                // Silent fallback: AI Hub retries automatically on next open.
-                android.util.Log.w(
-                    "PKAI_AUTH",
-                    "Flow Music auto-connect deferred; AI Hub will retry silently"
-                )
-            }
+            return true
         }
+        return false
     }
 }

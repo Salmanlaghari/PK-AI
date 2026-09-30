@@ -204,3 +204,66 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 }
+
+// ---------------------------------------------------------------------------
+// Ultra AI web UI: rebuild + sync into Android assets (best-effort).
+// The chat UI lives in ultra-ai-chat-space/ (React/Vite). Its built output is
+// what the APK ships under src/main/assets/ultra-ai-chat-space. When node is
+// available this task rebuilds it before assets are merged, so the APK never
+// ships a stale web UI; when node is missing it keeps the committed assets
+// and only warns. Gradle's up-to-date checks skip the rebuild entirely when
+// the web sources have not changed.
+// ---------------------------------------------------------------------------
+val webDir = rootDir.resolve("ultra-ai-chat-space")
+val webDistDir = webDir.resolve("dist")
+val webAssetsDir = projectDir.resolve("src/main/assets/ultra-ai-chat-space")
+
+val syncWebAssets by tasks.registering(Exec::class) {
+    group = "build"
+    description = "Rebuilds the Ultra AI web UI and syncs it into Android assets."
+
+    inputs.dir(webDir.resolve("src"))
+    inputs.dir(webDir.resolve("public"))
+    inputs.file(webDir.resolve("package.json"))
+    inputs.file(webDir.resolve("package-lock.json")).optional()
+    outputs.dir(webDistDir)
+
+    workingDir = webDir
+    // Best-effort: the Android build must never fail because of the web toolchain.
+    isIgnoreExitValue = true
+
+    val isWindows = System.getProperty("os.name").lowercase().contains("windows")
+    val npmCmd = if (isWindows) "npm.cmd" else "npm"
+
+    // Probe for node first; without it there is nothing to do.
+    val nodeOk = try {
+        val probe = ProcessBuilder(if (isWindows) "node.exe" else "node", "--version")
+            .redirectErrorStream(true)
+            .start()
+        probe.waitFor() == 0
+    } catch (_: Exception) {
+        false
+    }
+    if (!nodeOk) {
+        logger.warn("syncWebAssets: node not found - keeping committed web assets.")
+        commandLine(if (isWindows) listOf("cmd", "/c", "exit", "0") else listOf("true"))
+    } else {
+        commandLine(
+            if (isWindows) listOf("cmd", "/c") else listOf("sh", "-c"),
+            "$npmCmd ci --no-audit --no-fund && $npmCmd run build"
+        )
+    }
+
+    doLast {
+        if (webDistDir.isDirectory) {
+            webAssetsDir.deleteRecursively()
+            webDistDir.copyRecursively(webAssetsDir, overwrite = true)
+            logger.lifecycle("syncWebAssets: web UI synced into Android assets.")
+        }
+    }
+}
+
+// Rebuild the web UI before any asset merge (debug/release, unit tests, etc.).
+tasks.matching { it.name.startsWith("merge") && it.name.contains("Assets") }.configureEach {
+    dependsOn(syncWebAssets)
+}

@@ -62,6 +62,8 @@ function App() {
   const [imageModal, setImageModal] = useState<{ isOpen: boolean; url: string }>({ isOpen: false, url: "" });
   const [flowUser, setFlowUser] = useState<FlowMusicUser>(() => getFlowMusicSession());
   const [flowStatus, setFlowStatus] = useState<FlowMusicStatus>(() => getFlowMusicStatus());
+  // Transient "connect failed" notice — never overwrites flowStatus.
+  const [connectError, setConnectError] = useState<string | null>(null);
   const [authUser, setAuthUser] = useState<{ name: string; email: string; picture: string } | null>(() => {
     try {
       const saved = localStorage.getItem("ultra_ai_user");
@@ -95,9 +97,24 @@ function App() {
       }
     };
     window.addEventListener("pkai:flowmusic_status", handleStatus);
+    // A failed connect attempt must not touch flowStatus (see connectFlowMusic):
+    // show a retry affordance instead of flipping the UI to "not connected".
+    const handleConnectFailed = () => {
+      setConnectError("Connect nahi ho saka — bridge tayyar nahi hai.");
+    };
+    const clearConnectError = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail && detail.signedIn) setConnectError(null);
+    };
+    window.addEventListener("pkai:flowmusic_connect_failed", handleConnectFailed);
+    window.addEventListener("pkai:flowmusic_status", clearConnectError);
     // Also poll once on mount (bridge may already have a cached value).
     setFlowStatus(getFlowMusicStatus());
-    return () => window.removeEventListener("pkai:flowmusic_status", handleStatus);
+    return () => {
+      window.removeEventListener("pkai:flowmusic_status", handleStatus);
+      window.removeEventListener("pkai:flowmusic_connect_failed", handleConnectFailed);
+      window.removeEventListener("pkai:flowmusic_status", clearConnectError);
+    };
   }, [authUser?.picture]);
 
   const handleSelectModel = (model: AIModel) => {
@@ -503,19 +520,24 @@ function App() {
           flowConnected={flowConnected}
         />
 
-        {!flowConnected && (
+        {(!flowConnected || connectError) && (
           <div className="shrink-0 px-4 py-2 bg-gradient-to-r from-pink-950/60 via-purple-950/40 to-slate-950 border-b border-pink-900/40 flex items-center justify-center gap-2 text-[12px] text-pink-200">
             <Plug className="w-3.5 h-3.5 text-pink-400" />
-            {flowStatus.accountMismatch ? (
+            {connectError ? (
+              <span>{connectError}</span>
+            ) : flowStatus.accountMismatch ? (
               <span>Device ka Google account PK-AI wale account se mukhtalif hai — real songs ke liye</span>
             ) : (
               <span>Ultra Chat AI connect nahi hai — real songs generate karne ke liye</span>
             )}
             <button
-              onClick={handleOpenFlowMusic}
+              onClick={() => {
+                setConnectError(null);
+                handleOpenFlowMusic();
+              }}
               className="font-semibold text-pink-300 underline underline-offset-2 hover:text-white"
             >
-              Connect karein
+              {connectError ? "Dobara try karein" : "Connect karein"}
             </button>
           </div>
         )}

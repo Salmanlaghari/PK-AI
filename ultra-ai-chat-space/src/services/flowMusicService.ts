@@ -115,8 +115,13 @@ export function connectFlowMusic(): void {
   } else {
     // The Browse/Studio website must NEVER open: keep the user in-app and
     // let the banner/header entry points drive the native connect instead.
+    // NOTE: we deliberately do NOT dispatch pkai:flowmusic_status with
+    // signedIn:false here — the bridge can be momentarily unavailable while
+    // the user is in fact signed in, and a fake "disconnected" event would
+    // wipe the real banner/profile state. A dedicated failure event lets the
+    // UI show a retry affordance without touching the cached status.
     console.warn("FlowMusic bridge unavailable; connect not attempted.");
-    window.dispatchEvent(new CustomEvent("pkai:flowmusic_status", { detail: { signedIn: false } }));
+    window.dispatchEvent(new CustomEvent("pkai:flowmusic_connect_failed"));
   }
 }
 

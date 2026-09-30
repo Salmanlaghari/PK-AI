@@ -2,11 +2,13 @@ package com.salmanlaghari.pkai.data.local.secure
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.security.keystore.UserNotAuthenticatedException
 import android.util.Log
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
+import java.security.GeneralSecurityException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -19,11 +21,12 @@ import javax.inject.Singleton
  * transfer when `allowBackup="true"`. EncryptedSharedPreferences keeps the
  * value encrypted at rest with a key stored in the Android Keystore.
  *
- * Failure policy: every Keystore failure mode (key invalidated after a
- * lock-screen change, keyset present but master key missing after a
- * restore/transfer, tampered value) is caught here. The store then degrades
- * to "no session" instead of crashing the app, and drops the unreadable
- * keyset file so the next write starts clean. Callers therefore never need
+ * Failure policy: a PROVABLY corrupt keyset (GeneralSecurityException from a
+ * bad/tampered keyset or an invalidated key) is dropped so the next write
+ * starts clean, and reads degrade to "no session" instead of crashing.
+ * TRANSIENT failures (keystore busy, device locked while the key needs auth,
+ * I/O hiccups) must NOT delete the file: the keyset is kept so a later call
+ * can still succeed, and no sticky flag is set. Callers therefore never need
  * their own try/catch around these methods.
  */
 @Singleton
@@ -42,7 +45,7 @@ class FlowMusicSecureStore @Inject constructor(
     @Volatile
     private var prefs: SharedPreferences? = null
 
-    /** Set once the keyset proves unreadable; avoids retrying a doomed init. */
+    /** Set once the keyset proves CORRUPT; avoids retrying a doomed init. */
     @Volatile
     private var keysetBroken = false
 
@@ -55,14 +58,22 @@ class FlowMusicSecureStore @Inject constructor(
             return try {
                 createPrefs().also { prefs = it }
             } catch (e: Exception) {
-                // MasterKey build / EncryptedSharedPreferences.create /
-                // decrypt can all throw (GeneralSecurityException,
-                // SecurityException). Never crash the caller: drop the
-                // unreadable keyset so a later write recreates it, and
-                // report "no session" until then.
-                Log.w(TAG, "Encrypted prefs unavailable; dropping keyset", e)
-                deleteKeysetFile()
-                keysetBroken = true
+                // Classify before acting: only a provably corrupt keyset is
+                // dropped. Transient failures keep the file so a later call
+                // can succeed, and set no sticky flag.
+                val corruptKeyset = e is GeneralSecurityException &&
+                    e !is UserNotAuthenticatedException
+                if (corruptKeyset) {
+                    // Bad/tampered keyset or invalidated key: drop the file so
+                    // the next write recreates it, and stop retrying init.
+                    Log.w(TAG, "Encrypted prefs keyset corrupt; dropping keyset", e)
+                    deleteKeysetFile()
+                    keysetBroken = true
+                } else {
+                    // Transient: keystore busy, device locked (auth needed),
+                    // I/O hiccup. Keep the file; report "no session" for now.
+                    Log.w(TAG, "Encrypted prefs temporarily unavailable; keeping keyset", e)
+                }
                 null
             }
         }

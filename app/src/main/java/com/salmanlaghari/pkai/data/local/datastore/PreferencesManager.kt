@@ -134,13 +134,28 @@ class PreferencesManager @Inject constructor(
     private val legacyFlowMusicSessionKey = stringPreferencesKey("flowmusic_session_json")
     private val flowMusicMigrationDoneKey = booleanPreferencesKey("flowmusic_session_migrated_v1")
 
+    /**
+     * In-memory fast path: the migration flag never flips back, so one real
+     * check per process is enough. Without this, every session read paid for
+     * a DataStore write transaction just to no-op.
+     */
+    @Volatile
+    private var legacyMigrationChecked = false
+
     suspend fun migrateLegacyFlowMusicSession() {
+        if (legacyMigrationChecked) return
+        // Read-first: skip the edit transaction entirely when already done.
+        if (context.dataStore.data.first()[flowMusicMigrationDoneKey] == true) {
+            legacyMigrationChecked = true
+            return
+        }
         context.dataStore.edit { preferences ->
             if (preferences[flowMusicMigrationDoneKey] != true) {
                 preferences.remove(legacyFlowMusicSessionKey)
                 preferences[flowMusicMigrationDoneKey] = true
             }
         }
+        legacyMigrationChecked = true
     }
 
     // ------------------------------------------------------------------

@@ -623,7 +623,7 @@ class AiHubFragment : Fragment() {
                             // Bad server response (not a network problem).
                             // The stored snippet is raw - only the sanitized
                             // form may reach the UI or logs.
-                            val malformedSnippet = FlowMusicOAuth.sanitizedErrorSnippet(exchange.bodySnippet)
+                            val malformedSnippet = FlowMusicOAuth.sanitizedErrorSnippet(exchange.body)
                             Log.w("AiHubFragment", "ID-token exchange: malformed server response" + (malformedSnippet?.let { ": $it" } ?: ""))
                             onFlowMusicConnectFailed(
                                 reason = buildString {

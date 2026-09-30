@@ -199,36 +199,35 @@ object FlowMusicOAuth {
         /** Backend answered but refused (e.g. 400 Bad ID token). */
         data class Rejected(val httpCode: Int, val errorBody: String) : ExchangeResult
         /** Backend answered 2xx but the body was not usable session JSON. */
-        data class MalformedResponse(val bodySnippet: String) : ExchangeResult
+        data class MalformedResponse(val body: String) : ExchangeResult
         /** Transport problem (timeout, no network) - safe to retry. */
         data object TransportError : ExchangeResult
     }
 
     /**
      * Picks a short, human-readable snippet out of a backend error body for
-     * display in the UI. Prefers Supabase's `error_description` / `error` /
-     * `message` fields (that is exactly what identifies e.g. an untrusted
-     * Google client id on `grant_type=id_token` failures), falls back to the
-     * raw body, and best-effort scrubs anything token-shaped before it
-     * reaches the UI or logs. Returns null when there is nothing worth
-     * showing - including markup bodies (proxy / captive-portal pages),
-     * which are never rendered to the user.
+     * display in the UI. Only parsed JSON fields are ever trusted: prefers
+     * Supabase's `error_description` / `error` / `message` (that is exactly
+     * what identifies e.g. an untrusted Google client id on
+     * `grant_type=id_token` failures). Anything that is not parseable JSON -
+     * proxy pages, gateway text, markup - yields null and is never rendered
+     * to the user or logs. The extracted field is additionally scrubbed for
+     * token-shaped values (best effort) and capped at 160 chars.
      */
     fun sanitizedErrorSnippet(body: String): String? {
         val trimmed = body.trim()
         if (trimmed.isEmpty() || trimmed.startsWith("<")) return null
-        val raw = try {
-            val json = JSONObject(trimmed)
-            // NB: org.json's optString() returns the literal "null" for a
-            // JSON null - only real strings count here.
-            jsonStringOrEmpty(json, "error_description")
-                .ifBlank { jsonStringOrEmpty(json, "error") }
-                .ifBlank { jsonStringOrEmpty(json, "message") }
-                .ifBlank { jsonStringOrEmpty(json, "msg") }
-                .ifBlank { trimmed }
+        val json = try {
+            JSONObject(trimmed)
         } catch (e: JSONException) {
-            trimmed
-        }.trim()
+            return null
+        }
+        // NB: org.json's optString() returns the literal "null" for a
+        // JSON null - only real strings count here.
+        val raw = (jsonStringOrEmpty(json, "error_description")
+            .ifBlank { jsonStringOrEmpty(json, "error") }
+            .ifBlank { jsonStringOrEmpty(json, "message") }
+            .ifBlank { jsonStringOrEmpty(json, "msg") }).trim()
         if (raw.isEmpty() || raw.startsWith("<")) return null
         return scrubTokens(raw).take(160).ifBlank { null }
     }
@@ -274,7 +273,7 @@ object FlowMusicOAuth {
             val (code, text) = postJson("$SUPABASE_URL/auth/v1/token?grant_type=id_token", payload)
             if (code !in 200..299) {
                 Log.w(TAG, "ID-token exchange failed ($code): ${sanitizedErrorSnippet(text) ?: "<no detail>"}")
-                ExchangeResult.Rejected(code, text.take(500))
+                ExchangeResult.Rejected(code, text)
             } else {
                 // A 2xx with an empty / non-JSON body (proxy HTML page,
                 // truncated response, empty 204) is a BAD SERVER RESPONSE,
@@ -283,16 +282,20 @@ object FlowMusicOAuth {
                     JSONObject(text)
                 } catch (e: JSONException) {
                     Log.w(TAG, "ID-token exchange: 2xx with non-JSON body (${text.length} chars)")
-                    return ExchangeResult.MalformedResponse(text.take(200))
+                    return ExchangeResult.MalformedResponse(text)
                 }
                 // A 2xx that carries no usable session (empty object, an
                 // error payload, an unrelated gateway body) must not be
                 // treated as Success - the caller would otherwise persist
                 // and inject a token-less "session" while the UI looks
-                // connected.
-                if (json.has("error") || (json.opt("access_token") as? String).isNullOrBlank()) {
+                // connected. Mirror what the session manager requires:
+                // both tokens, no error key.
+                if (json.has("error") ||
+                    (json.opt("access_token") as? String).isNullOrBlank() ||
+                    (json.opt("refresh_token") as? String).isNullOrBlank()
+                ) {
                     Log.w(TAG, "ID-token exchange: 2xx without a session payload")
-                    return ExchangeResult.MalformedResponse(text.take(200))
+                    return ExchangeResult.MalformedResponse(text)
                 }
                 ExchangeResult.Success(withExpiry(json))
             }

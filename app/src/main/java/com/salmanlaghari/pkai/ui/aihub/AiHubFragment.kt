@@ -78,6 +78,14 @@ class AiHubFragment : Fragment() {
     private val statusHandler = Handler(Looper.getMainLooper())
     private var lastStatusJson = ""
     private var engineConnectedToastShown = false
+    /**
+     * True when the last silent auto-connect was skipped because the only
+     * authorized Google account differs from the PK-AI sign-in account.
+     * Surfaced to the web UI so the banner can tell the user to tap
+     * "Connect karein" and pick the PK-AI account (instead of failing
+     * silently with no feedback on multi-account devices).
+     */
+    private var silentAccountMismatch = false
 
     /** PKCE code_verifier for the in-flight OAuth connection (Custom Tab flow). */
     private var pendingCodeVerifier: String? = null
@@ -334,10 +342,15 @@ class AiHubFragment : Fragment() {
                 val googleIdToken = GoogleIdTokenCredential.createFrom(credential.data)
                 if (!googleIdToken.id.equals(pkaiEmail, ignoreCase = true)) {
                     // Wrong account on a multi-account device: never bind the
-                    // bridge to it; the user can connect manually instead.
+                    // bridge to it. Flag the mismatch so the web banner can
+                    // tell the user to connect manually with the PK-AI
+                    // account (the manual picker lets them choose it).
                     Log.w("AiHubFragment", "Silent bridge credential is for a different account; skipping")
+                    silentAccountMismatch = true
+                    dispatchStatusToJs(statusJsonWithMismatchFlag())
                     return false
                 }
+                silentAccountMismatch = false
                 flowMusicSessionManager.connectWithIdToken(googleIdToken.idToken)
             } else {
                 false
@@ -399,8 +412,26 @@ class AiHubFragment : Fragment() {
         }
     }
 
-    private fun dispatchStatusToJs(statusJson: String) {
-        activity?.runOnUiThread {
+    /**
+     * Builds the status JSON the web UI reads, injecting the
+     * `accountMismatch` hint when the silent auto-connect was skipped for a
+     * wrong-account credential. Only meaningful while signed out; a signed-in
+     * engine clears the flag's relevance.
+     */
+    private fun statusJsonWithMismatchFlag(): String {
+        val base = lastStatusJson.ifBlank { """{"signedIn":false,"hasStudio":false}""" }
+        return try {
+            val obj = JSONObject(base)
+            if (silentAccountMismatch && !obj.optBoolean("signedIn", false)) {
+                obj.put("accountMismatch", true)
+            }
+            obj.toString()
+        } catch (e: Exception) {
+            base
+        }
+    }
+
+    private fun dispatchStatusToJs(statusJson: String) {        activity?.runOnUiThread {
             val quoted = JSONObject.quote(statusJson)
             val js = """
                 (function(){
@@ -482,6 +513,9 @@ class AiHubFragment : Fragment() {
         } catch (e: Exception) {
             ""
         }
+        // The user is choosing an account manually now; the stale silent
+        // mismatch hint no longer applies.
+        silentAccountMismatch = false
         if (clientId.isBlank()) {
             // No native client id configured -> use the browser fallback.
             startCustomTabFlowMusicConnect()
@@ -941,7 +975,7 @@ class AiHubFragment : Fragment() {
                 /** Returns the cached Flow Music session status as a JSON string. */
                 @JavascriptInterface
                 fun getFlowMusicStatus(): String {
-                    return lastStatusJson.ifBlank { """{"signedIn":false,"hasStudio":false}""" }
+                    return statusJsonWithMismatchFlag()
                 }
 
                 /** Drive real music generation inside the Flow Music session. */

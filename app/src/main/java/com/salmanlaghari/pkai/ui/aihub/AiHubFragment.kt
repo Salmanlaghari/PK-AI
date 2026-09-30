@@ -26,6 +26,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
+import androidx.appcompat.app.AlertDialog
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
@@ -80,6 +81,16 @@ class AiHubFragment : Fragment() {
 
     /** PKCE code_verifier for the in-flight OAuth connection (Custom Tab flow). */
     private var pendingCodeVerifier: String? = null
+
+    /**
+     * Tracks the browser fallback: set when the Custom Tab is launched, set
+     * to true when its `pkai://auth-callback` deep link arrives. If the tab
+     * was launched but no callback ever comes back (redirect not allowlisted
+     * by the backend), the user would otherwise be left staring at the
+     * FlowMusic website - onResume() turns that into an in-app error dialog.
+     */
+    private var customTabLaunched = false
+    private var customTabCallbackReceived = false
 
     /** True once the hidden backend engine WebView finished its first page load. */
     private var backendPageLoaded = false
@@ -272,7 +283,10 @@ class AiHubFragment : Fragment() {
                 // Guest users connect manually; nothing silent to do.
                 return@launch
             }
-            if (silentGoogleBridgeConnect()) {
+            // Pass the already-read email down so the credential check uses
+            // the same snapshot the gate above validated.
+            val pkaiEmail = user.email!!
+            if (silentGoogleBridgeConnect(pkaiEmail)) {
                 flowMusicSessionManager.getValidSessionJson()?.let { autoInjectSession(it) }
             }
         }
@@ -287,22 +301,13 @@ class AiHubFragment : Fragment() {
      * on multi-account devices the bridge must never bind to a different
      * Google account than the one the user signed into PK-AI with.
      */
-    private suspend fun silentGoogleBridgeConnect(): Boolean {
+    private suspend fun silentGoogleBridgeConnect(pkaiEmail: String): Boolean {
         val clientId = try {
             getString(R.string.default_web_client_id)
         } catch (e: Exception) {
             ""
         }
         if (clientId.isBlank()) return false
-
-        // The PK-AI account this bridge must bind to. Guests have no Google
-        // account, so there is nothing silent to do for them.
-        val pkaiEmail = try {
-            authRepository.getSession().first().email?.takeIf { it.isNotBlank() }
-        } catch (e: Exception) {
-            null
-        }
-        if (pkaiEmail.isNullOrBlank()) return false
 
         return try {
             val credentialManager = CredentialManager.create(requireContext())
@@ -338,7 +343,11 @@ class AiHubFragment : Fragment() {
                 false
             }
         } catch (e: Exception) {
-            // Any failure (incl. "UI would be required") simply means the user
+            // Never swallow coroutine cancellation: the view lifecycle may be
+            // gone (fragment popped / onDestroyView) and structured
+            // concurrency must unwind instead of touching a detached fragment.
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            // Any other failure (incl. "UI would be required") simply means the user
             // stays on the manual connect path.
             Log.d("AiHubFragment", "Silent bridge connect unavailable: ${e.message}")
             false
@@ -363,6 +372,10 @@ class AiHubFragment : Fragment() {
             // boots the engine with this session; onEngineConnected must not
             // reload a second time when the probe reports signedIn.
             suppressNextEngineReload = true
+            // Safety: if the engine page never finishes loading (or the probe
+            // never reports signedIn), a leaked flag must not swallow a
+            // genuinely needed reload forever.
+            statusHandler.postDelayed({ suppressNextEngineReload = false }, 20000)
             statusHandler.postDelayed({ probeFlowMusicSession() }, 3000)
         }
     }
@@ -579,6 +592,10 @@ class AiHubFragment : Fragment() {
                 .setShowTitle(true)
                 .build()
             intent.launchUrl(requireContext(), Uri.parse(url))
+            // Arm the resume-guard: if the deep link never comes back, the
+            // user gets an in-app error instead of the FlowMusic website.
+            customTabLaunched = true
+            customTabCallbackReceived = false
             true
         } catch (e: Exception) {
             Log.w("AiHubFragment", "Custom Tab launch failed: ${e.message}")
@@ -588,6 +605,8 @@ class AiHubFragment : Fragment() {
 
     /** Handles the pkai://auth-callback redirect returned by the Custom Tab. */
     private fun handleFlowMusicCallback(uri: Uri) {
+        customTabCallbackReceived = true
+        customTabLaunched = false
         val code = uri.getQueryParameter("code")
         val verifier = pendingCodeVerifier
         if (code.isNullOrBlank() || verifier.isNullOrBlank()) {
@@ -1125,6 +1144,48 @@ class AiHubFragment : Fragment() {
         super.onPause()
         // Persist the Flow Music session cookies to disk.
         CookieManager.getInstance().flush()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Browser-fallback guard: the Custom Tab was launched but its deep
+        // link never came back (e.g. the app redirect is not allowlisted, so
+        // the tab stayed on the FlowMusic website). Give the deep link a
+        // moment to flush through, then explain in-app instead of leaving
+        // the user stranded on the website.
+        if (customTabLaunched && !customTabCallbackReceived) {
+            statusHandler.postDelayed({
+                if (!customTabLaunched || customTabCallbackReceived) return@postDelayed
+                customTabLaunched = false
+                viewLifecycleOwner.lifecycleScope.launch {
+                    val connected = try {
+                        flowMusicSessionManager.getValidSessionJson() != null
+                    } catch (e: Exception) {
+                        false
+                    }
+                    if (!connected && isAdded) {
+                        showCustomTabFailedDialog()
+                    }
+                }
+            }, 2500)
+        }
+    }
+
+    /** In-app error for a browser connect that never returned to the app. */
+    private fun showCustomTabFailedDialog() {
+        try {
+            AlertDialog.Builder(requireContext())
+                .setTitle(getString(R.string.title_music_connect_failed))
+                .setMessage(getString(R.string.msg_music_connect_failed))
+                .setPositiveButton(getString(R.string.btn_retry)) { d, _ ->
+                    d.dismiss()
+                    connectFlowMusic()
+                }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+        } catch (e: Exception) {
+            Log.w("AiHubFragment", "Could not show connect-failed dialog: ${e.message}")
+        }
     }
 
     override fun onDestroyView() {

@@ -1,6 +1,5 @@
 package com.salmanlaghari.pkai.ui.aihub
 
-import android.net.Uri
 import android.util.Base64
 import android.util.Log
 import kotlinx.coroutines.CancellationException
@@ -14,8 +13,6 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import org.json.JSONObject
 import java.io.IOException
-import java.security.MessageDigest
-import java.security.SecureRandom
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -24,13 +21,18 @@ import kotlin.coroutines.resumeWithException
  * Ultra Chat AI music engine - real session bootstrap.
  *
  * The music engine is powered by a real Google-authenticated backend session
- * (Supabase + Google OAuth). Google blocks OAuth inside embedded WebViews
- * ("Browser not supported" / disallowed_useragent), so the Google consent
- * screen runs in a Chrome Custom Tab and the PKCE authorization code is
- * captured through the `pkai://auth-callback` deep link. The resulting session
- * is then injected into the engine WebView, so the whole experience stays
- * inside the Ultra Chat AI interface - the user never has to open a separate
- * music site.
+ * (Supabase + Google OAuth). The connect flow is fully in-app and browser-free:
+ * a native Google account picker (Credential Manager) mints an ID token and
+ * `grant_type=id_token` trades it for a Supabase session - no Chrome, no
+ * external page. The resulting session is injected into the engine WebView,
+ * so the whole experience stays inside the Ultra Chat AI interface - the user
+ * never sees the FlowMusic website (no Browse / Studio UI, ever).
+ *
+ * NOTE (2026-09-30): an earlier Chrome Custom Tab PKCE fallback was removed.
+ * It could never complete - the app's `pkai://auth-callback` redirect is not
+ * allowlisted in the backend's Supabase project, so the tab stranded users on
+ * the FlowMusic website. A failed connect now stays in-app with an honest
+ * error and a retry affordance instead of opening the website.
  *
  * SECURITY: [SUPABASE_ANON_KEY] is a PUBLIC, client-side publishable key - the
  * exact same key that is already shipped inside the public web bundle. It is
@@ -97,9 +99,6 @@ object FlowMusicOAuth {
             "eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVkbmpjY3FjbWJ4ZWF4YmlkaW5yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NjEwNjQsImV4cCI6MjA4NzEzNzA2NH0." +
             "XCXSuL7Th1xHecfRrP0vAOFmKwJxwBqVFLu06SxtVzg"
 
-    /** Deep-link the OAuth provider redirects back to. */
-    const val REDIRECT_URI = "pkai://auth-callback"
-
     /** localStorage key the engine backend uses to persist its session. */
     const val STORAGE_KEY = "sb-sb-auth-token"
 
@@ -111,50 +110,6 @@ object FlowMusicOAuth {
 
     /** Host whose cookies carry the engine backend session. */
     const val COOKIE_HOST = "https://www.flowmusic.app"
-
-    /**
-     * Registered by AiHubFragment so MainActivity can forward the OAuth deep
-     * link to the live engine WebView.
-     */
-    @Volatile
-    var onCallback: ((Uri) -> Unit)? = null
-
-    /**
-     * Buffers a deep link that arrived before the fragment registered its
-     * callback (e.g. a cold start straight from the redirect).
-     */
-    @Volatile
-    private var pendingUri: Uri? = null
-
-    /**
-     * Delivers a deep link to the live fragment, or buffers it until the
-     * fragment registers (cold-start safety).
-     */
-    fun deliver(uri: Uri) {
-        val cb = onCallback
-        if (cb != null) {
-            cb(uri)
-        } else {
-            pendingUri = uri
-        }
-    }
-
-    /**
-     * Registers the fragment callback and immediately flushes any deep link
-     * that arrived while the fragment was not yet alive.
-     */
-    fun register(callback: (Uri) -> Unit) {
-        onCallback = callback
-        pendingUri?.let {
-            pendingUri = null
-            callback(it)
-        }
-    }
-
-    /** Clears the fragment callback. */
-    fun unregister() {
-        onCallback = null
-    }
 
     private val http: OkHttpClient by lazy {
         OkHttpClient.Builder()
@@ -233,35 +188,17 @@ object FlowMusicOAuth {
         return cookies
     }
 
-    /** RFC 7636 PKCE code_verifier. */
-    fun generateCodeVerifier(): String {
-        val bytes = ByteArray(64)
-        SecureRandom().nextBytes(bytes)
-        return base64Url(bytes)
-    }
-
-    /** RFC 7636 PKCE code_challenge (S256). */
-    fun codeChallenge(verifier: String): String {
-        val digest = MessageDigest.getInstance("SHA-256")
-            .digest(verifier.toByteArray(Charsets.US_ASCII))
-        return base64Url(digest)
-    }
-
     /**
-     * Builds the authorize URL opened in the Chrome Custom Tab. `loginHint`
-     * pre-selects the SAME Google account the user already signed into PK-AI
-     * with, so the connection feels automatic.
+     * Result of trading a native Google ID token for a backend session.
+     * Carries the backend's real answer so the UI can show an honest,
+     * diagnosable error instead of a generic "failed".
      */
-    fun buildAuthorizeUrl(codeChallenge: String, loginHint: String?): String {
-        val sb = StringBuilder(SUPABASE_URL)
-            .append("/auth/v1/authorize?provider=google")
-            .append("&redirect_to=").append(Uri.encode(REDIRECT_URI))
-            .append("&code_challenge=").append(Uri.encode(codeChallenge))
-            .append("&code_challenge_method=s256")
-        if (!loginHint.isNullOrBlank()) {
-            sb.append("&login_hint=").append(Uri.encode(loginHint))
-        }
-        return sb.toString()
+    sealed interface ExchangeResult {
+        data class Success(val session: JSONObject) : ExchangeResult
+        /** Backend answered but refused (e.g. 400 Bad ID token). */
+        data class Rejected(val httpCode: Int, val errorBody: String) : ExchangeResult
+        /** Transport problem (timeout, no network) - safe to retry. */
+        data object TransportError : ExchangeResult
     }
 
     /**
@@ -277,7 +214,18 @@ object FlowMusicOAuth {
      *
      * Returns the full Supabase session JSON (with `expires_at`) or null.
      */
-    suspend fun exchangeIdTokenForSession(idToken: String): JSONObject? {
+    suspend fun exchangeIdTokenForSession(idToken: String): JSONObject? =
+        when (val r = exchangeIdTokenForSessionDetailed(idToken)) {
+            is ExchangeResult.Success -> r.session
+            else -> null
+        }
+
+    /**
+     * Detailed variant: distinguishes a backend REJECTION (the ID token was
+     * refused - e.g. the backend does not trust this app's Google client id)
+     * from a TRANSPORT error (timeout, no network - safe to retry).
+     */
+    suspend fun exchangeIdTokenForSessionDetailed(idToken: String): ExchangeResult {
         return try {
             val payload = JSONObject()
                 .put("provider", "google")
@@ -285,14 +233,15 @@ object FlowMusicOAuth {
             val (code, text) = postJson("$SUPABASE_URL/auth/v1/token?grant_type=id_token", payload)
             if (code !in 200..299) {
                 Log.w(TAG, "ID-token exchange failed ($code): $text")
-                return null
+                ExchangeResult.Rejected(code, text.take(500))
+            } else {
+                ExchangeResult.Success(withExpiry(JSONObject(text)))
             }
-            withExpiry(JSONObject(text))
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             Log.e(TAG, "exchangeIdTokenForSession error", e)
-            null
+            ExchangeResult.TransportError
         }
     }
 
@@ -336,27 +285,4 @@ object FlowMusicOAuth {
         }
     }
 
-    /**
-     * Exchanges the PKCE authorization code for a real session object.
-     * Suspend + cancellable. Returns the full Supabase session JSON
-     * (with `expires_at`) or null.
-     */
-    suspend fun exchangeCodeForSession(authCode: String, codeVerifier: String): JSONObject? {
-        return try {
-            val payload = JSONObject()
-                .put("auth_code", authCode)
-                .put("code_verifier", codeVerifier)
-            val (code, text) = postJson("$SUPABASE_URL/auth/v1/token?grant_type=pkce", payload)
-            if (code !in 200..299) {
-                Log.e(TAG, "Token exchange failed ($code): $text")
-                return null
-            }
-            withExpiry(JSONObject(text))
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Log.e(TAG, "exchangeCodeForSession error", e)
-            null
-        }
-    }
 }

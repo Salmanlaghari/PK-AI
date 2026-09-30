@@ -2,13 +2,13 @@ package com.salmanlaghari.pkai.data.local.secure
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.security.keystore.UserNotAuthenticatedException
 import android.util.Log
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
-import java.security.GeneralSecurityException
+import java.security.UnrecoverableKeyException
+import javax.crypto.AEADBadTagException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -21,13 +21,18 @@ import javax.inject.Singleton
  * transfer when `allowBackup="true"`. EncryptedSharedPreferences keeps the
  * value encrypted at rest with a key stored in the Android Keystore.
  *
- * Failure policy: a PROVABLY corrupt keyset (GeneralSecurityException from a
- * bad/tampered keyset or an invalidated key) is dropped so the next write
- * starts clean, and reads degrade to "no session" instead of crashing.
- * TRANSIENT failures (keystore busy, device locked while the key needs auth,
- * I/O hiccups) must NOT delete the file: the keyset is kept so a later call
- * can still succeed, and no sticky flag is set. Callers therefore never need
- * their own try/catch around these methods.
+ * Failure policy:
+ * - READS never delete anything. Any init/decrypt failure degrades to "no
+ *   session" and the keyset file is kept, so transient failures (keystore
+ *   busy, device locked, I/O hiccup, provider init failure) can succeed on a
+ *   later call instead of becoming irreversible data loss.
+ * - WRITES recover from genuine corruption: if init fails with an
+ *   unambiguous corruption signal ([AEADBadTagException] = bad/tampered
+ *   value, [UnrecoverableKeyException] = invalidated key), the keyset file is
+ *   dropped and init is retried once, so a corrupt file cannot permanently
+ *   wedge the store. Anything else is left alone for a later retry.
+ *
+ * Callers never need their own try/catch around these methods.
  */
 @Singleton
 class FlowMusicSecureStore @Inject constructor(
@@ -45,35 +50,33 @@ class FlowMusicSecureStore @Inject constructor(
     @Volatile
     private var prefs: SharedPreferences? = null
 
-    /** Set once the keyset proves CORRUPT; avoids retrying a doomed init. */
+    /** The init failure from the last [prefsOrNull] attempt, if any. */
     @Volatile
-    private var keysetBroken = false
+    private var lastInitError: Exception? = null
+
+    /**
+     * True only for UNAMBIGUOUS corruption signals. Everything else —
+     * KeyStoreException, ProviderException, UserNotAuthenticatedException,
+     * IOException, SecurityException — is treated as transient: the keyset
+     * file is kept so a later call can succeed.
+     */
+    private fun isCorruptionSignal(e: Exception): Boolean =
+        e is AEADBadTagException || e is UnrecoverableKeyException
 
     private fun prefsOrNull(): SharedPreferences? {
         prefs?.let { return it }
-        if (keysetBroken) return null
         synchronized(lock) {
             prefs?.let { return it }
-            if (keysetBroken) return null
             return try {
-                createPrefs().also { prefs = it }
-            } catch (e: Exception) {
-                // Classify before acting: only a provably corrupt keyset is
-                // dropped. Transient failures keep the file so a later call
-                // can succeed, and set no sticky flag.
-                val corruptKeyset = e is GeneralSecurityException &&
-                    e !is UserNotAuthenticatedException
-                if (corruptKeyset) {
-                    // Bad/tampered keyset or invalidated key: drop the file so
-                    // the next write recreates it, and stop retrying init.
-                    Log.w(TAG, "Encrypted prefs keyset corrupt; dropping keyset", e)
-                    deleteKeysetFile()
-                    keysetBroken = true
-                } else {
-                    // Transient: keystore busy, device locked (auth needed),
-                    // I/O hiccup. Keep the file; report "no session" for now.
-                    Log.w(TAG, "Encrypted prefs temporarily unavailable; keeping keyset", e)
+                createPrefs().also {
+                    prefs = it
+                    lastInitError = null
                 }
+            } catch (e: Exception) {
+                // Read path: NEVER delete. Report "no session" and remember
+                // why, so the write path can decide about recovery.
+                Log.w(TAG, "Encrypted prefs unavailable; keeping keyset", e)
+                lastInitError = e
                 null
             }
         }
@@ -115,14 +118,27 @@ class FlowMusicSecureStore @Inject constructor(
 
     fun saveSessionJson(sessionJson: String) {
         try {
-            // If a previous init marked the keyset broken, allow one fresh
-            // attempt now that there is actually something to persist.
-            if (keysetBroken) {
-                synchronized(lock) { keysetBroken = false }
-                prefs = null
+            val existing = prefsOrNull()
+            if (existing != null) {
+                existing.edit().putString(KEY_SESSION_JSON, sessionJson).apply()
+                return
             }
-            prefsOrNull()?.edit()?.putString(KEY_SESSION_JSON, sessionJson)?.apply()
-                ?: Log.w(TAG, "saveSessionJson skipped: encrypted prefs unavailable")
+            // Init failed. If the failure is a PROVABLE corruption signal,
+            // drop the keyset and retry once — otherwise a corrupt file would
+            // wedge the store forever. Transient failures are left alone.
+            val err = lastInitError
+            if (err != null && isCorruptionSignal(err)) {
+                Log.w(TAG, "Dropping corrupt keyset and retrying save", err)
+                deleteKeysetFile()
+                synchronized(lock) {
+                    prefs = null
+                    lastInitError = null
+                }
+                prefsOrNull()?.edit()?.putString(KEY_SESSION_JSON, sessionJson)?.apply()
+                    ?: Log.w(TAG, "saveSessionJson skipped: encrypted prefs unavailable after recovery")
+            } else {
+                Log.w(TAG, "saveSessionJson skipped: encrypted prefs unavailable (transient)")
+            }
         } catch (e: Exception) {
             Log.w(TAG, "saveSessionJson failed", e)
         }

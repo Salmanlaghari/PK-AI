@@ -42,6 +42,7 @@ import com.salmanlaghari.pkai.R
 import com.salmanlaghari.pkai.data.repository.AuthRepository
 import com.salmanlaghari.pkai.databinding.FragmentAiHubBinding
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -99,6 +100,13 @@ class AiHubFragment : Fragment() {
      */
     private var customTabLaunched = false
     private var customTabCallbackReceived = false
+
+    /**
+     * The "connect failed" dialog. Kept in a field so onDestroyView() can
+     * dismiss it — an inline dialog would leak the window on rotation or
+     * navigation (WindowLeaked).
+     */
+    private var customTabFailedDialog: AlertDialog? = null
 
     /** True once the hidden backend engine WebView finished its first page load. */
     private var backendPageLoaded = false
@@ -431,7 +439,8 @@ class AiHubFragment : Fragment() {
         }
     }
 
-    private fun dispatchStatusToJs(statusJson: String) {        activity?.runOnUiThread {
+    private fun dispatchStatusToJs(statusJson: String) {
+        activity?.runOnUiThread {
             val quoted = JSONObject.quote(statusJson)
             val js = """
                 (function(){
@@ -1247,12 +1256,17 @@ class AiHubFragment : Fragment() {
         // moment to flush through, then explain in-app instead of leaving
         // the user stranded on the website.
         if (customTabLaunched && !customTabCallbackReceived) {
+            // Capture the scope BEFORE scheduling: the delayed runnable must
+            // not dereference viewLifecycleOwner after the view is gone.
+            val resumeScope = viewLifecycleOwner.lifecycleScope
             statusHandler.postDelayed({
                 if (!customTabLaunched || customTabCallbackReceived) return@postDelayed
                 customTabLaunched = false
-                viewLifecycleOwner.lifecycleScope.launch {
+                resumeScope.launch {
                     val connected = try {
                         flowMusicSessionManager.getValidSessionJson() != null
+                    } catch (e: CancellationException) {
+                        throw e
                     } catch (e: Exception) {
                         false
                     }
@@ -1266,8 +1280,10 @@ class AiHubFragment : Fragment() {
 
     /** In-app error for a browser connect that never returned to the app. */
     private fun showCustomTabFailedDialog() {
+        if (!isAdded) return
         try {
-            AlertDialog.Builder(requireContext())
+            customTabFailedDialog?.dismiss()
+            customTabFailedDialog = AlertDialog.Builder(requireContext())
                 .setTitle(getString(R.string.title_music_connect_failed))
                 .setMessage(getString(R.string.msg_music_connect_failed))
                 .setPositiveButton(getString(R.string.btn_retry)) { d, _ ->
@@ -1275,6 +1291,7 @@ class AiHubFragment : Fragment() {
                     connectFlowMusic()
                 }
                 .setNegativeButton(android.R.string.cancel, null)
+                .setOnDismissListener { customTabFailedDialog = null }
                 .show()
         } catch (e: Exception) {
             Log.w("AiHubFragment", "Could not show connect-failed dialog: ${e.message}")
@@ -1283,6 +1300,8 @@ class AiHubFragment : Fragment() {
 
     override fun onDestroyView() {
         statusHandler.removeCallbacksAndMessages(null)
+        customTabFailedDialog?.dismiss()
+        customTabFailedDialog = null
         CookieManager.getInstance().flush()
         FlowMusicOAuth.unregister()
         _binding?.webviewFlowmusicBackend?.removeJavascriptInterface("FlowMusicNative")

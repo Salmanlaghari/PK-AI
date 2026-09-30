@@ -10,6 +10,7 @@ import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.CustomCredential
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
@@ -30,10 +31,12 @@ class LoginFragment : Fragment() {
     private val viewModel: LoginViewModel by viewModels()
 
     /**
-     * Owns the Flow Music auto-connect exchange across rotation: the work
-     * runs in the ViewModel's scope, this fragment only renders [FlowMusicBridgeConnectViewModel.ConnectState].
+     * Owns the Flow Music auto-connect exchange across rotation AND the
+     * Login -> Home navigation: activity-scoped, so the exchange is not
+     * aborted when this fragment is popped after a successful sign-in.
+     * This fragment only renders [FlowMusicBridgeConnectViewModel.ConnectState].
      */
-    private val bridgeViewModel: FlowMusicBridgeConnectViewModel by viewModels()
+    private val bridgeViewModel: FlowMusicBridgeConnectViewModel by activityViewModels()
 
     /**
      * The Flow Music auto-connect notification popup. Kept as a field so it
@@ -200,7 +203,8 @@ class LoginFragment : Fragment() {
      * Step 2 of sign-up: the SAME Google account the user just signed into
      * PK-AI with is connected to the Flow Music bridge automatically.
      *
-     * The exchange runs in [FlowMusicBridgeConnectViewModel] (rotation-safe);
+     * The exchange runs in [FlowMusicBridgeConnectViewModel] (activity-scoped:
+     * rotation-safe AND survives the navigation to Home);
      * this only kicks it off. The state observer in [onViewCreated] renders
      * the notification popup. When this Google account already owns a Flow
      * Music account, Supabase signs it into that EXISTING account - the user

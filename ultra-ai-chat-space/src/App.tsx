@@ -16,6 +16,7 @@ import {
   getFlowMusicStatus,
   connectFlowMusic,
   requestFlowMusicTrack,
+  requestFlowMusicChat,
   syncFlowMusicProfile,
   generateStrictVisual,
   deductFlowCredits,
@@ -280,6 +281,64 @@ function App() {
       }
 
       // ---- Standard assistant path ---------------------------------------
+      // When the Flow Music bridge is connected, EVERY prompt gets a REAL
+      // answer from the Flow Music AI (same AI the user knows from the
+      // FlowMusic site: text, explanations, everything). Only when
+      // disconnected do we fall back to the local simulated reply so the
+      // chat stays usable for guests.
+      const connected = getFlowMusicStatus().signedIn;
+      if (connected) {
+        const placeholderId = generateId();
+        const placeholder: Message = {
+          id: placeholderId,
+          sender: "ai",
+          text: "Ultra AI 4 jawab tayyar kar raha hai...",
+          timestamp: getTimestamp(),
+          type: "text",
+          modelName: "Ultra AI 4",
+          isGeneratingMedia: false,
+        };
+        setMessages((prev) => [...prev, placeholder]);
+
+        const result = await requestFlowMusicChat(text, (progress) => {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === placeholderId
+                ? { ...m, text: progress.message || "Ultra AI 4 jawab tayyar kar raha hai..." }
+                : m
+            )
+          );
+        });
+        if (result.ok && result.text) {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === placeholderId
+                ? {
+                    ...m,
+                    text: result.text as string,
+                    modelName: "Ultra AI 4",
+                    isGeneratingMedia: false,
+                  }
+                : m
+            )
+          );
+        } else {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === placeholderId
+                ? {
+                    ...m,
+                    type: "text",
+                    text: `⚠️ Ultra AI 4 se jawab nahi mil saka.\n\n${result.error || "Unknown error."}\n\nDobara try karein — ya header se "Connect" tap karke Ultra Chat AI dobara connect karein.`,
+                    isGeneratingMedia: false,
+                  }
+                : m
+            )
+          );
+        }
+        return;
+      }
+
       setIsGenerating(true);
       setTimeout(() => {
         const aiMessage = simulateAIResponse(text);

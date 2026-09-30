@@ -553,6 +553,276 @@
     }, 1600);
   }
 
+  // --------------------------------------------------------------------------
+  // AI chat driver — REAL text answers from the Flow Music AI
+  // --------------------------------------------------------------------------
+  // Types the prompt into the Flow Music AI composer, sends it, then watches
+  // the DOM until the assistant's reply settles and reports the text back.
+  //
+  // Selectors verified against the live site (Next.js custom chat UI):
+  //   input: textarea[aria-label="Chat message"]  (placeholder "Describe your song...")
+  //   send:  button[aria-label="Send message"]
+  // Assistant message containers are NOT in the logged-out DOM, so reply
+  // reading uses defensive heuristics: known assistant markers first, then
+  // "new visible text that was not there before we sent".
+  function reportChat(obj) {
+    try {
+      var n = native();
+      if (n && typeof n.onChatResult === "function") {
+        n.onChatResult(JSON.stringify(obj));
+      }
+    } catch (e) {
+      console.log("[FlowMusic Automation] chat report failed: " + e);
+    }
+  }
+
+  function findChatInput() {
+    // 1) Verified selector from the live site.
+    try {
+      var v = document.querySelector('textarea[aria-label="Chat message"]');
+      if (v && visible(v)) return v;
+    } catch (e) {}
+    // 2) Heuristic fallback for future DOM changes.
+    var els = document.querySelectorAll('textarea, [contenteditable="true"], [role="textbox"]');
+    var best = null;
+    var bestScore = -1;
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      if (!visible(el)) continue;
+      var ph = (
+        (el.getAttribute("placeholder") || "") +
+        " " +
+        (el.getAttribute("aria-label") || "")
+      ).toLowerCase();
+      var score = 0;
+      if (/chat message/.test(ph)) score += 15;
+      if (/describe your song/.test(ph)) score += 10;
+      if (/\bask\b|\bmessage\b/.test(ph)) score += 8;
+      if (el.tagName === "TEXTAREA") score += 4;
+      if (score > bestScore) {
+        bestScore = score;
+        best = el;
+      }
+    }
+    return bestScore > 0 ? best : null;
+  }
+
+  function findChatSendButton() {
+    // 1) Verified selector from the live site.
+    try {
+      var v = document.querySelector('button[aria-label="Send message"]');
+      if (v && visible(v) && !v.disabled) return v;
+    } catch (e) {}
+    // 2) Generic fallback (shared music-studio heuristic).
+    return findGenerateButton();
+  }
+
+  function isGeneratingNow() {
+    try {
+      var stop = document.querySelector(
+        'button[aria-label="Stop"], button[aria-label="Stop generating"], button[aria-label="Cancel"]'
+      );
+      if (stop && visible(stop)) return true;
+    } catch (e) {}
+    return false;
+  }
+
+  // Known assistant-message markers used by chat UIs (checked first).
+  function markedAssistantTexts() {
+    var out = [];
+    var sels = [
+      '[data-message-author-role="assistant"]',
+      '[data-role="assistant"]',
+      '[data-testid*="assistant" i]',
+      '[class*="assistant-message" i]',
+    ];
+    for (var s = 0; s < sels.length; s++) {
+      var els;
+      try {
+        els = document.querySelectorAll(sels[s]);
+      } catch (e) {
+        continue;
+      }
+      for (var i = 0; i < els.length; i++) {
+        if (!visible(els[i])) continue;
+        var t = (els[i].innerText || "").replace(/\s+/g, " ").trim();
+        if (t.length >= 2) out.push(t);
+      }
+    }
+    return out;
+  }
+
+  // Fallback: every visible leaf text block on the page.
+  function leafTexts() {
+    var out = [];
+    var els = document.querySelectorAll("div, p, li, span, td");
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      if (el.children.length !== 0) continue;
+      if (!visible(el)) continue;
+      var t = (el.innerText || "").replace(/\s+/g, " ").trim();
+      if (t.length < 8 || t.length > 12000) continue;
+      out.push(t);
+    }
+    return out;
+  }
+
+  function snapshotTexts() {
+    var set = {};
+    var marked = markedAssistantTexts();
+    var leafs = leafTexts();
+    for (var i = 0; i < marked.length; i++) set[marked[i]] = true;
+    for (var j = 0; j < leafs.length; j++) set[leafs[j]] = true;
+    return set;
+  }
+
+  // Longest visible text that was NOT on screen before we sent the prompt.
+  function findNewReplyText(before, promptText) {
+    var best = "";
+    function consider(t) {
+      if (!t || t.length < 2) return;
+      if (before[t]) return;
+      // Never mistake our own echoed prompt (or a prefix of the reply that
+      // merely quotes it) for the answer.
+      if (promptText && (t === promptText || t.indexOf(promptText) === 0)) return;
+      if (t.length > best.length) best = t;
+    }
+    var marked = markedAssistantTexts();
+    for (var i = 0; i < marked.length; i++) consider(marked[i]);
+    // Only fall back to generic leaf blocks when no marked assistant node exists.
+    if (marked.length === 0) {
+      var leafs = leafTexts();
+      for (var j = 0; j < leafs.length; j++) consider(leafs[j]);
+    }
+    return best;
+  }
+
+  FLOW.chat = function (prompt) {
+    log("Chat requested: " + prompt);
+    if (!prompt || !prompt.trim()) {
+      reportChat({ ok: false, error: "Empty prompt." });
+      return;
+    }
+
+    reportProgress("queued", "Ultra AI 4 se connect ho gaya. Jawab tayyar ho raha hai...");
+
+    var attempts = 0;
+    var maxAttempts = 24; // ~12s for the SPA to settle
+    function locateAndRun() {
+      var input = findChatInput();
+      if (!input) {
+        attempts++;
+        if (attempts >= maxAttempts) {
+          reportChat({
+            ok: false,
+            error: "Ultra AI 4 chat is not ready. Sign in to Ultra Chat AI first, then try again.",
+          });
+          return;
+        }
+        reportProgress("waiting_chat", "Ultra AI 4 chat load ho raha hai... (" + attempts + ")");
+        setTimeout(locateAndRun, 500);
+        return;
+      }
+      runChat(input, prompt);
+    }
+    locateAndRun();
+  };
+
+  function runChat(input, prompt) {
+    var before = snapshotTexts();
+    if (!setInputValue(input, prompt.trim())) {
+      reportChat({ ok: false, error: "Could not write into the Ultra AI 4 chat box." });
+      return;
+    }
+    log("Prompt written into chat input.");
+    reportProgress("prompt_entered", "Sawal Ultra AI 4 ko bhej diya gaya hai.");
+
+    setTimeout(function () {
+      var btn = findChatSendButton();
+      if (!btn) {
+        reportChat({ ok: false, error: "Could not find the Send button on Ultra AI 4 chat." });
+        return;
+      }
+      try {
+        btn.click();
+      } catch (e) {
+        reportChat({ ok: false, error: "Failed to send the message to Ultra AI 4." });
+        return;
+      }
+      // Some builds submit on Enter instead of the button; if the textarea
+      // still holds our text after the click, press Enter as a fallback.
+      setTimeout(function () {
+        try {
+          var stillThere = (input.value || input.textContent || "").trim();
+          if (stillThere && stillThere.indexOf(prompt.trim().slice(0, 24)) !== -1) {
+            input.dispatchEvent(
+              new KeyboardEvent("keydown", { key: "Enter", code: "Enter", bubbles: true })
+            );
+          }
+        } catch (e) {}
+      }, 1200);
+
+      reportProgress("thinking", "Ultra AI 4 jawab soch raha hai...");
+      watchChatReply(before, prompt.trim());
+    }, 1400);
+  }
+
+  function watchChatReply(before, promptText) {
+    var started = Date.now();
+    var settled = false;
+    var lastText = "";
+    var stablePolls = 0;
+    var lastTick = 0;
+    var announcedReplying = false;
+
+    var timer = setInterval(function () {
+      if (settled) return;
+      var current = findNewReplyText(before, promptText);
+
+      if (current && !announcedReplying) {
+        announcedReplying = true;
+        reportProgress("replying", "Ultra AI 4 jawab likh raha hai...");
+      }
+
+      if (current === lastText && current) {
+        stablePolls++;
+      } else {
+        stablePolls = 0;
+        lastText = current;
+      }
+
+      // Reply is done when the text stops growing for ~4.5s (3 polls) and
+      // the model is no longer generating.
+      if (lastText && stablePolls >= 3 && !isGeneratingNow()) {
+        settled = true;
+        clearInterval(timer);
+        log("Chat reply captured (" + lastText.length + " chars).");
+        reportChat({ ok: true, text: lastText });
+        return;
+      }
+
+      var elapsed = Math.round((Date.now() - started) / 1000);
+      if (elapsed - lastTick >= 8) {
+        lastTick = elapsed;
+        reportProgress(
+          isGeneratingNow() || announcedReplying ? "replying" : "thinking",
+          "Ultra AI 4 jawab tayyar kar raha hai... (" + elapsed + "s)"
+        );
+      }
+      if (Date.now() - started > 240000) {
+        settled = true;
+        clearInterval(timer);
+        // If we captured a partial reply, still deliver it rather than failing.
+        if (lastText) {
+          log("Chat reply timed out; delivering partial text.");
+          reportChat({ ok: true, text: lastText, partial: true });
+        } else {
+          reportChat({ ok: false, error: "Ultra AI 4 se jawab nahi mil saka (timeout)." });
+        }
+      }
+    }, 1500);
+  }
+
   FLOW.ready = true;
   return "flowmusic-automation-ready";
 })();

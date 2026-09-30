@@ -43,6 +43,13 @@ export interface FlowMusicTrackResult {
   error?: string;
 }
 
+export interface FlowMusicChatResult {
+  ok: boolean;
+  text?: string;
+  partial?: boolean;
+  error?: string;
+}
+
 export interface FlowMusicProgress {
   stage: string;
   message: string;
@@ -235,6 +242,64 @@ export function requestFlowMusicTrack(
 
     try {
       bridge.generateFlowMusicTrack(prompt);
+    } catch (err) {
+      settled = true;
+      cleanup();
+      resolve({ ok: false, error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Real AI chat answers via the native Flow Music session
+// ---------------------------------------------------------------------------
+export function requestFlowMusicChat(
+  prompt: string,
+  onProgress?: (progress: FlowMusicProgress) => void
+): Promise<FlowMusicChatResult> {
+  return new Promise((resolve) => {
+    const bridge = getBridge();
+    if (!bridge || typeof bridge.generateFlowMusicChat !== "function") {
+      resolve({
+        ok: false,
+        error:
+          "Ultra AI 4 chat is only available inside the PK-AI Android app with a connected Ultra Chat AI account.",
+      });
+      return;
+    }
+
+    let settled = false;
+
+    // Live progress listener (queued -> thinking -> replying), streamed by native.
+    const progressHandler = (e: Event) => {
+      if (settled) return;
+      const detail = (e as CustomEvent).detail as FlowMusicProgress;
+      if (detail && typeof onProgress === "function") onProgress(detail);
+    };
+    window.addEventListener("pkai:flowmusic_progress", progressHandler);
+
+    const timeout = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve({ ok: false, error: "Ultra AI 4 se jawab nahi mil saka. Dobara try karein." });
+    }, 270000);
+
+    function cleanup() {
+      clearTimeout(timeout);
+      window.removeEventListener("pkai:flowmusic_progress", progressHandler);
+      delete (window as any).onFlowMusicChatResult;
+    }
+
+    (window as any).onFlowMusicChatResult = (data: FlowMusicChatResult) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(data || { ok: false, error: "No response from Ultra AI 4." });
+    };
+
+    try {
+      bridge.generateFlowMusicChat(prompt);
     } catch (err) {
       settled = true;
       cleanup();

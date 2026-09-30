@@ -102,7 +102,10 @@ export function connectFlowMusic(): void {
   if (bridge && typeof bridge.connectFlowMusic === "function") {
     bridge.connectFlowMusic();
   } else {
-    window.open("https://www.flowmusic.app", "_blank");
+    // The Browse/Studio website must NEVER open: keep the user in-app and
+    // let the banner/header entry points drive the native connect instead.
+    console.warn("FlowMusic bridge unavailable; connect not attempted.");
+    window.dispatchEvent(new CustomEvent("pkai:flowmusic_status", { detail: { signedIn: false } }));
   }
 }
 

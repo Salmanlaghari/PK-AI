@@ -209,25 +209,33 @@ object FlowMusicOAuth {
      * display in the UI. Prefers Supabase's `error_description` / `error` /
      * `message` fields (that is exactly what identifies e.g. an untrusted
      * Google client id on `grant_type=id_token` failures), falls back to the
-     * raw body, and scrubs anything that looks like a token so a misbehaving
-     * backend can never leak secrets into the UI or logs. Null when there is
-     * nothing worth showing.
+     * raw body, and best-effort scrubs anything token-shaped before it
+     * reaches the UI or logs. Returns null when there is nothing worth
+     * showing - including markup bodies (proxy / captive-portal pages),
+     * which are never rendered to the user.
      */
     fun sanitizedErrorSnippet(body: String): String? {
-        if (body.isBlank()) return null
+        val trimmed = body.trim()
+        if (trimmed.isEmpty() || trimmed.startsWith("<")) return null
         val raw = try {
-            val json = JSONObject(body)
-            json.optString("error_description")
-                .ifBlank { json.optString("error") }
-                .ifBlank { json.optString("message") }
-                .ifBlank { json.optString("msg") }
-                .ifBlank { body }
+            val json = JSONObject(trimmed)
+            // NB: org.json's optString() returns the literal "null" for a
+            // JSON null - only real strings count here.
+            jsonStringOrEmpty(json, "error_description")
+                .ifBlank { jsonStringOrEmpty(json, "error") }
+                .ifBlank { jsonStringOrEmpty(json, "message") }
+                .ifBlank { jsonStringOrEmpty(json, "msg") }
+                .ifBlank { trimmed }
         } catch (e: JSONException) {
-            body
+            trimmed
         }.trim()
-        if (raw.isBlank()) return null
+        if (raw.isEmpty() || raw.startsWith("<")) return null
         return scrubTokens(raw).take(160).ifBlank { null }
     }
+
+    /** Returns the named value only when it is a real (non-null) string. */
+    private fun jsonStringOrEmpty(json: JSONObject, name: String): String =
+        (json.opt(name) as? String).orEmpty()
 
     /** Removes JWT-shaped strings and named token values from free text. */
     private fun scrubTokens(text: String): String =
@@ -275,6 +283,15 @@ object FlowMusicOAuth {
                     JSONObject(text)
                 } catch (e: JSONException) {
                     Log.w(TAG, "ID-token exchange: 2xx with non-JSON body (${text.length} chars)")
+                    return ExchangeResult.MalformedResponse(text.take(200))
+                }
+                // A 2xx that carries no usable session (empty object, an
+                // error payload, an unrelated gateway body) must not be
+                // treated as Success - the caller would otherwise persist
+                // and inject a token-less "session" while the UI looks
+                // connected.
+                if (json.has("error") || (json.opt("access_token") as? String).isNullOrBlank()) {
+                    Log.w(TAG, "ID-token exchange: 2xx without a session payload")
                     return ExchangeResult.MalformedResponse(text.take(200))
                 }
                 ExchangeResult.Success(withExpiry(json))

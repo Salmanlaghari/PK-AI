@@ -713,7 +713,9 @@
   }
 
   function snapshotTexts() {
-    var set = {};
+    // Null-prototype object: a visible text block equal to "constructor",
+    // "toString", etc. must not be mistaken for "already seen".
+    var set = Object.create(null);
     var marked = markedAssistantTexts();
     var leafs = leafTexts();
     for (var i = 0; i < marked.length; i++) set[marked[i]] = true;
@@ -819,9 +821,12 @@
         try {
           var stillThere = (input.value || input.textContent || "").trim();
           if (stillThere && stillThere.indexOf(prompt.trim().slice(0, 24)) !== -1) {
-            input.dispatchEvent(
-              new KeyboardEvent("keydown", { key: "Enter", code: "Enter", bubbles: true })
-            );
+            // Synthetic key events are untrusted; some frameworks ignore
+            // keydown alone, so send the full keydown/keypress/keyup trio.
+            var init = { key: "Enter", code: "Enter", bubbles: true, cancelable: true };
+            input.dispatchEvent(new KeyboardEvent("keydown", init));
+            input.dispatchEvent(new KeyboardEvent("keypress", init));
+            input.dispatchEvent(new KeyboardEvent("keyup", init));
           }
         } catch (e) {}
       }, 1200);

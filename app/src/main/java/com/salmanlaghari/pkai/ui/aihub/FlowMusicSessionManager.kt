@@ -90,6 +90,9 @@ class FlowMusicSessionManager @Inject constructor(
      * (caller should fall back to the manual connect flow), or the refresh
      * hit a transport error (the stored session is kept for a later retry).
      */
+    /** Synchronous best-effort check: is there a stored session right now? */
+    fun hasStoredSession(): Boolean = secureStore.getSessionJson()?.isNotBlank() == true
+
     suspend fun getValidSessionJson(): JSONObject? = withContext(Dispatchers.IO) {
         refreshMutex.withLock { ensureLegacySessionMigrated() }
         val stored = secureStore.getSessionJson() ?: return@withContext null

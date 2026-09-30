@@ -44,8 +44,15 @@ class FlowMusicBridgeConnectViewModel @Inject constructor(
 
     /**
      * Starts the exchange unless the same token is already running or done
-     * (double-tap / re-entry safety). A NEW token (fresh login, e.g. after a
-     * logout in the same activity lifetime) always starts a fresh exchange.
+     * (double-tap / re-entry safety). A NEW token (fresh login) always starts
+     * a fresh exchange.
+     *
+     * The ViewModel is activity-scoped, so its state can outlive a logout:
+     * logout clears the Flow Music session but not this ViewModel. If the
+     * next login yields the same ID token (Google tokens are cached up to an
+     * hour), the Connected+same-token short-circuit below must NOT fire when
+     * the session is actually gone — otherwise the user ends up with a PK-AI
+     * session but no Flow Music bridge and no error.
      */
     fun connect(idToken: String, email: String?) {
         val current = _state.value
@@ -54,8 +61,11 @@ class FlowMusicBridgeConnectViewModel @Inject constructor(
             return
         }
         if (current is ConnectState.Connected && idToken == lastToken) {
-            Log.d("PKAI_AUTH", "Bridge already connected for this token; ignoring re-entry")
-            return
+            if (sessionManager.hasStoredSession()) {
+                Log.d("PKAI_AUTH", "Bridge already connected for this token; ignoring re-entry")
+                return
+            }
+            Log.d("PKAI_AUTH", "Bridge marked connected but session is gone (logout?); re-running exchange")
         }
         lastToken = idToken
         _state.value = ConnectState.Connecting(email)

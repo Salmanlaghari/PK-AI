@@ -49,8 +49,10 @@ object FlowMusicOAuth {
      * (wording changes), but status-only matching is too eager: an
      * intermediate layer (corporate proxy, WAF, captive portal, CDN) can also
      * produce 400/401, usually as an HTML page or an empty body. Middle
-     * ground: 400/401 counts as a rejection only when the body looks like a
-     * real JSON error from the token endpoint. Only unambiguously transient
+     * ground: 400/401 counts as a rejection only when the body is JSON AND
+     * carries auth-error keys (Supabase emits {"error": ..., "error_description":
+     * ...} or {"msg": ...}) — a JSON error page from a proxy/WAF without those
+     * keys keeps the session. Only unambiguously transient
      * codes (408 timeout, 429 rate limit, 5xx) keep the stored session for a
      * later retry — otherwise a dead token would retry forever.
      */
@@ -68,6 +70,18 @@ object FlowMusicOAuth {
         }
         if (!trimmed.startsWith("{")) {
             Log.w(TAG, "Non-JSON $httpCode body on refresh; keeping session")
+            return false
+        }
+        // JSON, but is it an AUTH error? Require Supabase-shaped keys so a
+        // JSON error page from a proxy/WAF does not nuke a valid session.
+        val looksLikeAuthError = try {
+            val json = JSONObject(trimmed)
+            json.has("error") || json.has("error_description") || json.has("msg") || json.has("message")
+        } catch (_: Exception) {
+            false
+        }
+        if (!looksLikeAuthError) {
+            Log.w(TAG, "JSON $httpCode body without auth-error keys; keeping session")
             return false
         }
         Log.w(TAG, "Refresh token rejected ($httpCode): ${trimmed.take(160)}")
@@ -307,7 +321,9 @@ object FlowMusicOAuth {
                 Log.w(TAG, "Session refresh failed ($code): $text")
                 // A genuine auth failure drops the session; transient codes
                 // (408/429/5xx) keep it for a later retry. 400/401 is decided
-                // by status code, not body text (see isAuthRejection).
+                // by isAuthRejection: status code plus a Supabase-shaped JSON
+                // error body, so proxy/WAF/captive-portal pages keep the
+                // session instead of forcing a re-login.
                 return if (isAuthRejection(code, text)) RefreshResult.AuthRejected
                 else RefreshResult.TransportError
             }

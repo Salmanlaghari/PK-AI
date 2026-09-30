@@ -59,9 +59,23 @@ class FlowMusicSecureStore @Inject constructor(
      * KeyStoreException, ProviderException, UserNotAuthenticatedException,
      * IOException, SecurityException — is treated as transient: the keyset
      * file is kept so a later call can succeed.
+     *
+     * The signal is searched along the whole CAUSE chain, not just the top
+     * level: EncryptedSharedPreferences/Tink report keyset failures as
+     * GeneralSecurityException("Could not read keyset") with the
+     * AEADBadTagException as cause, and MasterKey failures surface as
+     * ProviderException/KeyStoreException wrapping UnrecoverableKeyException.
      */
-    private fun isCorruptionSignal(e: Exception): Boolean =
-        e is AEADBadTagException || e is UnrecoverableKeyException
+    private fun isCorruptionSignal(e: Exception): Boolean {
+        var cur: Throwable? = e
+        var depth = 0
+        while (cur != null && depth < 10) {
+            if (cur is AEADBadTagException || cur is UnrecoverableKeyException) return true
+            cur = cur.cause
+            depth++
+        }
+        return false
+    }
 
     private fun prefsOrNull(): SharedPreferences? {
         prefs?.let { return it }

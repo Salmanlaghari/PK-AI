@@ -231,10 +231,14 @@ val syncWebAssets by tasks.registering(Exec::class) {
     // as an output. Other tasks (merge assets, lint model, ...) consume
     // src/main/assets without depending on this task, and declaring it as an
     // output fails Gradle validation ("uses this output ... without declaring
-    // an explicit or implicit dependency"). Re-run the sync if the shipped
-    // assets ever go missing instead.
+    // an explicit or implicit dependency"). Instead this best-effort sentinel
+    // re-runs the sync whenever one of the runtime-critical shipped files is
+    // missing: index.html (the page), flowmusic-automation.js (injected by
+    // AiHubFragment), and the assets/ chunk directory (hashed js/css).
     outputs.upToDateWhen {
-        webAssetsDir.resolve("index.html").isFile
+        webAssetsDir.resolve("index.html").isFile &&
+            webAssetsDir.resolve("flowmusic-automation.js").isFile &&
+            webAssetsDir.resolve("assets").isDirectory
     }
 
     workingDir = webDir
@@ -246,7 +250,9 @@ val syncWebAssets by tasks.registering(Exec::class) {
     val isWindows = System.getProperty("os.name").lowercase().contains("windows")
     val npmCmd = if (isWindows) "npm.cmd" else "npm"
 
-    // Probe for node first; without it there is nothing to do.
+    // Probe for node first; without it there is nothing to do. didBuild tracks
+    // whether the npm build actually ran: the no-node probe below exits 0 by
+    // design, so the exit code alone cannot prove a fresh build happened.
     val nodeOk = try {
         val probe = ProcessBuilder(if (isWindows) "node.exe" else "node", "--version")
             .redirectErrorStream(true)
@@ -255,6 +261,7 @@ val syncWebAssets by tasks.registering(Exec::class) {
     } catch (_: Exception) {
         false
     }
+    val didBuild = nodeOk
     if (!nodeOk) {
         logger.warn("syncWebAssets: node not found - keeping committed web assets.")
         if (isWindows) {
@@ -273,6 +280,13 @@ val syncWebAssets by tasks.registering(Exec::class) {
     }
 
     doLast {
+        // Never touch the shipped assets unless the npm build really ran.
+        // (The no-node probe exits 0 by design, and a stale dist/ from an
+        // older run could otherwise be mistaken for a fresh build.)
+        if (!didBuild) {
+            logger.warn("syncWebAssets: node not available - keeping committed web assets.")
+            return@doLast
+        }
         // `vite build` empties dist/ before writing, so a build that dies
         // mid-way leaves an empty/partial directory: only sync when npm
         // exited 0 AND dist/index.html actually exists.

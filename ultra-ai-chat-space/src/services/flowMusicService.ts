@@ -29,6 +29,10 @@ export interface FlowMusicStatus {
   name?: string;
   hasStudio?: boolean;
   url?: string;
+  /** True when the silent auto-connect was skipped: the device's authorized
+   *  Google account differs from the PK-AI sign-in account. The user should
+   *  tap "Connect karein" and pick the PK-AI account manually. */
+  accountMismatch?: boolean;
 }
 
 export interface FlowMusicTrackResult {

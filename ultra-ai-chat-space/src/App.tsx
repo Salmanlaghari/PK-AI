@@ -447,7 +447,11 @@ function App() {
         {!flowConnected && (
           <div className="shrink-0 px-4 py-2 bg-gradient-to-r from-pink-950/60 via-purple-950/40 to-slate-950 border-b border-pink-900/40 flex items-center justify-center gap-2 text-[12px] text-pink-200">
             <Plug className="w-3.5 h-3.5 text-pink-400" />
-            <span>Ultra Chat AI connect nahi hai — real songs generate karne ke liye</span>
+            {flowStatus.accountMismatch ? (
+              <span>Device ka Google account PK-AI wale account se mukhtalif hai — real songs ke liye</span>
+            ) : (
+              <span>Ultra Chat AI connect nahi hai — real songs generate karne ke liye</span>
+            )}
             <button
               onClick={handleOpenFlowMusic}
               className="font-semibold text-pink-300 underline underline-offset-2 hover:text-white"

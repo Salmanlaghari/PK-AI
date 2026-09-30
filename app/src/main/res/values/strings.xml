@@ -22,10 +22,8 @@
     <string name="msg_music_engine_connecting">Ultra AI music engine connect ho raha hai…\n\nAapka wohi Google account use hoga jis se aap ne sign-in kiya hai.</string>
     <string name="msg_music_engine_connecting_named">%1$s se Ultra AI music engine connect ho raha hai…\n\nAapka wohi Google account use hoga jis se aap ne sign-in kiya hai.</string>
     <string name="msg_music_connected">Ultra AI music connected \u2713</string>
-    <!-- Shown when the browser-based connect flow never returned to the app
-         (e.g. the app redirect was not allowlisted by the backend) -->
+    <!-- Shown when the in-app (native Google picker) connect fails -->
     <string name="title_music_connect_failed">Connect nahi ho saka</string>
-    <string name="msg_music_connect_failed">Browser se wapas aate waqt Ultra Chat AI ka connect mukammal nahi ho saka.\n\nAam wajah: app ka redirect backend mein allow nahi. Dobara try karein — ya Google popup se connect karein.</string>
     <string name="btn_retry">Dobara try karein</string>
     <string name="default_web_client_id" translatable="false">193399978595-7m1be36k2ud87o0bgu95b4q012b5psnj.apps.googleusercontent.com</string>
 

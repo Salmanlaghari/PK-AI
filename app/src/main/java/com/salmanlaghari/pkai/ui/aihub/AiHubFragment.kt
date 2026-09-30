@@ -27,7 +27,6 @@ import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AlertDialog
-import androidx.browser.customtabs.CustomTabsIntent
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
@@ -42,7 +41,6 @@ import com.salmanlaghari.pkai.R
 import com.salmanlaghari.pkai.data.repository.AuthRepository
 import com.salmanlaghari.pkai.databinding.FragmentAiHubBinding
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -88,25 +86,12 @@ class AiHubFragment : Fragment() {
      */
     private var silentAccountMismatch = false
 
-    /** PKCE code_verifier for the in-flight OAuth connection (Custom Tab flow). */
-    private var pendingCodeVerifier: String? = null
-
-    /**
-     * Tracks the browser fallback: set when the Custom Tab is launched, set
-     * to true when its `pkai://auth-callback` deep link arrives. If the tab
-     * was launched but no callback ever comes back (redirect not allowlisted
-     * by the backend), the user would otherwise be left staring at the
-     * FlowMusic website - onResume() turns that into an in-app error dialog.
-     */
-    private var customTabLaunched = false
-    private var customTabCallbackReceived = false
-
     /**
      * The "connect failed" dialog. Kept in a field so onDestroyView() can
      * dismiss it — an inline dialog would leak the window on rotation or
      * navigation (WindowLeaked).
      */
-    private var customTabFailedDialog: AlertDialog? = null
+    private var connectFailedDialog: AlertDialog? = null
 
     /** True once the hidden backend engine WebView finished its first page load. */
     private var backendPageLoaded = false
@@ -162,10 +147,6 @@ class AiHubFragment : Fragment() {
         // Silent auto-connect: the PK-AI Google account powers the Flow Music
         // bridge automatically - no Browse UI, no extra popup here.
         restoreFlowMusicSessionSilently()
-
-        // Receive the OAuth deep link forwarded by MainActivity (flushes any
-        // link that arrived during a cold start).
-        FlowMusicOAuth.register { uri -> handleFlowMusicCallback(uri) }
 
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -532,11 +513,12 @@ class AiHubFragment : Fragment() {
     }
 
     /**
-     * Starts the Flow Music connection via Google Sign In / Sign Up popup directly.
+     * Starts the Flow Music connection via the native Google account picker.
      *
-     * Manual fallback path (kept for guests and for cases where the silent
+     * Manual path (kept for guests and for cases where the silent
      * auto-connect could not obtain a session). Google-signed-in users
      * normally never reach this - the bridge connects automatically.
+     * Fully in-app: the FlowMusic website is never opened.
      */
     fun connectFlowMusic() {
         activity?.runOnUiThread {
@@ -545,7 +527,11 @@ class AiHubFragment : Fragment() {
     }
 
     /**
-     * Native, browser-free connect: Google pop-up -> ID token -> backend session.
+     * Connect: native Google account picker -> ID token -> backend session.
+     * Fully in-app and browser-free. The FlowMusic website is NEVER opened:
+     * an earlier Chrome Custom Tab fallback stranded users on the website
+     * (the app redirect is not allowlisted backend-side), so every failure
+     * now stays in-app with an honest error + retry instead.
      */
     private fun startNativeFlowMusicConnect() {
         val clientId = try {
@@ -557,8 +543,12 @@ class AiHubFragment : Fragment() {
         // mismatch hint no longer applies.
         silentAccountMismatch = false
         if (clientId.isBlank()) {
-            // No native client id configured -> use the browser fallback.
-            startCustomTabFlowMusicConnect()
+            // Build-time misconfiguration: no browser fallback exists anymore.
+            Log.e("AiHubFragment", "Flow Music connect: default_web_client_id is blank")
+            onFlowMusicConnectFailed(
+                reason = "App ki setting adhoori hai (Google client id missing).",
+                retryable = false
+            )
             return
         }
 
@@ -600,130 +590,133 @@ class AiHubFragment : Fragment() {
                     }
 
                     // Exchange the ID token for a real music-backend session.
-                    val session = withContext(Dispatchers.IO) {
-                        FlowMusicOAuth.exchangeIdTokenForSession(idToken)
-                    }
-                    if (session != null) {
-                        // Persist so the silent auto-connect revives it later.
-                        try {
-                            flowMusicSessionManager.connectWithSessionJson(session)
-                        } catch (e: Exception) {
-                            Log.w("AiHubFragment", "Could not persist bridge session: ${e.message}")
+                    when (val exchange = withContext(Dispatchers.IO) {
+                        FlowMusicOAuth.exchangeIdTokenForSessionDetailed(idToken)
+                    }) {
+                        is FlowMusicOAuth.ExchangeResult.Success -> {
+                            // Persist so the silent auto-connect revives it later.
+                            try {
+                                flowMusicSessionManager.connectWithSessionJson(exchange.session)
+                            } catch (e: Exception) {
+                                Log.w("AiHubFragment", "Could not persist bridge session: ${e.message}")
+                            }
+                            injectSessionIntoEngine(exchange.session)
                         }
-                        injectSessionIntoEngine(session)
-                    } else {
-                        // Backend rejected the ID token -> browser fallback.
-                        Log.w("AiHubFragment", "ID-token rejected; using Custom Tab fallback")
-                        startCustomTabFlowMusicConnect()
+                        is FlowMusicOAuth.ExchangeResult.Rejected -> {
+                            // Backend refused the ID token - no browser
+                            // fallback; report the real reason in-app.
+                            // Classify by status so a 429 / 5xx is not
+                            // misreported as "account refused".
+                            val snippet = FlowMusicOAuth.sanitizedErrorSnippet(exchange.errorBody)
+                            Log.w("AiHubFragment", "ID-token rejected (${exchange.httpCode})" + (snippet?.let { ": $it" } ?: ""))
+                            val reason = when (exchange.httpCode) {
+                                429 -> "Bahut zyada koshishen ho gayin - thodi der baad dobara try karein (429)."
+                                in 500..599 -> "FlowMusic ka server abhi masla kar raha hai (code ${exchange.httpCode}) - thodi der baad try karein."
+                                else -> buildString {
+                                    append("FlowMusic ne Google account qabool nahi kiya (code ${exchange.httpCode}).")
+                                    if (!snippet.isNullOrBlank()) append("\nWajah: $snippet")
+                                }
+                            }
+                            onFlowMusicConnectFailed(reason = reason, retryable = true)
+                        }
+                        is FlowMusicOAuth.ExchangeResult.MalformedResponse -> {
+                            // Bad server response (not a network problem).
+                            // The stored snippet is raw - only the sanitized
+                            // form may reach the UI or logs.
+                            val malformedSnippet = FlowMusicOAuth.sanitizedErrorSnippet(exchange.body)
+                            Log.w("AiHubFragment", "ID-token exchange: malformed server response" + (malformedSnippet?.let { ": $it" } ?: ""))
+                            onFlowMusicConnectFailed(
+                                reason = buildString {
+                                    append("Server se ghalat jawab aaya - dobara try karein.")
+                                    if (!malformedSnippet.isNullOrBlank()) append("\nWajah: $malformedSnippet")
+                                },
+                                retryable = true
+                            )
+                        }
+                        FlowMusicOAuth.ExchangeResult.TransportError -> {
+                            Log.w("AiHubFragment", "ID-token exchange transport error")
+                            onFlowMusicConnectFailed(
+                                reason = "Internet ya server se rabta nahi ho saka.",
+                                retryable = true
+                            )
+                        }
                     }
                 } else {
                     Log.w("AiHubFragment", "Unexpected credential type: ${credential.type}")
-                    startCustomTabFlowMusicConnect()
+                    onFlowMusicConnectFailed(
+                        reason = "Google account ki maloomat nahi mil saki.",
+                        retryable = true
+                    )
                 }
             } catch (e: androidx.credentials.exceptions.GetCredentialCancellationException) {
                 Log.d("AiHubFragment", "Native connect cancelled by user")
             } catch (e: androidx.credentials.exceptions.NoCredentialException) {
-                Log.w("AiHubFragment", "No Google account on device; using fallback")
-                startCustomTabFlowMusicConnect()
+                Log.w("AiHubFragment", "No Google account on device")
+                onFlowMusicConnectFailed(
+                    reason = "Device par koi Google account nahi mila.",
+                    retryable = true
+                )
             } catch (e: Exception) {
-                Log.e("AiHubFragment", "Native connect failed; using fallback", e)
-                startCustomTabFlowMusicConnect()
+                Log.e("AiHubFragment", "Native connect failed", e)
+                onFlowMusicConnectFailed(
+                    reason = "Connect karte waqt kharabi ho gayi.",
+                    retryable = true
+                )
             }
         }
     }
 
     /**
-     * Browser fallback: Chrome Custom Tab PKCE flow (used only if the native
-     * ID-token exchange is unavailable or rejected by the backend).
+     * Failed connect stays IN-APP: flips the web UI's button to its retry
+     * state ("Dobara try karein") and shows a native dialog with the real
+     * reason. The FlowMusic website is never opened.
      */
-    private fun startCustomTabFlowMusicConnect() {
+    private fun onFlowMusicConnectFailed(reason: String, retryable: Boolean) {
+        // Non-retryable failures (e.g. a build-time misconfiguration) must
+        // NOT flip the web banner to "Dobara try karein" - that would loop
+        // forever on a problem retrying can never fix.
+        if (retryable) dispatchConnectFailedToJs(reason)
+        if (!isAdded) return
         activity?.runOnUiThread {
-            viewLifecycleOwner.lifecycleScope.launch {
-                val email = try {
-                    authRepository.getSession().first().email?.takeIf { it.isNotBlank() }
-                } catch (e: Exception) {
-                    null
-                }
-
-                val verifier = FlowMusicOAuth.generateCodeVerifier()
-                pendingCodeVerifier = verifier
-                val challenge = FlowMusicOAuth.codeChallenge(verifier)
-                val url = FlowMusicOAuth.buildAuthorizeUrl(challenge, email)
-
-                val opened = openCustomTab(url)
-                if (!opened) {
-                    Log.d("AiHubFragment", "Custom tab not available")
-                }
-            }
-        }
-    }
-
-    fun openFlowMusicSignUp() = connectFlowMusic()
-
-    private fun openCustomTab(url: String): Boolean {
-        return try {
-            val intent = CustomTabsIntent.Builder()
-                .setShowTitle(true)
-                .build()
-            intent.launchUrl(requireContext(), Uri.parse(url))
-            // Arm the resume-guard: if the deep link never comes back, the
-            // user gets an in-app error instead of the FlowMusic website.
-            customTabLaunched = true
-            customTabCallbackReceived = false
-            true
-        } catch (e: Exception) {
-            Log.w("AiHubFragment", "Custom Tab launch failed: ${e.message}")
-            false
-        }
-    }
-
-    /** Handles the pkai://auth-callback redirect returned by the Custom Tab. */
-    private fun handleFlowMusicCallback(uri: Uri) {
-        customTabCallbackReceived = true
-        customTabLaunched = false
-        val code = uri.getQueryParameter("code")
-        val verifier = pendingCodeVerifier
-        if (code.isNullOrBlank() || verifier.isNullOrBlank()) {
-            Toast.makeText(
-                requireContext(),
-                "Ultra Chat AI connect nahi ho saka. Dobara try karein.",
-                Toast.LENGTH_LONG
-            ).show()
-            return
-        }
-
-        activity?.runOnUiThread {
-            Toast.makeText(
-                requireContext(),
-                "Ultra Chat AI account verify ho raha hai...",
-                Toast.LENGTH_SHORT
-            ).show()
-        }
-
-        viewLifecycleOwner.lifecycleScope.launch {
-            val session = withContext(Dispatchers.IO) {
-                FlowMusicOAuth.exchangeCodeForSession(code, verifier)
-            }
-            if (session == null) {
-                activity?.runOnUiThread {
-                    Toast.makeText(
-                        requireContext(),
-                        "Ultra Chat AI sign-in fail ho gaya. Dobara try karein.",
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
-                return@launch
-            }
-            pendingCodeVerifier = null
-            // Persist so the silent auto-connect revives this session later.
+            if (!isAdded) return@runOnUiThread
             try {
-                flowMusicSessionManager.connectWithSessionJson(session)
+                connectFailedDialog?.dismiss()
+                val builder = AlertDialog.Builder(requireContext())
+                    .setTitle(getString(R.string.title_music_connect_failed))
+                    .setMessage(reason)
+                    .setNegativeButton(android.R.string.cancel) { d, _ -> d.dismiss() }
+                if (retryable) {
+                    builder.setPositiveButton(getString(R.string.btn_retry)) { d, _ ->
+                        d.dismiss()
+                        startNativeFlowMusicConnect()
+                    }
+                }
+                // Clear the field on dismiss so a dismissed dialog (holding
+                // the Activity context) is not retained by the fragment.
+                builder.setOnDismissListener { connectFailedDialog = null }
+                connectFailedDialog = builder.create()
+                connectFailedDialog?.show()
             } catch (e: Exception) {
-                Log.w("AiHubFragment", "Could not persist bridge session: ${e.message}")
+                Log.w("AiHubFragment", "Could not show connect-failed dialog: ${e.message}")
             }
-            injectSessionIntoEngine(session)
         }
     }
+
+    /** Lets the web UI show its retry affordance with the real failure reason. */
+    private fun dispatchConnectFailedToJs(reason: String) {
+        activity?.runOnUiThread {
+            val quotedReason = JSONObject.quote(reason)
+            val js = """
+                (function(){
+                    try {
+                        window.dispatchEvent(new CustomEvent('pkai:flowmusic_connect_failed', { detail: { reason: $quotedReason } }));
+                    } catch(e) {}
+                })();
+            """.trimIndent()
+            _binding?.webviewUltraAi?.evaluateJavascript(js, null)
+        }
+    }
+
 
     /**
      * Sets the chunked `@supabase/ssr` session cookies for the engine host.
@@ -1258,62 +1251,11 @@ class AiHubFragment : Fragment() {
         CookieManager.getInstance().flush()
     }
 
-    override fun onResume() {
-        super.onResume()
-        // Browser-fallback guard: the Custom Tab was launched but its deep
-        // link never came back (e.g. the app redirect is not allowlisted, so
-        // the tab stayed on the FlowMusic website). Give the deep link a
-        // moment to flush through, then explain in-app instead of leaving
-        // the user stranded on the website.
-        if (customTabLaunched && !customTabCallbackReceived) {
-            // Capture the scope BEFORE scheduling: the delayed runnable must
-            // not dereference viewLifecycleOwner after the view is gone.
-            val resumeScope = viewLifecycleOwner.lifecycleScope
-            statusHandler.postDelayed({
-                if (!customTabLaunched || customTabCallbackReceived) return@postDelayed
-                customTabLaunched = false
-                resumeScope.launch {
-                    val connected = try {
-                        flowMusicSessionManager.getValidSessionJson() != null
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        false
-                    }
-                    if (!connected && isAdded) {
-                        showCustomTabFailedDialog()
-                    }
-                }
-            }, 2500)
-        }
-    }
-
-    /** In-app error for a browser connect that never returned to the app. */
-    private fun showCustomTabFailedDialog() {
-        if (!isAdded) return
-        try {
-            customTabFailedDialog?.dismiss()
-            customTabFailedDialog = AlertDialog.Builder(requireContext())
-                .setTitle(getString(R.string.title_music_connect_failed))
-                .setMessage(getString(R.string.msg_music_connect_failed))
-                .setPositiveButton(getString(R.string.btn_retry)) { d, _ ->
-                    d.dismiss()
-                    connectFlowMusic()
-                }
-                .setNegativeButton(android.R.string.cancel, null)
-                .setOnDismissListener { customTabFailedDialog = null }
-                .show()
-        } catch (e: Exception) {
-            Log.w("AiHubFragment", "Could not show connect-failed dialog: ${e.message}")
-        }
-    }
-
     override fun onDestroyView() {
         statusHandler.removeCallbacksAndMessages(null)
-        customTabFailedDialog?.dismiss()
-        customTabFailedDialog = null
+        connectFailedDialog?.dismiss()
+        connectFailedDialog = null
         CookieManager.getInstance().flush()
-        FlowMusicOAuth.unregister()
         _binding?.webviewFlowmusicBackend?.removeJavascriptInterface("FlowMusicNative")
         super.onDestroyView()
         _binding = null

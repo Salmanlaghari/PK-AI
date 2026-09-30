@@ -99,8 +99,13 @@ function App() {
     window.addEventListener("pkai:flowmusic_status", handleStatus);
     // A failed connect attempt must not touch flowStatus (see connectFlowMusic):
     // show a retry affordance instead of flipping the UI to "not connected".
-    const handleConnectFailed = () => {
-      setConnectError("Connect nahi ho saka — bridge tayyar nahi hai.");
+    const handleConnectFailed = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      setConnectError(
+        detail && typeof detail.reason === "string" && detail.reason.length > 0
+          ? detail.reason
+          : "Connect nahi ho saka — bridge tayyar nahi hai."
+      );
     };
     const clearConnectError = (e: Event) => {
       const detail = (e as CustomEvent).detail;

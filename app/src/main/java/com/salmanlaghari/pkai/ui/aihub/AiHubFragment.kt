@@ -728,7 +728,7 @@ class AiHubFragment : Fragment() {
             try {
                 val input = EditText(requireContext()).apply {
                     hint = getString(R.string.hint_paste_session)
-                    minLines = 4
+                    minLines = 3
                     isSingleLine = false
                 }
                 val container = FrameLayout(requireContext()).apply {
@@ -744,7 +744,7 @@ class AiHubFragment : Fragment() {
                 }
                 AlertDialog.Builder(requireContext())
                     .setTitle(getString(R.string.title_import_session))
-                    .setMessage(getString(R.string.msg_import_session_howto))
+                    .setMessage(getString(R.string.msg_import_session_paste))
                     .setView(container)
                     .setNegativeButton(android.R.string.cancel) { d, _ -> d.dismiss() }
                     .setPositiveButton(getString(R.string.btn_import_connect)) { d, _ ->

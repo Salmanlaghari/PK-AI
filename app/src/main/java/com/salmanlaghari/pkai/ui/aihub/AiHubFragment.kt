@@ -26,6 +26,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
+import androidx.appcompat.app.AlertDialog
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
@@ -41,6 +42,7 @@ import com.salmanlaghari.pkai.R
 import com.salmanlaghari.pkai.data.repository.AuthRepository
 import com.salmanlaghari.pkai.databinding.FragmentAiHubBinding
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -77,12 +79,44 @@ class AiHubFragment : Fragment() {
     private val statusHandler = Handler(Looper.getMainLooper())
     private var lastStatusJson = ""
     private var engineConnectedToastShown = false
+    /**
+     * True when the last silent auto-connect was skipped because the only
+     * authorized Google account differs from the PK-AI sign-in account.
+     * Surfaced to the web UI so the banner can tell the user to tap
+     * "Connect karein" and pick the PK-AI account (instead of failing
+     * silently with no feedback on multi-account devices).
+     */
+    private var silentAccountMismatch = false
 
     /** PKCE code_verifier for the in-flight OAuth connection (Custom Tab flow). */
     private var pendingCodeVerifier: String? = null
 
+    /**
+     * Tracks the browser fallback: set when the Custom Tab is launched, set
+     * to true when its `pkai://auth-callback` deep link arrives. If the tab
+     * was launched but no callback ever comes back (redirect not allowlisted
+     * by the backend), the user would otherwise be left staring at the
+     * FlowMusic website - onResume() turns that into an in-app error dialog.
+     */
+    private var customTabLaunched = false
+    private var customTabCallbackReceived = false
+
+    /**
+     * The "connect failed" dialog. Kept in a field so onDestroyView() can
+     * dismiss it — an inline dialog would leak the window on rotation or
+     * navigation (WindowLeaked).
+     */
+    private var customTabFailedDialog: AlertDialog? = null
+
     /** True once the hidden backend engine WebView finished its first page load. */
     private var backendPageLoaded = false
+
+    /**
+     * Set when [autoInjectSession] already reloaded the engine with a fresh
+     * session: the following [onEngineConnected] must show the toast but
+     * skip its own reload, otherwise every cold open stacks two reloads.
+     */
+    private var suppressNextEngineReload = false
 
     /**
      * Session captured by the silent auto-connect while the backend engine
@@ -265,7 +299,10 @@ class AiHubFragment : Fragment() {
                 // Guest users connect manually; nothing silent to do.
                 return@launch
             }
-            if (silentGoogleBridgeConnect()) {
+            // Pass the already-read email down so the credential check uses
+            // the same snapshot the gate above validated.
+            val pkaiEmail = user.email!!
+            if (silentGoogleBridgeConnect(pkaiEmail)) {
                 flowMusicSessionManager.getValidSessionJson()?.let { autoInjectSession(it) }
             }
         }
@@ -275,8 +312,12 @@ class AiHubFragment : Fragment() {
      * One silent Credential Manager attempt: only already-authorized Google
      * accounts, auto-select enabled. Returns true when a credential arrived
      * WITHOUT any user-visible UI and the bridge session was stored.
+     *
+     * The returned credential is matched against the PK-AI signed-in email:
+     * on multi-account devices the bridge must never bind to a different
+     * Google account than the one the user signed into PK-AI with.
      */
-    private suspend fun silentGoogleBridgeConnect(): Boolean {
+    private suspend fun silentGoogleBridgeConnect(pkaiEmail: String): Boolean {
         val clientId = try {
             getString(R.string.default_web_client_id)
         } catch (e: Exception) {
@@ -286,8 +327,11 @@ class AiHubFragment : Fragment() {
 
         return try {
             val credentialManager = CredentialManager.create(requireContext())
-            // filterByAuthorizedAccounts = true is what makes this silent: the
-            // system only returns an already-authorized account, no picker UI.
+            // filterByAuthorizedAccounts = true keeps this silent in the
+            // common case: the system only returns an already-authorized
+            // account without a picker. (It does not strictly guarantee no
+            // UI - the system may still show a sheet in edge cases - which
+            // is why any exception below simply falls back to manual.)
             val googleIdOption = GetGoogleIdOption.Builder()
                 .setFilterByAuthorizedAccounts(true)
                 .setServerClientId(clientId)
@@ -304,16 +348,27 @@ class AiHubFragment : Fragment() {
                 credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
             ) {
                 val googleIdToken = GoogleIdTokenCredential.createFrom(credential.data)
-                Log.i("AiHubFragment", "Silent Google bridge credential for ${googleIdToken.id}")
-                flowMusicSessionManager.connectWithIdToken(
-                    googleIdToken.idToken,
-                    googleIdToken.id
-                )
+                if (!googleIdToken.id.equals(pkaiEmail, ignoreCase = true)) {
+                    // Wrong account on a multi-account device: never bind the
+                    // bridge to it. Flag the mismatch so the web banner can
+                    // tell the user to connect manually with the PK-AI
+                    // account (the manual picker lets them choose it).
+                    Log.w("AiHubFragment", "Silent bridge credential is for a different account; skipping")
+                    silentAccountMismatch = true
+                    dispatchStatusToJs(statusJsonWithMismatchFlag())
+                    return false
+                }
+                silentAccountMismatch = false
+                flowMusicSessionManager.connectWithIdToken(googleIdToken.idToken)
             } else {
                 false
             }
         } catch (e: Exception) {
-            // Any failure (incl. "UI would be required") simply means the user
+            // Never swallow coroutine cancellation: the view lifecycle may be
+            // gone (fragment popped / onDestroyView) and structured
+            // concurrency must unwind instead of touching a detached fragment.
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            // Any other failure (incl. "UI would be required") simply means the user
             // stays on the manual connect path.
             Log.d("AiHubFragment", "Silent bridge connect unavailable: ${e.message}")
             false
@@ -334,6 +389,14 @@ class AiHubFragment : Fragment() {
                 pendingAutoSession = session
             }
             lastStatusJson = ""
+            // The reload above (or the pending one on page finish) already
+            // boots the engine with this session; onEngineConnected must not
+            // reload a second time when the probe reports signedIn.
+            suppressNextEngineReload = true
+            // Safety: if the engine page never finishes loading (or the probe
+            // never reports signedIn), a leaked flag must not swallow a
+            // genuinely needed reload forever.
+            statusHandler.postDelayed({ suppressNextEngineReload = false }, 20000)
             statusHandler.postDelayed({ probeFlowMusicSession() }, 3000)
         }
     }
@@ -344,12 +407,35 @@ class AiHubFragment : Fragment() {
             val signedIn = obj.optBoolean("signedIn", false)
             if (signedIn && !engineConnectedToastShown) {
                 engineConnectedToastShown = true
-                // Reload the engine so it picks up the freshly created session.
-                _binding?.webviewFlowmusicBackend?.reload()
+                if (suppressNextEngineReload) {
+                    suppressNextEngineReload = false
+                } else {
+                    // Reload the engine so it picks up the freshly created session.
+                    _binding?.webviewFlowmusicBackend?.reload()
+                }
                 Toast.makeText(requireContext(), "Ultra Chat AI connected ✓", Toast.LENGTH_SHORT).show()
             }
         } catch (e: Exception) {
             Log.w("AiHubFragment", "onEngineConnected: ${e.message}")
+        }
+    }
+
+    /**
+     * Builds the status JSON the web UI reads, injecting the
+     * `accountMismatch` hint when the silent auto-connect was skipped for a
+     * wrong-account credential. Only meaningful while signed out; a signed-in
+     * engine clears the flag's relevance.
+     */
+    private fun statusJsonWithMismatchFlag(): String {
+        val base = lastStatusJson.ifBlank { """{"signedIn":false,"hasStudio":false}""" }
+        return try {
+            val obj = JSONObject(base)
+            if (silentAccountMismatch && !obj.optBoolean("signedIn", false)) {
+                obj.put("accountMismatch", true)
+            }
+            obj.toString()
+        } catch (e: Exception) {
+            base
         }
     }
 
@@ -386,6 +472,36 @@ class AiHubFragment : Fragment() {
         }
     }
 
+    /** Delivers a real Flow Music AI chat reply to the Ultra AI chat WebView. */
+    private fun dispatchChatResultToJs(resultJson: String) {
+        activity?.runOnUiThread {
+            val quoted = JSONObject.quote(resultJson)
+            val js = """
+                (function(){
+                    try {
+                        var data = JSON.parse($quoted);
+                        if (typeof window.onFlowMusicChatResult === 'function') window.onFlowMusicChatResult(data);
+                        window.dispatchEvent(new CustomEvent('pkai:flowmusic_chat', { detail: data }));
+                    } catch(e) {}
+                })();
+            """.trimIndent()
+            _binding?.webviewUltraAi?.evaluateJavascript(js, null)
+        }
+    }
+
+    /** Drives a REAL Flow Music AI chat answer inside the backend session. */
+    private fun startFlowMusicChat(requestId: String?, prompt: String) {
+        val wv = _binding?.webviewFlowmusicBackend
+        if (wv == null) {
+            dispatchChatResultToJs("""{"ok":false,"error":"Ultra AI 4 engine unavailable.","requestId":${JSONObject.quote(requestId ?: "")}}""")
+            return
+        }
+        val quotedPrompt = JSONObject.quote(prompt)
+        val quotedId = JSONObject.quote(requestId ?: "")
+        val js = "if (window.__FLOW_AUTOMATION__ && window.__FLOW_AUTOMATION__.chat) { window.__FLOW_AUTOMATION__.chat($quotedId, $quotedPrompt); } else { window.FlowMusicNative && window.FlowMusicNative.onChatResult(JSON.stringify({ok:false,error:'Ultra AI 4 engine not ready. Please reconnect Ultra Chat AI.',requestId:$quotedId})); }"
+        wv.evaluateJavascript(js, null)
+    }
+
     /** Streams live generation progress into the Ultra AI chat bubble. */
     private fun dispatchProgressToJs(progressJson: String) {
         activity?.runOnUiThread {
@@ -403,14 +519,15 @@ class AiHubFragment : Fragment() {
         }
     }
 
-    private fun startFlowMusicGeneration(prompt: String) {
+    private fun startFlowMusicGeneration(requestId: String?, prompt: String) {
         val wv = _binding?.webviewFlowmusicBackend
         if (wv == null) {
-            dispatchTrackResultToJs("""{"ok":false,"error":"Ultra AI 4 engine unavailable."}""")
+            dispatchTrackResultToJs("""{"ok":false,"error":"Ultra AI 4 engine unavailable.","requestId":${JSONObject.quote(requestId ?: "")}}""")
             return
         }
-        val quoted = JSONObject.quote(prompt)
-        val js = "if (window.__FLOW_AUTOMATION__ && window.__FLOW_AUTOMATION__.generate) { window.__FLOW_AUTOMATION__.generate($quoted); } else { window.FlowMusicNative && window.FlowMusicNative.onTrackResult(JSON.stringify({ok:false,error:'Ultra AI 4 engine not ready. Please reconnect Ultra Chat AI.'})); }"
+        val quotedPrompt = JSONObject.quote(prompt)
+        val quotedId = JSONObject.quote(requestId ?: "")
+        val js = "if (window.__FLOW_AUTOMATION__ && window.__FLOW_AUTOMATION__.generate) { window.__FLOW_AUTOMATION__.generate($quotedId, $quotedPrompt); } else { window.FlowMusicNative && window.FlowMusicNative.onTrackResult(JSON.stringify({ok:false,error:'Ultra AI 4 engine not ready. Please reconnect Ultra Chat AI.',requestId:$quotedId})); }"
         wv.evaluateJavascript(js, null)
     }
 
@@ -436,6 +553,9 @@ class AiHubFragment : Fragment() {
         } catch (e: Exception) {
             ""
         }
+        // The user is choosing an account manually now; the stale silent
+        // mismatch hint no longer applies.
+        silentAccountMismatch = false
         if (clientId.isBlank()) {
             // No native client id configured -> use the browser fallback.
             startCustomTabFlowMusicConnect()
@@ -546,6 +666,10 @@ class AiHubFragment : Fragment() {
                 .setShowTitle(true)
                 .build()
             intent.launchUrl(requireContext(), Uri.parse(url))
+            // Arm the resume-guard: if the deep link never comes back, the
+            // user gets an in-app error instead of the FlowMusic website.
+            customTabLaunched = true
+            customTabCallbackReceived = false
             true
         } catch (e: Exception) {
             Log.w("AiHubFragment", "Custom Tab launch failed: ${e.message}")
@@ -555,6 +679,8 @@ class AiHubFragment : Fragment() {
 
     /** Handles the pkai://auth-callback redirect returned by the Custom Tab. */
     private fun handleFlowMusicCallback(uri: Uri) {
+        customTabCallbackReceived = true
+        customTabLaunched = false
         val code = uri.getQueryParameter("code")
         val verifier = pendingCodeVerifier
         if (code.isNullOrBlank() || verifier.isNullOrBlank()) {
@@ -697,8 +823,19 @@ class AiHubFragment : Fragment() {
         @JavascriptInterface
         fun onTrackResult(json: String?) {
             if (json.isNullOrBlank()) return
-            Log.d("AiHubFragment", "Flow Music track result: $json")
+            val ok = try { JSONObject(json).optBoolean("ok", false) } catch (e: Exception) { false }
+            Log.d("AiHubFragment", "Flow Music track result received (ok=$ok, len=${json.length})")
             dispatchTrackResultToJs(json)
+        }
+
+        @JavascriptInterface
+        fun onChatResult(json: String?) {
+            if (json.isNullOrBlank()) return
+            // Never log the answer text: it can contain PII and Log.d is not
+            // stripped in release builds.
+            val ok = try { JSONObject(json).optBoolean("ok", false) } catch (e: Exception) { false }
+            Log.d("AiHubFragment", "Flow Music chat result received (ok=$ok, len=${json.length})")
+            dispatchChatResultToJs(json)
         }
     }
 
@@ -889,15 +1026,17 @@ class AiHubFragment : Fragment() {
                 /** Returns the cached Flow Music session status as a JSON string. */
                 @JavascriptInterface
                 fun getFlowMusicStatus(): String {
-                    return lastStatusJson.ifBlank { """{"signedIn":false,"hasStudio":false}""" }
+                    return statusJsonWithMismatchFlag()
                 }
 
                 /** Drive real music generation inside the Flow Music session. */
                 @JavascriptInterface
-                fun generateFlowMusicTrack(prompt: String?) {
-                    Log.d("AiHubFragment", "generateFlowMusicTrack called from JS: $prompt")
+                fun generateFlowMusicTrack(requestId: String?, prompt: String?) {
+                    // Never log the prompt itself: prompts can contain PII and
+                    // Log.d is not stripped in release builds.
+                    Log.d("AiHubFragment", "generateFlowMusicTrack called from JS (prompt len=${prompt?.length ?: 0})")
                     if (prompt.isNullOrBlank()) {
-                        dispatchTrackResultToJs("""{"ok":false,"error":"Empty music prompt."}""")
+                        dispatchTrackResultToJs("""{"ok":false,"error":"Empty music prompt.","requestId":${JSONObject.quote(requestId ?: "")}}""")
                         return
                     }
                     activity?.runOnUiThread {
@@ -910,7 +1049,32 @@ class AiHubFragment : Fragment() {
                         if (!signedIn) {
                             startNativeFlowMusicConnect()
                         }
-                        startFlowMusicGeneration(prompt)
+                        startFlowMusicGeneration(requestId, prompt)
+                    }
+                }
+
+                /** Real Flow Music AI text answer for a chat prompt. */
+                @JavascriptInterface
+                fun generateFlowMusicChat(requestId: String?, prompt: String?) {
+                    // Never log the prompt itself: prompts routinely contain
+                    // PII and Log.d is not stripped in release builds.
+                    Log.d("AiHubFragment", "generateFlowMusicChat called from JS (prompt len=${prompt?.length ?: 0})")
+                    if (prompt.isNullOrBlank()) {
+                        dispatchChatResultToJs("""{"ok":false,"error":"Empty prompt.","requestId":${JSONObject.quote(requestId ?: "")}}""")
+                        return
+                    }
+                    activity?.runOnUiThread {
+                        val signedIn = try {
+                            val obj = JSONObject(lastStatusJson)
+                            obj.optBoolean("signedIn", false)
+                        } catch (e: Exception) {
+                            false
+                        }
+                        if (!signedIn) {
+                            dispatchChatResultToJs("""{"ok":false,"error":"Ultra Chat AI is not connected.","requestId":${JSONObject.quote(requestId ?: "")}}""")
+                            return@runOnUiThread
+                        }
+                        startFlowMusicChat(requestId, prompt)
                     }
                 }
 
@@ -1094,8 +1258,60 @@ class AiHubFragment : Fragment() {
         CookieManager.getInstance().flush()
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Browser-fallback guard: the Custom Tab was launched but its deep
+        // link never came back (e.g. the app redirect is not allowlisted, so
+        // the tab stayed on the FlowMusic website). Give the deep link a
+        // moment to flush through, then explain in-app instead of leaving
+        // the user stranded on the website.
+        if (customTabLaunched && !customTabCallbackReceived) {
+            // Capture the scope BEFORE scheduling: the delayed runnable must
+            // not dereference viewLifecycleOwner after the view is gone.
+            val resumeScope = viewLifecycleOwner.lifecycleScope
+            statusHandler.postDelayed({
+                if (!customTabLaunched || customTabCallbackReceived) return@postDelayed
+                customTabLaunched = false
+                resumeScope.launch {
+                    val connected = try {
+                        flowMusicSessionManager.getValidSessionJson() != null
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        false
+                    }
+                    if (!connected && isAdded) {
+                        showCustomTabFailedDialog()
+                    }
+                }
+            }, 2500)
+        }
+    }
+
+    /** In-app error for a browser connect that never returned to the app. */
+    private fun showCustomTabFailedDialog() {
+        if (!isAdded) return
+        try {
+            customTabFailedDialog?.dismiss()
+            customTabFailedDialog = AlertDialog.Builder(requireContext())
+                .setTitle(getString(R.string.title_music_connect_failed))
+                .setMessage(getString(R.string.msg_music_connect_failed))
+                .setPositiveButton(getString(R.string.btn_retry)) { d, _ ->
+                    d.dismiss()
+                    connectFlowMusic()
+                }
+                .setNegativeButton(android.R.string.cancel, null)
+                .setOnDismissListener { customTabFailedDialog = null }
+                .show()
+        } catch (e: Exception) {
+            Log.w("AiHubFragment", "Could not show connect-failed dialog: ${e.message}")
+        }
+    }
+
     override fun onDestroyView() {
         statusHandler.removeCallbacksAndMessages(null)
+        customTabFailedDialog?.dismiss()
+        customTabFailedDialog = null
         CookieManager.getInstance().flush()
         FlowMusicOAuth.unregister()
         _binding?.webviewFlowmusicBackend?.removeJavascriptInterface("FlowMusicNative")

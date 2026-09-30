@@ -185,6 +185,9 @@ dependencies {
     implementation("androidx.webkit:webkit:1.12.1")
     implementation(libs.google.identity.googleid)
 
+    // Encrypted storage for the Flow Music bridge session (refresh token)
+    implementation(libs.androidx.security.crypto)
+
     // Chrome Custom Tabs - used for the Google OAuth hand-off so the sign-in
     // never happens inside an embedded WebView (which Google blocks with
     // "Browser not supported" / disallowed_useragent).
@@ -200,4 +203,116 @@ dependencies {
     testImplementation(libs.mockito.core)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+}
+
+// ---------------------------------------------------------------------------
+// Ultra AI web UI: rebuild + sync into Android assets (best-effort).
+// The chat UI lives in ultra-ai-chat-space/ (React/Vite). Its built output is
+// what the APK ships under src/main/assets/ultra-ai-chat-space. When node is
+// available this task rebuilds it before assets are merged, so the APK never
+// ships a stale web UI; when node is missing it keeps the committed assets
+// and only warns. Gradle's up-to-date checks skip the rebuild entirely when
+// the web sources have not changed.
+// ---------------------------------------------------------------------------
+val webDir = rootDir.resolve("ultra-ai-chat-space")
+val webDistDir = webDir.resolve("dist")
+val webAssetsDir = projectDir.resolve("src/main/assets/ultra-ai-chat-space")
+
+val syncWebAssets by tasks.registering(Exec::class) {
+    group = "build"
+    description = "Rebuilds the Ultra AI web UI and syncs it into Android assets."
+
+    inputs.dir(webDir.resolve("src"))
+    inputs.dir(webDir.resolve("public"))
+    inputs.file(webDir.resolve("package.json"))
+    inputs.file(webDir.resolve("package-lock.json")).optional()
+    outputs.dir(webDistDir)
+    // NOTE: src/main/assets/ultra-ai-chat-space is intentionally NOT declared
+    // as an output. Other tasks (merge assets, lint model, ...) consume
+    // src/main/assets without depending on this task, and declaring it as an
+    // output fails Gradle validation ("uses this output ... without declaring
+    // an explicit or implicit dependency"). Instead this best-effort sentinel
+    // re-runs the sync whenever one of the runtime-critical shipped files is
+    // missing: index.html (the page), flowmusic-automation.js (injected by
+    // AiHubFragment), and the assets/ chunk directory (hashed js/css).
+    outputs.upToDateWhen {
+        webAssetsDir.resolve("index.html").isFile &&
+            webAssetsDir.resolve("flowmusic-automation.js").isFile &&
+            webAssetsDir.resolve("assets").isDirectory
+    }
+
+    workingDir = webDir
+    // Best-effort: the Android build must never fail because of the web
+    // toolchain. The exit code is still inspected below — a failed build
+    // never touches the shipped assets.
+    isIgnoreExitValue = true
+
+    val isWindows = System.getProperty("os.name").lowercase().contains("windows")
+    val npmCmd = if (isWindows) "npm.cmd" else "npm"
+
+    // Probe for node first; without it there is nothing to do. didBuild tracks
+    // whether the npm build actually ran: the no-node probe below exits 0 by
+    // design, so the exit code alone cannot prove a fresh build happened.
+    val nodeOk = try {
+        val probe = ProcessBuilder(if (isWindows) "node.exe" else "node", "--version")
+            .redirectErrorStream(true)
+            .start()
+        probe.waitFor() == 0
+    } catch (_: Exception) {
+        false
+    }
+    val didBuild = nodeOk
+    if (!nodeOk) {
+        logger.warn("syncWebAssets: node not found - keeping committed web assets.")
+        if (isWindows) {
+            commandLine("cmd", "/c", "exit", "0")
+        } else {
+            commandLine("true")
+        }
+    } else {
+        // NOTE: pass each token as its own argument - commandLine does NOT
+        // flatten a List, it would stringify it to "[sh, -c]".
+        if (isWindows) {
+            commandLine("cmd", "/c", "$npmCmd ci --no-audit --no-fund && $npmCmd run build")
+        } else {
+            commandLine("sh", "-c", "$npmCmd ci --no-audit --no-fund && $npmCmd run build")
+        }
+    }
+
+    doLast {
+        // Never touch the shipped assets unless the npm build really ran.
+        // (The no-node probe exits 0 by design, and a stale dist/ from an
+        // older run could otherwise be mistaken for a fresh build.)
+        if (!didBuild) {
+            logger.warn("syncWebAssets: node not available - keeping committed web assets.")
+            return@doLast
+        }
+        // `vite build` empties dist/ before writing, so a build that dies
+        // mid-way leaves an empty/partial directory: only sync when npm
+        // exited 0 AND dist/index.html actually exists.
+        val exit = executionResult.get().exitValue
+        val builtIndex = webDistDir.resolve("index.html")
+        if (exit != 0 || !builtIndex.isFile) {
+            logger.warn("syncWebAssets: web build failed (exit=$exit) or dist/index.html missing - keeping existing assets.")
+            return@doLast
+        }
+        // Copy to a temp dir and verify BEFORE touching the shipped assets,
+        // so a partial copy can never leave the APK with a dead web UI.
+        val tmp = layout.buildDirectory.dir("tmp/web-assets-sync").get().asFile
+        tmp.deleteRecursively()
+        webDistDir.copyRecursively(tmp, overwrite = true)
+        if (tmp.resolve("index.html").isFile) {
+            webAssetsDir.deleteRecursively()
+            tmp.copyRecursively(webAssetsDir, overwrite = true)
+            logger.lifecycle("syncWebAssets: web UI synced into Android assets.")
+        } else {
+            logger.warn("syncWebAssets: copy verification failed - keeping existing assets.")
+        }
+        tmp.deleteRecursively()
+    }
+}
+
+// Rebuild the web UI before any asset merge (debug/release, unit tests, etc.).
+tasks.matching { it.name.startsWith("merge") && it.name.contains("Assets") }.configureEach {
+    dependsOn(syncWebAssets)
 }

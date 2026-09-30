@@ -230,8 +230,9 @@ function App() {
         setMessages((prev) => [...prev, placeholder]);
 
         if (!connected) {
-          // Open the real Flow Music sign-in WebView so the user can connect.
-          connectFlowMusic();
+          // Do NOT auto-fire the sign-in popup here: popups only ever open
+          // from an explicit user tap (banner / header "Connect" button).
+          // The placeholder message above already tells the user what to do.
           return;
         }
 

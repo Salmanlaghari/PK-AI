@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <full-backup-content>
     <include domain="sharedpref" path="."/>
+    <!-- The Flow Music bridge session is encrypted with an Android Keystore
+         key that is never backed up: restoring this file without its key
+         only produces an unreadable keyset, and it would carry ciphertext
+         off-device for no benefit. -->
+    <exclude domain="sharedpref" path="flowmusic_secure_prefs.xml"/>
 </full-backup-content>

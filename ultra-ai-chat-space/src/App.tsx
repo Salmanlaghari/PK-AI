@@ -16,6 +16,7 @@ import {
   getFlowMusicStatus,
   connectFlowMusic,
   requestFlowMusicTrack,
+  requestFlowMusicChat,
   syncFlowMusicProfile,
   generateStrictVisual,
   deductFlowCredits,
@@ -61,6 +62,8 @@ function App() {
   const [imageModal, setImageModal] = useState<{ isOpen: boolean; url: string }>({ isOpen: false, url: "" });
   const [flowUser, setFlowUser] = useState<FlowMusicUser>(() => getFlowMusicSession());
   const [flowStatus, setFlowStatus] = useState<FlowMusicStatus>(() => getFlowMusicStatus());
+  // Transient "connect failed" notice — never overwrites flowStatus.
+  const [connectError, setConnectError] = useState<string | null>(null);
   const [authUser, setAuthUser] = useState<{ name: string; email: string; picture: string } | null>(() => {
     try {
       const saved = localStorage.getItem("ultra_ai_user");
@@ -94,9 +97,24 @@ function App() {
       }
     };
     window.addEventListener("pkai:flowmusic_status", handleStatus);
+    // A failed connect attempt must not touch flowStatus (see connectFlowMusic):
+    // show a retry affordance instead of flipping the UI to "not connected".
+    const handleConnectFailed = () => {
+      setConnectError("Connect nahi ho saka — bridge tayyar nahi hai.");
+    };
+    const clearConnectError = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail && detail.signedIn) setConnectError(null);
+    };
+    window.addEventListener("pkai:flowmusic_connect_failed", handleConnectFailed);
+    window.addEventListener("pkai:flowmusic_status", clearConnectError);
     // Also poll once on mount (bridge may already have a cached value).
     setFlowStatus(getFlowMusicStatus());
-    return () => window.removeEventListener("pkai:flowmusic_status", handleStatus);
+    return () => {
+      window.removeEventListener("pkai:flowmusic_status", handleStatus);
+      window.removeEventListener("pkai:flowmusic_connect_failed", handleConnectFailed);
+      window.removeEventListener("pkai:flowmusic_status", clearConnectError);
+    };
   }, [authUser?.picture]);
 
   const handleSelectModel = (model: AIModel) => {
@@ -230,8 +248,9 @@ function App() {
         setMessages((prev) => [...prev, placeholder]);
 
         if (!connected) {
-          // Open the real Flow Music sign-in WebView so the user can connect.
-          connectFlowMusic();
+          // Do NOT auto-fire the sign-in popup here: popups only ever open
+          // from an explicit user tap (banner / header "Connect" button).
+          // The placeholder message above already tells the user what to do.
           return;
         }
 
@@ -279,6 +298,71 @@ function App() {
       }
 
       // ---- Standard assistant path ---------------------------------------
+      // When the Flow Music bridge is connected, EVERY prompt gets a REAL
+      // answer from the Flow Music AI (same AI the user knows from the
+      // FlowMusic site: text, explanations, everything). Only when
+      // disconnected do we fall back to the local simulated reply so the
+      // chat stays usable for guests.
+      const connected = getFlowMusicStatus().signedIn;
+      if (connected) {
+        const placeholderId = generateId();
+        const placeholder: Message = {
+          id: placeholderId,
+          sender: "ai",
+          text: "Ultra AI 4 jawab tayyar kar raha hai...",
+          timestamp: getTimestamp(),
+          type: "text",
+          modelName: "Ultra AI 4",
+          isGeneratingMedia: false,
+        };
+        setMessages((prev) => [...prev, placeholder]);
+
+        // Lock the input for the whole round trip (up to 270s): without this
+        // a second prompt could overlap the first and clobber its reply.
+        setIsGenerating(true);
+        try {
+          const result = await requestFlowMusicChat(text, (progress) => {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === placeholderId
+                  ? { ...m, text: progress.message || "Ultra AI 4 jawab tayyar kar raha hai..." }
+                  : m
+              )
+            );
+          });
+          if (result.ok && result.text) {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === placeholderId
+                  ? {
+                      ...m,
+                      text: result.text as string,
+                      modelName: "Ultra AI 4",
+                      isGeneratingMedia: false,
+                    }
+                  : m
+              )
+            );
+          } else {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === placeholderId
+                  ? {
+                      ...m,
+                      type: "text",
+                      text: `⚠️ Ultra AI 4 se jawab nahi mil saka.\n\n${result.error || "Unknown error."}\n\nDobara try karein — ya header se "Connect" tap karke Ultra Chat AI dobara connect karein.`,
+                      isGeneratingMedia: false,
+                    }
+                  : m
+              )
+            );
+          }
+        } finally {
+          setIsGenerating(false);
+        }
+        return;
+      }
+
       setIsGenerating(true);
       setTimeout(() => {
         const aiMessage = simulateAIResponse(text);
@@ -443,15 +527,24 @@ function App() {
           flowConnected={flowConnected}
         />
 
-        {!flowConnected && (
+        {(!flowConnected || connectError) && (
           <div className="shrink-0 px-4 py-2 bg-gradient-to-r from-pink-950/60 via-purple-950/40 to-slate-950 border-b border-pink-900/40 flex items-center justify-center gap-2 text-[12px] text-pink-200">
             <Plug className="w-3.5 h-3.5 text-pink-400" />
-            <span>Ultra Chat AI connect nahi hai — real songs generate karne ke liye</span>
+            {connectError ? (
+              <span>{connectError}</span>
+            ) : flowStatus.accountMismatch ? (
+              <span>Device ka Google account PK-AI wale account se mukhtalif hai — real songs ke liye</span>
+            ) : (
+              <span>Ultra Chat AI connect nahi hai — real songs generate karne ke liye</span>
+            )}
             <button
-              onClick={handleOpenFlowMusic}
+              onClick={() => {
+                setConnectError(null);
+                handleOpenFlowMusic();
+              }}
               className="font-semibold text-pink-300 underline underline-offset-2 hover:text-white"
             >
-              Connect karein
+              {connectError ? "Dobara try karein" : "Connect karein"}
             </button>
           </div>
         )}

@@ -122,35 +122,43 @@ class PreferencesManager @Inject constructor(
             preferences[emailKey] = ""
             preferences[profileImageUrlKey] = ""
         }
-        // Signing out of PK-AI also disconnects the Flow Music bridge session.
-        clearFlowMusicSession()
     }
 
     // ------------------------------------------------------------------
-    // Flow Music bridge session (auto-connect, no Browse UI)
-    //
-    // The FULL Supabase session JSON is persisted (access + refresh tokens and
-    // the user object), so the bridge can be revived silently with the refresh
-    // token - the user never sees another sign-in popup for the music engine.
+    // One-shot migration: builds before the encrypted store kept the Flow
+    // Music session JSON (with a long-lived refresh token) in PLAINTEXT in
+    // this DataStore under "flowmusic_session_json". Delete it the first
+    // time it is seen so the old value can never linger on existing
+    // installs. Safe to call repeatedly; the flag makes it a no-op after
+    // the first run.
+    private val legacyFlowMusicSessionKey = stringPreferencesKey("flowmusic_session_json")
+    private val flowMusicMigrationDoneKey = booleanPreferencesKey("flowmusic_session_migrated_v1")
+
+    /**
+     * In-memory fast path: the migration flag never flips back, so one real
+     * check per process is enough. Without this, every session read paid for
+     * a DataStore write transaction just to no-op.
+     */
+    @Volatile
+    private var legacyMigrationChecked = false
+
+    suspend fun migrateLegacyFlowMusicSession() {
+        if (legacyMigrationChecked) return
+        // Read-first: skip the edit transaction entirely when already done.
+        if (context.dataStore.data.first()[flowMusicMigrationDoneKey] == true) {
+            legacyMigrationChecked = true
+            return
+        }
+        context.dataStore.edit { preferences ->
+            if (preferences[flowMusicMigrationDoneKey] != true) {
+                preferences.remove(legacyFlowMusicSessionKey)
+                preferences[flowMusicMigrationDoneKey] = true
+            }
+        }
+        legacyMigrationChecked = true
+    }
+
     // ------------------------------------------------------------------
-    private val flowMusicSessionJsonKey = stringPreferencesKey("flowmusic_session_json")
-
-    val flowMusicSessionJson: Flow<String?> = context.dataStore.data.map { preferences ->
-        preferences[flowMusicSessionJsonKey]?.takeIf { it.isNotBlank() }
-    }
-
-    suspend fun saveFlowMusicSessionJson(sessionJson: String) {
-        context.dataStore.edit { preferences ->
-            preferences[flowMusicSessionJsonKey] = sessionJson
-        }
-    }
-
-    suspend fun clearFlowMusicSession() {
-        context.dataStore.edit { preferences ->
-            preferences.remove(flowMusicSessionJsonKey)
-        }
-    }
-
     // Guest message limit (10 AI messages for guest users)
     private val guestMessageCountKey = intPreferencesKey("guest_message_count")
 

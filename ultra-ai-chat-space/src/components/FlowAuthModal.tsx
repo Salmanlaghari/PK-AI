@@ -224,7 +224,9 @@ export default function FlowAuthModal({ isOpen, onClose, onAuthSuccess }: FlowAu
               if (androidOAuth && typeof androidOAuth.openFlowMusicSignUp === "function") {
                 androidOAuth.openFlowMusicSignUp();
               } else {
-                window.open("https://flowmusic.app", "_blank");
+                // Never open the FlowMusic website: the Browse/Studio UI must
+                // stay invisible. Surface the failure inside the modal.
+                setError("Connect is unavailable here. Please use the in-app Connect button.");
               }
             }}
             className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-pink-600 via-rose-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-medium text-sm transition-all shadow-lg shadow-pink-600/20 active:scale-[0.98]"

@@ -165,9 +165,8 @@ class AiHubFragment : Fragment() {
             // clobber it; settle this one immediately so nothing hangs.
             if (jsDialog != null && jsDialogOwner !== view) {
                 // The other WebView already has a dialog up: settle this one
-                // as cancelled so neither JS thread hangs. Logged so a
-                // swallowed popup prompt stays diagnosable.
-                Log.w("AiHubFragment", "JS dialog from a second WebView dropped while another dialog is showing")
+                // as cancelled so neither JS thread hangs.
+                Log.w("AiHubFragment", "dropped JS ${if (result is JsPromptResult) \"prompt\" else \"dialog\"} from $url while $jsDialogOwner was showing")
                 result?.cancel()
                 return true
             }
@@ -205,9 +204,8 @@ class AiHubFragment : Fragment() {
             // clobber it; settle this one immediately so nothing hangs.
             if (jsDialog != null && jsDialogOwner !== view) {
                 // The other WebView already has a dialog up: settle this one
-                // as cancelled so neither JS thread hangs. Logged so a
-                // swallowed popup prompt stays diagnosable.
-                Log.w("AiHubFragment", "JS dialog from a second WebView dropped while another dialog is showing")
+                // as cancelled so neither JS thread hangs.
+                Log.w("AiHubFragment", "dropped JS ${if (result is JsPromptResult) \"prompt\" else \"dialog\"} from $url while $jsDialogOwner was showing")
                 result?.cancel()
                 return true
             }
@@ -242,9 +240,8 @@ class AiHubFragment : Fragment() {
             // clobber it; settle this one immediately so nothing hangs.
             if (jsDialog != null && jsDialogOwner !== view) {
                 // The other WebView already has a dialog up: settle this one
-                // as cancelled so neither JS thread hangs. Logged so a
-                // swallowed popup prompt stays diagnosable.
-                Log.w("AiHubFragment", "JS dialog from a second WebView dropped while another dialog is showing")
+                // as cancelled so neither JS thread hangs.
+                Log.w("AiHubFragment", "dropped JS ${if (result is JsPromptResult) \"prompt\" else \"dialog\"} from $url while $jsDialogOwner was showing")
                 result?.cancel()
                 return true
             }

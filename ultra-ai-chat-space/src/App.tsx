@@ -68,6 +68,10 @@ const IMAGE_VERB_RE = new RegExp(
   `\\b(?:draw|paint|sketch|create|make|generate|design)(?:ing|ed|s)?\\b(?=[^.?!\\n]{0,40}\\b(?:${ART_NOUN_SRC}|${AMBIG_ART_NOUN_SRC})\\b)`,
   "i"
 );
+// Interrogative/analytical prompts are never media requests, even when they
+// mention an art noun ("What makes a portrait good?", "How is Mona Lisa's
+// design different?").
+const QUESTION_RE = /^\s*(what|how|why|when|where|which|who|whom|whose|explain|describe|tell\s+me)\b/i;
 const VIDEO_RE = /\b(videos?|clips?|animations?|films?|movies?)\b/i;
 
 function isMusicPrompt(text: string): boolean {
@@ -75,6 +79,7 @@ function isMusicPrompt(text: string): boolean {
 }
 
 function isImagePrompt(text: string): boolean {
+  if (QUESTION_RE.test(text)) return false;
   return (IMAGE_RE.test(text) || IMAGE_VERB_RE.test(text)) && !VIDEO_RE.test(text);
 }
 

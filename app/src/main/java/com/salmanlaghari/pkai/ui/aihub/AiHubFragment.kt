@@ -161,6 +161,12 @@ class AiHubFragment : Fragment() {
             result: JsResult?
         ): Boolean {
             val hostActivity = activity ?: return false
+            // A dialog owned by the other WebView is already showing — don't
+            // clobber it; settle this one immediately so nothing hangs.
+            if (jsDialog != null && jsDialogOwner !== view) {
+                result?.cancel()
+                return true
+            }
             dismissJsDialog()
             jsDialogOwner = view
             pendingJsResult = result
@@ -179,7 +185,7 @@ class AiHubFragment : Fragment() {
                     result?.cancel()
                     pendingJsResult = null
                 }
-                .setOnDismissListener { jsDialog = null }
+                .setOnDismissListener { jsDialog = null; jsDialogOwner = null }
                 .show()
             return true
         }
@@ -191,6 +197,12 @@ class AiHubFragment : Fragment() {
             result: JsResult?
         ): Boolean {
             val hostActivity = activity ?: return false
+            // A dialog owned by the other WebView is already showing — don't
+            // clobber it; settle this one immediately so nothing hangs.
+            if (jsDialog != null && jsDialogOwner !== view) {
+                result?.cancel()
+                return true
+            }
             dismissJsDialog()
             jsDialogOwner = view
             pendingJsResult = result
@@ -205,7 +217,7 @@ class AiHubFragment : Fragment() {
                     result?.cancel()
                     pendingJsResult = null
                 }
-                .setOnDismissListener { jsDialog = null }
+                .setOnDismissListener { jsDialog = null; jsDialogOwner = null }
                 .show()
             return true
         }
@@ -218,6 +230,12 @@ class AiHubFragment : Fragment() {
             result: JsPromptResult?
         ): Boolean {
             val hostActivity = activity ?: return false
+            // A dialog owned by the other WebView is already showing — don't
+            // clobber it; settle this one immediately so nothing hangs.
+            if (jsDialog != null && jsDialogOwner !== view) {
+                result?.cancel()
+                return true
+            }
             dismissJsDialog()
             jsDialogOwner = view
             pendingJsPromptResult = result
@@ -239,7 +257,7 @@ class AiHubFragment : Fragment() {
                     result?.cancel()
                     pendingJsPromptResult = null
                 }
-                .setOnDismissListener { jsDialog = null }
+                .setOnDismissListener { jsDialog = null; jsDialogOwner = null }
                 .show()
             return true
         }

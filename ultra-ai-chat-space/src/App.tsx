@@ -74,8 +74,8 @@ const IMAGE_VERB_RE = new RegExp(
 // as opposed to third-person analytical verbs ("what makes…", "what creates…").
 const QUESTION_RE = /^\s*(what|how|why|when|where|which|who|whom|whose|explain|describe|tell\s+me)\b/i;
 const REQUEST_LEAD_RE =
-  /^\s*(?:please\s+|hey[,.]?\s+|can\s+you\s+|could\s+you\s+|would\s+you\s+|how\s+do\s+i\s+)?(?:draw|paint|sketch|create|make|generate|design|render|illustrate|record|film|shoot)\b/i;
-const VIDEO_RE = /\b(videos?|clips?|animations?|films?|movies?)\b/i;
+  /^\s*(?:please\s+|hey[,.]?\s+|how\s+(?:can|would|should)\s+i\s+|how\s+to\s+|tell\s+me\s+(?:how\s+to\s+)?|i\s+(?:want|need)\s+(?:you\s+)?to\s+|(?:can|could|would)\s+you\s+(?:please\s+)?|how\s+do\s+i\s+)?(?:draw|paint|sketch|create|make|generate|design|render|illustrate|record|film|shoot)\b/i;
+const VIDEO_RE = /\b(?:videos?|clips?|animations?|films?|movies?)(?!\s+(?:call(?:ing|s)?|chat(?:ting|s)?)\b)\b/i;
 
 function isMusicPrompt(text: string): boolean {
   return MUSIC_RE.test(text) && !NON_MUSIC_RE.test(text);
@@ -88,11 +88,17 @@ function isImagePrompt(text: string): boolean {
   return true;
 }
 
+// Verb closely governing the video noun ("make a video"), not advice about
+// one ("make this movie scene look better").
+const VIDEO_VERB_RE =
+  /\b(?:record|film|shoot|make|create|generate)(?:ing|ed|s)?\s+(?:(?:a|an|the|some)\s+)?(?!(?:this|that|these|those|my|your|his|her|its|our|their)\b)(?:[a-z]+\s+){0,2}\b(?:videos?|clips?|animations?|films?|movies?)\b/i;
 function isVideoPrompt(text: string): boolean {
   if (!VIDEO_RE.test(text)) return false;
-  // Same interrogative guard as images: "What is a video?" is a question,
-  // "How do I make a video?" is a generation request.
-  if (QUESTION_RE.test(text) && !REQUEST_LEAD_RE.test(text)) return false;
+  if (QUESTION_RE.test(text)) {
+    // Questions need an explicit generation request: "How do I make a video?"
+    // yes, "How do I make this movie scene look better?" no.
+    return REQUEST_LEAD_RE.test(text) && VIDEO_VERB_RE.test(text);
+  }
   return true;
 }
 

@@ -107,6 +107,27 @@ class AiHubFragment : Fragment() {
     /** Holds the Puter auth popup dialog while it is open (null otherwise). */
     private var puterPopupDialog: android.app.AlertDialog? = null
 
+    /** The WebView hosted inside [puterPopupDialog]; destroyed with the dialog. */
+    private var puterPopupWebView: WebView? = null
+
+    /**
+     * Dismiss the Puter auth popup and destroy its WebView on every path
+     * (cancel, window.close(), fragment teardown, or a fresh popup replacing
+     * the old one). A leaked WebView keeps its renderer process alive.
+     */
+    private fun dismissPuterPopup() {
+        try {
+            puterPopupDialog?.dismiss()
+        } catch (_: Exception) {
+        }
+        puterPopupDialog = null
+        try {
+            puterPopupWebView?.destroy()
+        } catch (_: Exception) {
+        }
+        puterPopupWebView = null
+    }
+
     /**
      * Set when [autoInjectSession] already reloaded the engine with a fresh
      * session: the following [onEngineConnected] must show the toast but
@@ -1152,22 +1173,44 @@ class AiHubFragment : Fragment() {
             ): Boolean {
                 val transport = resultMsg?.obj as? WebView.WebViewTransport ?: return false
                 val hostActivity = activity ?: return false
+                // A previous popup that never closed would otherwise leak its
+                // WebView when the dialog field is overwritten below.
+                dismissPuterPopup()
                 val popupWebView = WebView(hostActivity).apply {
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true
                     settings.databaseEnabled = true
                     settings.userAgentString = view?.settings?.userAgentString
-                    webViewClient = WebViewClient()
+                    // Puter auth only: block navigation away from Puter/OAuth
+                    // hosts so an arbitrary page can't render inside app chrome.
+                    webViewClient = object : WebViewClient() {
+                        override fun shouldOverrideUrlLoading(
+                            view: WebView?,
+                            request: WebResourceRequest?
+                        ): Boolean {
+                            val raw = request?.url?.toString() ?: return true
+                            if (raw.startsWith("about:")) return false
+                            val host = request.url.host?.lowercase() ?: return true
+                            val allowed = host == "puter.com" ||
+                                host.endsWith(".puter.com") ||
+                                host.endsWith(".google.com") ||
+                                host.endsWith(".googleapis.com") ||
+                                host.endsWith(".gstatic.com") ||
+                                host.endsWith(".googleusercontent.com") ||
+                                host == "github.com"
+                            return !allowed
+                        }
+                    }
                     webChromeClient = object : WebChromeClient() {
                         override fun onCloseWindow(window: WebView?) {
-                            puterPopupDialog?.dismiss()
-                            puterPopupDialog = null
+                            dismissPuterPopup()
                         }
                     }
                 }
+                puterPopupWebView = popupWebView
                 puterPopupDialog = android.app.AlertDialog.Builder(hostActivity)
                     .setView(popupWebView)
-                    .setOnCancelListener { popupWebView.destroy() }
+                    .setOnCancelListener { dismissPuterPopup() }
                     .create()
                 puterPopupDialog?.show()
                 transport.webView = popupWebView
@@ -1454,8 +1497,7 @@ class AiHubFragment : Fragment() {
         statusHandler.removeCallbacksAndMessages(null)
         connectFailedDialog?.dismiss()
         connectFailedDialog = null
-        puterPopupDialog?.dismiss()
-        puterPopupDialog = null
+        dismissPuterPopup()
         CookieManager.getInstance().flush()
         _binding?.webviewFlowmusicBackend?.removeJavascriptInterface("FlowMusicNative")
         super.onDestroyView()

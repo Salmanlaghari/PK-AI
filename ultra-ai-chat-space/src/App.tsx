@@ -75,23 +75,39 @@ const IMAGE_VERB_RE = new RegExp(
 const QUESTION_RE = /^\s*(what|how|why|when|where|which|who|whom|whose|explain|describe|tell\s+me)\b/i;
 const REQUEST_LEAD_RE =
   /^\s*(?:please\s+|hey[,.]?\s+|how\s+(?:can|would|should)\s+i\s+|how\s+to\s+|tell\s+me\s+(?:how\s+to\s+)?|i\s+(?:want|need)\s+(?:you\s+)?to\s+|(?:can|could|would)\s+you\s+(?:please\s+)?|how\s+do\s+i\s+)?(?:draw|paint|sketch|create|make|generate|design|render|illustrate|record|film|shoot)\b/i;
-const VIDEO_RE = /\b(?:videos?|clips?|animations?|films?|movies?)(?!\s+(?:call(?:ing|s)?|chat(?:ting|s)?)\b)\b/i;
+// "video call" / "video chat" / "video conference" are never generation requests.
+const VIDEO_NOUN_SRC =
+  "(?:videos?|clips?|animations?|films?|movies?)(?!\\s+(?:call(?:ing|s)?|chat(?:ting|s)?|conference)\\b)";
+const VIDEO_RE = new RegExp(`\\b${VIDEO_NOUN_SRC}\\b`, "i");
 
 function isMusicPrompt(text: string): boolean {
   return MUSIC_RE.test(text) && !NON_MUSIC_RE.test(text);
 }
 
+// Question-shaped prompts need a closely-governed generation request:
+// verb + (article) + (up to 2 adjectives) + art noun, with no possessive,
+// demonstrative or qualitative adjective in between. "How can I draw a
+// portrait in oil?" yes; "How to draw better portraits?" no.
+const IMAGE_TIGHT_VERB_RE = new RegExp(
+  `\\b(?:draw|paint|sketch|create|make|generate|design)(?:ing|ed|s)?\\s+(?:(?:a|an|the|some)\\s+)?(?!(?:this|that|these|those|my|your|his|her|its|our|their|better|best|good|great|nicer|sharper)\\b)(?:(?!(?:this|that|these|those|my|your|his|her|its|our|their|better|best|good|great|nicer|sharper)\\b)[a-z]+\\s+){0,2}\\b(?:${ART_NOUN_SRC}|${AMBIG_ART_NOUN_SRC})\\b`,
+  "i"
+);
 function isImagePrompt(text: string): boolean {
   const media = (IMAGE_RE.test(text) || IMAGE_VERB_RE.test(text)) && !VIDEO_RE.test(text);
   if (!media) return false;
-  if (QUESTION_RE.test(text) && !REQUEST_LEAD_RE.test(text)) return false;
+  if (QUESTION_RE.test(text)) {
+    return REQUEST_LEAD_RE.test(text) && IMAGE_TIGHT_VERB_RE.test(text);
+  }
   return true;
 }
 
 // Verb closely governing the video noun ("make a video"), not advice about
-// one ("make this movie scene look better").
-const VIDEO_VERB_RE =
-  /\b(?:record|film|shoot|make|create|generate)(?:ing|ed|s)?\s+(?:(?:a|an|the|some)\s+)?(?!(?:this|that|these|those|my|your|his|her|its|our|their)\b)(?:[a-z]+\s+){0,2}\b(?:videos?|clips?|animations?|films?|movies?)\b/i;
+// one ("make this movie scene look better"). Possessives/demonstratives are
+// excluded across the whole bridge ("make sure my video works" stays text).
+const VIDEO_VERB_RE = new RegExp(
+  `\\b(?:record|film|shoot|make|create|generate)(?:ing|ed|s)?\\s+(?:(?:a|an|the|some)\\s+)?(?!(?:this|that|these|those|my|your|his|her|its|our|their)\\b)(?:(?!(?:this|that|these|those|my|your|his|her|its|our|their)\\b)[a-z]+\\s+){0,2}\\b${VIDEO_NOUN_SRC}\\b`,
+  "i"
+);
 function isVideoPrompt(text: string): boolean {
   if (!VIDEO_RE.test(text)) return false;
   if (QUESTION_RE.test(text)) {

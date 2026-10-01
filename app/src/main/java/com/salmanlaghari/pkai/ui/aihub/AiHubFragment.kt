@@ -121,11 +121,14 @@ class AiHubFragment : Fragment() {
     private var jsDialog: AlertDialog? = null
     private var pendingJsResult: JsResult? = null
     private var pendingJsPromptResult: JsPromptResult? = null
+    // Which WebView (main page or Puter auth popup) owns the active JS dialog.
+    private var jsDialogOwner: WebView? = null
 
     /** Dismiss any active JS dialog and settle its pending result. */
     private fun dismissJsDialog() {
         jsDialog?.dismiss()
         jsDialog = null
+        jsDialogOwner = null
         pendingJsResult?.cancel()
         pendingJsResult = null
         pendingJsPromptResult?.cancel()
@@ -143,9 +146,12 @@ class AiHubFragment : Fragment() {
         /**
          * Origin host of the requesting page, shown as the dialog title so a
          * page can't impersonate a trusted site behind an app-styled prompt.
+         * Our own UI needs no origin chrome; opaque origins get a generic label.
          */
-        private fun dialogTitle(url: String?): String? =
-            url?.let { Uri.parse(it).host }
+        private fun dialogTitle(url: String?): String? {
+            val host = url?.let { Uri.parse(it).host } ?: return "Web page"
+            return if (host == "appassets.androidplatform.net") null else host
+        }
 
         // window.confirm() from the web UI (e.g. the Puter disconnect prompt).
         override fun onJsConfirm(
@@ -156,6 +162,7 @@ class AiHubFragment : Fragment() {
         ): Boolean {
             val hostActivity = activity ?: return false
             dismissJsDialog()
+            jsDialogOwner = view
             pendingJsResult = result
             jsDialog = AlertDialog.Builder(hostActivity)
                 .setTitle(dialogTitle(url))
@@ -185,6 +192,7 @@ class AiHubFragment : Fragment() {
         ): Boolean {
             val hostActivity = activity ?: return false
             dismissJsDialog()
+            jsDialogOwner = view
             pendingJsResult = result
             jsDialog = AlertDialog.Builder(hostActivity)
                 .setTitle(dialogTitle(url))
@@ -211,6 +219,7 @@ class AiHubFragment : Fragment() {
         ): Boolean {
             val hostActivity = activity ?: return false
             dismissJsDialog()
+            jsDialogOwner = view
             pendingJsPromptResult = result
             val input = EditText(hostActivity)
             input.setText(defaultValue)
@@ -242,10 +251,13 @@ class AiHubFragment : Fragment() {
      * the old one). A leaked WebView keeps its renderer process alive.
      */
     private fun dismissPuterPopup() {
-        // The popup shares the fragment-level JS-dialog tracker — settle any
-        // pending dialog first so a dismiss can't leak its window or strand
-        // the popup's JS thread on a destroyed WebView.
-        dismissJsDialog()
+        val popupView = puterPopupWebView
+        // The popup shares the fragment-level JS-dialog tracker — settle a
+        // pending dialog only when it belongs to the popup. A main-page dialog
+        // (e.g. the Puter disconnect confirm) must survive popup dismissal.
+        if (jsDialog != null && jsDialogOwner === popupView) {
+            dismissJsDialog()
+        }
         try {
             puterPopupDialog?.dismiss()
         } catch (_: Exception) {

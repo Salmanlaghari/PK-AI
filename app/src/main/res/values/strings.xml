@@ -34,7 +34,6 @@
     <string name="hint_paste_session">Session yahan paste karein…</string>
     <string name="btn_import_connect">Connect karein</string>
     <string name="msg_import_session_invalid">Session theek nahi — dobara copy karke poora text paste karein.</string>
-    <string name="msg_session_incomplete">Session adhoori lag rahi hai — pura text copy karke dobara paste karein.</string>
     <string name="default_web_client_id" translatable="false">193399978595-7m1be36k2ud87o0bgu95b4q012b5psnj.apps.googleusercontent.com</string>
 
     <!-- Profile Screen -->

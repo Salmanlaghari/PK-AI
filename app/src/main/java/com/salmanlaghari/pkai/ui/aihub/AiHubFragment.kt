@@ -22,6 +22,7 @@ import android.view.inputmethod.EditorInfo
 import android.webkit.ConsoleMessage
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
+import android.webkit.JsResult
 import android.webkit.PermissionRequest
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
@@ -1160,6 +1161,25 @@ class AiHubFragment : Fragment() {
         webView.webChromeClient = object : WebChromeClient() {
             override fun onPermissionRequest(request: PermissionRequest?) {
                 request?.grant(request.resources)
+            }
+
+            // window.confirm() from the web UI (e.g. the Puter disconnect
+            // prompt): the default WebChromeClient never shows a dialog, so
+            // the JS call would silently hang. Show a native confirm instead.
+            override fun onJsConfirm(
+                view: WebView?,
+                url: String?,
+                message: String?,
+                result: JsResult?
+            ): Boolean {
+                val hostActivity = activity ?: return false
+                AlertDialog.Builder(hostActivity)
+                    .setMessage(message)
+                    .setPositiveButton(android.R.string.ok) { _, _ -> result?.confirm() }
+                    .setNegativeButton(android.R.string.cancel) { _, _ -> result?.cancel() }
+                    .setOnCancelListener { result?.cancel() }
+                    .show()
+                return true
             }
 
             // Puter auth popup: puter.auth.signIn() calls window.open(). Show

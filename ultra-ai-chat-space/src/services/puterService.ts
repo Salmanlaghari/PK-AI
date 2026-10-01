@@ -159,7 +159,19 @@ export function getCachedPuterUser(): PuterUser | null {
 // Error classification → honest, friendly Roman Urdu messages
 // ---------------------------------------------------------------------------
 
+/** Internal (non-SDK) errors: tagged so classifyError surfaces them verbatim. */
+function internalError(message: string): Error {
+  const e = new Error(message);
+  (e as any).isPuterInternal = true;
+  return e;
+}
+
 function classifyError(err: any): { error: string; needsAuth?: boolean; quotaExceeded?: boolean } {
+  // Our own tagged internal errors are safe to surface verbatim — they never
+  // contain SDK text or user content.
+  if (err?.isPuterInternal) {
+    return { error: String(err?.message || "Puter se jawab nahi mil saka.") };
+  }
   const code = String(err?.code || "").toLowerCase();
   const raw = String(err?.message || err || "Unknown error");
   const msg = raw.toLowerCase();
@@ -258,7 +270,7 @@ export async function puterChat(
       if (maybe) fullText = String(maybe);
     }
 
-    if (!fullText.trim()) throw new Error("Khali jawab mila — dobara try karein.");
+    if (!fullText.trim()) throw internalError("Khali jawab mila — dobara try karein.");
     return { ok: true, text: fullText };
   } catch (err) {
     const c = classifyError(err);
@@ -277,14 +289,14 @@ export async function puterGenerateImage(
   try {
     const puter = await loadPuterSDK();
     if (typeof puter.ai?.txt2img !== "function") {
-      throw new Error("Is Puter version mein image generation nahi mili.");
+      throw internalError("Is Puter version mein image generation nahi mili.");
     }
     onProgress?.({ message: "🖼️ Image ban rahi hai..." });
 
     // No model pinned — Puter's default image model is used.
     const img = await puter.ai.txt2img(prompt);
     const url = img?.src || img?.url || "";
-    if (!url) throw new Error("Image bani lekin uska URL nahi mila.");
+    if (!url) throw internalError("Image bani lekin uska URL nahi mila.");
     return { ok: true, url };
   } catch (err) {
     const c = classifyError(err);
@@ -317,7 +329,7 @@ export async function puterGenerateVideo(
       model: "google/veo-3.1",
     });
     const url = videoEl?.src || "";
-    if (!url) throw new Error("Video bana lekin uska URL nahi mila.");
+    if (!url) throw internalError("Video bana lekin uska URL nahi mila.");
     return { ok: true, url };
   } catch (err) {
     const c = classifyError(err);

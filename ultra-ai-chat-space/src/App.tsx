@@ -53,9 +53,10 @@ function createWelcomeMessage(model: AIModel): Message {
 const MUSIC_RE = /(song|music|audio|gana|gaana|track|beat|melody|tune|dhun|compose|instrumental|remix|vocal)/i;
 const NON_MUSIC_RE = /(image|photo|picture|pic|tasveer|wallpaper|video|clip|code|function|program)/i;
 // Puter free stack: image & video intents route to puter.ai.txt2img / video.
-// Word-boundaried with plural/-ing forms: unanchored tokens misroute ordinary
-// text ("topic" contains "pic", "clipboard" contains "clip") into media gen.
-const IMAGE_RE = /\b(images?|photos?|pictures?|draw(ings?)?|tasveer(en)?|pics?|wallpapers?|paint(ings?|ed)?|sketch(es)?)\b/i;
+// Noun-only, plural-aware, word-boundaried: verb forms ("painted", "draw a
+// conclusion") and substrings ("topic" -> "pic", "clipboard" -> "clip") must
+// not route ordinary text into media generation.
+const IMAGE_RE = /\b(images?|photos?|pictures?|drawings?|tasveer(en)?|pics?|wallpapers?|paintings?|sketches?)\b/i;
 const VIDEO_RE = /\b(videos?|clips?|animations?|films?|movies?)\b/i;
 
 function isMusicPrompt(text: string): boolean {

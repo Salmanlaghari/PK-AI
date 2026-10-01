@@ -23,6 +23,7 @@ import android.webkit.ConsoleMessage
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
 import android.webkit.JsResult
+import android.webkit.JsPromptResult
 import android.webkit.PermissionRequest
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
@@ -110,6 +111,26 @@ class AiHubFragment : Fragment() {
 
     /** The WebView hosted inside [puterPopupDialog]; destroyed with the dialog. */
     private var puterPopupWebView: WebView? = null
+
+    /**
+     * Active JS dialog (confirm/alert/prompt) and its pending result, if any.
+     * Tracked so a rotation or fragment teardown can dismiss the dialog and
+     * settle the result — otherwise the window leaks and the page's JS thread
+     * hangs forever waiting for an answer.
+     */
+    private var jsDialog: AlertDialog? = null
+    private var pendingJsResult: JsResult? = null
+    private var pendingJsPromptResult: JsPromptResult? = null
+
+    /** Dismiss any active JS dialog and settle its pending result. */
+    private fun dismissJsDialog() {
+        jsDialog?.dismiss()
+        jsDialog = null
+        pendingJsResult?.cancel()
+        pendingJsResult = null
+        pendingJsPromptResult?.cancel()
+        pendingJsPromptResult = null
+    }
 
     /**
      * Dismiss the Puter auth popup and destroy its WebView on every path
@@ -1173,9 +1194,53 @@ class AiHubFragment : Fragment() {
                 result: JsResult?
             ): Boolean {
                 val hostActivity = activity ?: return false
-                AlertDialog.Builder(hostActivity)
+                dismissJsDialog()
+                pendingJsResult = result
+                jsDialog = AlertDialog.Builder(hostActivity)
                     .setMessage(message)
                     .setPositiveButton(android.R.string.ok) { _, _ -> result?.confirm() }
+                    .setNegativeButton(android.R.string.cancel) { _, _ -> result?.cancel() }
+                    .setOnCancelListener { result?.cancel() }
+                    .show()
+                return true
+            }
+
+            // alert() with no UI would block the page's JS thread forever.
+            override fun onJsAlert(
+                view: WebView?,
+                url: String?,
+                message: String?,
+                result: JsResult?
+            ): Boolean {
+                val hostActivity = activity ?: return false
+                dismissJsDialog()
+                pendingJsResult = result
+                jsDialog = AlertDialog.Builder(hostActivity)
+                    .setMessage(message)
+                    .setPositiveButton(android.R.string.ok) { _, _ -> result?.confirm() }
+                    .setOnCancelListener { result?.cancel() }
+                    .show()
+                return true
+            }
+
+            override fun onJsPrompt(
+                view: WebView?,
+                url: String?,
+                message: String?,
+                defaultValue: String?,
+                result: JsPromptResult?
+            ): Boolean {
+                val hostActivity = activity ?: return false
+                dismissJsDialog()
+                pendingJsPromptResult = result
+                val input = EditText(hostActivity)
+                input.setText(defaultValue)
+                jsDialog = AlertDialog.Builder(hostActivity)
+                    .setMessage(message)
+                    .setView(input)
+                    .setPositiveButton(android.R.string.ok) { _, _ ->
+                        result?.confirm(input.text.toString())
+                    }
                     .setNegativeButton(android.R.string.cancel) { _, _ -> result?.cancel() }
                     .setOnCancelListener { result?.cancel() }
                     .show()
@@ -1517,6 +1582,7 @@ class AiHubFragment : Fragment() {
         statusHandler.removeCallbacksAndMessages(null)
         connectFailedDialog?.dismiss()
         connectFailedDialog = null
+        dismissJsDialog()
         dismissPuterPopup()
         CookieManager.getInstance().flush()
         _binding?.webviewFlowmusicBackend?.removeJavascriptInterface("FlowMusicNative")

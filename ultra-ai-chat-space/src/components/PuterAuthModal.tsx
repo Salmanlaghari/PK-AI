@@ -89,11 +89,11 @@ export default function PuterAuthModal({ isOpen, onClose, onAuthSuccess }: Puter
         <div className="mb-4 space-y-2 text-[13px] text-slate-400">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span>Chat — GPT-4o-mini aur 400+ models</span>
+            <span>Chat — Puter ke free AI models</span>
           </div>
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span>Image — FLUX HD generation</span>
+            <span>Image — free HD generation</span>
           </div>
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
@@ -123,7 +123,9 @@ export default function PuterAuthModal({ isOpen, onClose, onAuthSuccess }: Puter
         </button>
 
         <p className="mt-3 text-[11px] text-slate-500 text-center leading-relaxed">
-          Sirf ek baar connect karein. Free quota har user ke apne Puter account par hota hai.
+          Sirf ek baar connect karein. Connect tap karne par aapke liye ek free Puter
+          account ban jayega (one-tap) — baad mein ise full account mein convert kar
+          sakte hain. Free quota har user ke apne Puter account par hota hai.
         </p>
       </div>
     </div>

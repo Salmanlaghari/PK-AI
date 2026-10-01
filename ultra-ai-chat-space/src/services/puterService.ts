@@ -163,8 +163,8 @@ function classifyError(err: any): { error: string; needsAuth?: boolean; quotaExc
   const code = String(err?.code || "").toLowerCase();
   const raw = String(err?.message || err || "Unknown error");
   const msg = raw.toLowerCase();
-  // Metadata only — never log prompts or user content.
-  console.debug("[puter] call failed:", code || "(no code)", raw.slice(0, 160));
+  // Metadata only — never log prompts or user content (raw SDK messages may echo them).
+  console.debug("[puter] call failed:", code || "(no code)");
 
   const needsAuth =
     code === "token_missing" ||
@@ -197,7 +197,8 @@ function classifyError(err: any): { error: string; needsAuth?: boolean; quotaExc
     msg.includes("insufficient") ||
     msg.includes("fair use") ||
     msg.includes("usage limit") ||
-    msg.includes("exceeded");
+    msg.includes("quota exceeded") ||
+    msg.includes("limit exceeded");
 
   if (quotaExceeded) {
     return {
@@ -207,7 +208,8 @@ function classifyError(err: any): { error: string; needsAuth?: boolean; quotaExc
     };
   }
 
-  return { error: `Puter se jawab nahi mil saka: ${raw.slice(0, 180)}` };
+  // Never surface raw SDK text: it may echo the user's prompt or PII.
+  return { error: "Puter se jawab nahi mil saka — dobara try karein." };
 }
 
 // ---------------------------------------------------------------------------
@@ -237,6 +239,13 @@ export async function puterChat(
           onProgress?.({ message: "Puter AI likh raha hai...", partialText: fullText });
         }
       }
+    }
+
+    // Array shape: some SDK builds resolve a plain array of message objects.
+    if (!fullText && Array.isArray(stream)) {
+      const last = stream[stream.length - 1];
+      const arrText = last?.message?.content?.[0]?.text || last?.text || "";
+      if (arrText) fullText = String(arrText);
     }
 
     // Non-streaming fallback: some SDK shapes resolve the full response.

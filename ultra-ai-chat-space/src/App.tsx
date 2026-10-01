@@ -53,8 +53,10 @@ function createWelcomeMessage(model: AIModel): Message {
 const MUSIC_RE = /(song|music|audio|gana|gaana|track|beat|melody|tune|dhun|compose|instrumental|remix|vocal)/i;
 const NON_MUSIC_RE = /(image|photo|picture|pic|tasveer|wallpaper|video|clip|code|function|program)/i;
 // Puter free stack: image & video intents route to puter.ai.txt2img / video.
-const IMAGE_RE = /(image|photo|picture|draw|tasveer|pic|wallpaper|paint|sketch)/i;
-const VIDEO_RE = /(video|clip|animation|film|movie)/i;
+// Word-boundaried: unanchored tokens misroute ordinary text ("topic" contains
+// "pic", "clipboard" contains "clip") into media generation.
+const IMAGE_RE = /\b(image|photo|picture|draw|tasveer|pic|wallpaper|paint|sketch)\b/i;
+const VIDEO_RE = /\b(video|clip|animation|film|movie)\b/i;
 
 function isMusicPrompt(text: string): boolean {
   return MUSIC_RE.test(text) && !NON_MUSIC_RE.test(text);
@@ -330,6 +332,8 @@ function App() {
         setIsGenerating(false);
       }
     },
+    // [] is correct here: everything referenced is module-scope or stable
+    // setState — no reactive values are closed over.
     []
   );
 
@@ -640,6 +644,17 @@ function App() {
     signOutFromPuter().finally(() => setPuterUser(null));
   }, []);
 
+  /** Explicit Puter disconnect (header "Puter AI ✓" tap) — confirm first. */
+  const handlePuterDisconnectRequest = useCallback(() => {
+    if (
+      window.confirm(
+        "Puter AI disconnect karna hai? Text, image aur video ke liye dobara Connect karna hoga."
+      )
+    ) {
+      handlePuterSignOut();
+    }
+  }, [handlePuterSignOut]);
+
   const flowConnected = flowStatus.signedIn;
 
   return (
@@ -663,7 +678,8 @@ function App() {
           try {
             localStorage.removeItem("ultra_ai_user");
           } catch {}
-          handlePuterSignOut();
+          // Puter has its own disconnect affordance (header "Puter AI ✓") —
+          // signing out of Ultra Chat AI must not kill the Puter session.
         }}
         flowCredits={flowUser.dailyCreditsRemaining}
       />
@@ -677,9 +693,9 @@ function App() {
           onOpenFlowStudio={handleOpenFlowMusic}
           onOpenAuth={handleOpenFlowMusic}
           onOpenPuterAuth={handleOpenPuterAuth}
+          onPuterDisconnect={handlePuterDisconnectRequest}
           authUser={authUser}
           flowCredits={flowUser.dailyCreditsRemaining}
-          flowConnected={flowConnected}
           puterConnected={!!puterUser}
         />
 

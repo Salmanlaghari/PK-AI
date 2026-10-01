@@ -65,7 +65,7 @@ const ART_NOUN_SRC =
 const AMBIG_ART_NOUN_SRC = "portraits?|artworks?|logos?|icons?";
 const IMAGE_RE = new RegExp(`\\b(?:${ART_NOUN_SRC})\\b`, "i");
 const IMAGE_VERB_RE = new RegExp(
-  `\\b(?:draw|paint|sketch|create|make|generate|design)(?:ing|ed|s)?\\b(?=[^.?!\\n]{0,40}\\b(?:${ART_NOUN_SRC}|${AMBIG_ART_NOUN_SRC})\\b)`,
+  `\\b(?:draw|paint|sketch|create|make|generate|design|render|illustrate)(?:ing|ed|s)?\\b(?=[^.?!\\n]{0,40}\\b(?:${ART_NOUN_SRC}|${AMBIG_ART_NOUN_SRC})\\b)`,
   "i"
 );
 // Interrogative/analytical prompts ("What makes a portrait good?") aren't
@@ -89,7 +89,7 @@ function isMusicPrompt(text: string): boolean {
 // demonstrative or qualitative adjective in between. "How can I draw a
 // portrait in oil?" yes; "How to draw better portraits?" no.
 const IMAGE_TIGHT_VERB_RE = new RegExp(
-  `\\b(?:draw|paint|sketch|create|make|generate|design)(?:ing|ed|s)?\\s+(?:(?:a|an|the|some)\\s+)?(?!(?:this|that|these|those|my|your|his|her|its|our|their|better|best|good|great|nicer|sharper)\\b)(?:(?!(?:this|that|these|those|my|your|his|her|its|our|their|better|best|good|great|nicer|sharper)\\b)[a-z]+\\s+){0,2}\\b(?:${ART_NOUN_SRC}|${AMBIG_ART_NOUN_SRC})\\b`,
+  `\\b(?:draw|paint|sketch|create|make|generate|design|render|illustrate)(?:ing|ed|s)?\\s+(?:(?:a|an|the|some)\\s+)?(?!(?:this|that|these|those|my|your|his|her|its|our|their|better|best|good|great|nicer|sharper)\\b)(?:(?!(?:this|that|these|those|my|your|his|her|its|our|their|better|best|good|great|nicer|sharper)\\b)[a-z0-9]+(?:-[a-z0-9]+)*\\s+){0,2}\\b(?:${ART_NOUN_SRC}|${AMBIG_ART_NOUN_SRC})\\b`,
   "i"
 );
 function isImagePrompt(text: string): boolean {
@@ -105,7 +105,7 @@ function isImagePrompt(text: string): boolean {
 // one ("make this movie scene look better"). Possessives/demonstratives are
 // excluded across the whole bridge ("make sure my video works" stays text).
 const VIDEO_VERB_RE = new RegExp(
-  `\\b(?:record|film|shoot|make|create|generate)(?:ing|ed|s)?\\s+(?:(?:a|an|the|some)\\s+)?(?!(?:this|that|these|those|my|your|his|her|its|our|their)\\b)(?:(?!(?:this|that|these|those|my|your|his|her|its|our|their)\\b)[a-z]+\\s+){0,2}\\b${VIDEO_NOUN_SRC}\\b`,
+  `\\b(?:record|film|shoot|make|create|generate|render|illustrate)(?:ing|ed|s)?\\s+(?:(?:a|an|the|some)\\s+)?(?!(?:this|that|these|those|my|your|his|her|its|our|their)\\b)(?:(?!(?:this|that|these|those|my|your|his|her|its|our|their)\\b)[a-z0-9]+(?:-[a-z0-9]+)*\\s+){0,2}\\b${VIDEO_NOUN_SRC}\\b`,
   "i"
 );
 function isVideoPrompt(text: string): boolean {

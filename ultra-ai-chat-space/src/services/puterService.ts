@@ -54,6 +54,7 @@ let sdkLoad: Promise<any> | null = null;
 /** Raw script-tag load of the Puter SDK (single-flight via [sdkLoad]). */
 function startSdkLoad(): Promise<any> {
   const p: Promise<any> = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
     let settled = false;
     const done = (fn: () => void) => {
       if (!settled) {
@@ -62,17 +63,18 @@ function startSdkLoad(): Promise<any> {
       }
     };
     const timer = setTimeout(() => {
+      script.remove(); // don't pile up dead script tags across retries
       done(() =>
         reject(internalError("Puter SDK load nahi ho saka (timeout) — internet check karein."))
       );
     }, SDK_TIMEOUT_MS);
 
-    const script = document.createElement("script");
     script.src = PUTER_SDK_URL;
     script.async = true;
     script.onload = () => {
       clearTimeout(timer);
       const puter = (window as any).puter;
+      if (!puter) script.remove();
       done(() =>
         puter
           ? resolve(puter)
@@ -81,6 +83,7 @@ function startSdkLoad(): Promise<any> {
     };
     script.onerror = () => {
       clearTimeout(timer);
+      script.remove();
       done(() => reject(internalError("Puter SDK download nahi ho saka — internet check karein.")));
     };
     document.head.appendChild(script);

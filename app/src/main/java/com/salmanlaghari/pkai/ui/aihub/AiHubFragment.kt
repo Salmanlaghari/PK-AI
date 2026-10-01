@@ -133,6 +133,100 @@ class AiHubFragment : Fragment() {
     }
 
     /**
+     * WebChromeClient with native UI for the JS dialogs (confirm/alert/prompt).
+     * The default client never shows them, so a page calling alert() would hang
+     * its JS thread forever with no visible UI. Shared by the main WebView and
+     * the Puter auth popup. Pending results are nulled once the user answers so
+     * teardown can't settle them twice.
+     */
+    private inner class JsDialogChromeClient : WebChromeClient() {
+        // window.confirm() from the web UI (e.g. the Puter disconnect prompt).
+        override fun onJsConfirm(
+            view: WebView?,
+            url: String?,
+            message: String?,
+            result: JsResult?
+        ): Boolean {
+            val hostActivity = activity ?: return false
+            dismissJsDialog()
+            pendingJsResult = result
+            jsDialog = AlertDialog.Builder(hostActivity)
+                .setMessage(message)
+                .setPositiveButton(android.R.string.ok) { _, _ ->
+                    result?.confirm()
+                    pendingJsResult = null
+                }
+                .setNegativeButton(android.R.string.cancel) { _, _ ->
+                    result?.cancel()
+                    pendingJsResult = null
+                }
+                .setOnCancelListener {
+                    result?.cancel()
+                    pendingJsResult = null
+                }
+                .setOnDismissListener { jsDialog = null }
+                .show()
+            return true
+        }
+
+        override fun onJsAlert(
+            view: WebView?,
+            url: String?,
+            message: String?,
+            result: JsResult?
+        ): Boolean {
+            val hostActivity = activity ?: return false
+            dismissJsDialog()
+            pendingJsResult = result
+            jsDialog = AlertDialog.Builder(hostActivity)
+                .setMessage(message)
+                .setPositiveButton(android.R.string.ok) { _, _ ->
+                    result?.confirm()
+                    pendingJsResult = null
+                }
+                .setOnCancelListener {
+                    result?.cancel()
+                    pendingJsResult = null
+                }
+                .setOnDismissListener { jsDialog = null }
+                .show()
+            return true
+        }
+
+        override fun onJsPrompt(
+            view: WebView?,
+            url: String?,
+            message: String?,
+            defaultValue: String?,
+            result: JsPromptResult?
+        ): Boolean {
+            val hostActivity = activity ?: return false
+            dismissJsDialog()
+            pendingJsPromptResult = result
+            val input = EditText(hostActivity)
+            input.setText(defaultValue)
+            jsDialog = AlertDialog.Builder(hostActivity)
+                .setMessage(message)
+                .setView(input)
+                .setPositiveButton(android.R.string.ok) { _, _ ->
+                    result?.confirm(input.text.toString())
+                    pendingJsPromptResult = null
+                }
+                .setNegativeButton(android.R.string.cancel) { _, _ ->
+                    result?.cancel()
+                    pendingJsPromptResult = null
+                }
+                .setOnCancelListener {
+                    result?.cancel()
+                    pendingJsPromptResult = null
+                }
+                .setOnDismissListener { jsDialog = null }
+                .show()
+            return true
+        }
+    }
+
+    /**
      * Dismiss the Puter auth popup and destroy its WebView on every path
      * (cancel, window.close(), fragment teardown, or a fresh popup replacing
      * the old one). A leaked WebView keeps its renderer process alive.
@@ -1179,72 +1273,9 @@ class AiHubFragment : Fragment() {
             }
         }
 
-        webView.webChromeClient = object : WebChromeClient() {
+        webView.webChromeClient = object : JsDialogChromeClient() {
             override fun onPermissionRequest(request: PermissionRequest?) {
                 request?.grant(request.resources)
-            }
-
-            // window.confirm() from the web UI (e.g. the Puter disconnect
-            // prompt): the default WebChromeClient never shows a dialog, so
-            // the JS call would silently hang. Show a native confirm instead.
-            override fun onJsConfirm(
-                view: WebView?,
-                url: String?,
-                message: String?,
-                result: JsResult?
-            ): Boolean {
-                val hostActivity = activity ?: return false
-                dismissJsDialog()
-                pendingJsResult = result
-                jsDialog = AlertDialog.Builder(hostActivity)
-                    .setMessage(message)
-                    .setPositiveButton(android.R.string.ok) { _, _ -> result?.confirm() }
-                    .setNegativeButton(android.R.string.cancel) { _, _ -> result?.cancel() }
-                    .setOnCancelListener { result?.cancel() }
-                    .show()
-                return true
-            }
-
-            // alert() with no UI would block the page's JS thread forever.
-            override fun onJsAlert(
-                view: WebView?,
-                url: String?,
-                message: String?,
-                result: JsResult?
-            ): Boolean {
-                val hostActivity = activity ?: return false
-                dismissJsDialog()
-                pendingJsResult = result
-                jsDialog = AlertDialog.Builder(hostActivity)
-                    .setMessage(message)
-                    .setPositiveButton(android.R.string.ok) { _, _ -> result?.confirm() }
-                    .setOnCancelListener { result?.cancel() }
-                    .show()
-                return true
-            }
-
-            override fun onJsPrompt(
-                view: WebView?,
-                url: String?,
-                message: String?,
-                defaultValue: String?,
-                result: JsPromptResult?
-            ): Boolean {
-                val hostActivity = activity ?: return false
-                dismissJsDialog()
-                pendingJsPromptResult = result
-                val input = EditText(hostActivity)
-                input.setText(defaultValue)
-                jsDialog = AlertDialog.Builder(hostActivity)
-                    .setMessage(message)
-                    .setView(input)
-                    .setPositiveButton(android.R.string.ok) { _, _ ->
-                        result?.confirm(input.text.toString())
-                    }
-                    .setNegativeButton(android.R.string.cancel) { _, _ -> result?.cancel() }
-                    .setOnCancelListener { result?.cancel() }
-                    .show()
-                return true
             }
 
             // Puter auth popup: puter.auth.signIn() calls window.open(). Show
@@ -1286,7 +1317,10 @@ class AiHubFragment : Fragment() {
                             return !allowed
                         }
                     }
-                    webChromeClient = object : WebChromeClient() {
+                    // JS dialogs on sign-in pages get native UI via the shared
+                    // client — the default no-op would hang the popup's JS
+                    // thread with no visible UI.
+                    webChromeClient = object : JsDialogChromeClient() {
                         override fun onCloseWindow(window: WebView?) {
                             dismissPuterPopup()
                         }

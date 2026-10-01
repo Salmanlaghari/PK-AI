@@ -93,6 +93,25 @@ export function loadPuterSDK(): Promise<any> {
   return sdkPromise;
 }
 
+/**
+ * Force a fresh SDK load. Used when the cached SDK object is stale or partial
+ * (e.g. window.puter exists but ai.txt2img is missing) — one retry before the
+ * user ever sees a dead-end error. Auth state is cookie-based, so reloading the
+ * script never signs the user out.
+ */
+export function reloadPuterSDK(): Promise<any> {
+  sdkPromise = null;
+  try {
+    delete (window as any).puter;
+  } catch {
+    /* non-configurable — the fresh script overwrites it on load */
+  }
+  document
+    .querySelectorAll(`script[src="${PUTER_SDK_URL}"]`)
+    .forEach((s) => s.remove());
+  return loadPuterSDK();
+}
+
 // ---------------------------------------------------------------------------
 // Auth — one tap, free Puter account, per-user quota
 // ---------------------------------------------------------------------------
@@ -282,15 +301,30 @@ export async function puterChat(
 // Image generation (FLUX.1-schnell via puter.ai.txt2img)
 // ---------------------------------------------------------------------------
 
+/**
+ * Resolve a puter SDK object with ai.txt2img available. If the cached SDK
+ * object is stale/partial, one fresh load is attempted before failing — the
+ * user should get a working feature, not a dead-end "version" message.
+ */
+async function ensureImageApi(): Promise<any> {
+  let puter: any = await loadPuterSDK();
+  if (typeof puter?.ai?.txt2img !== "function") {
+    puter = await reloadPuterSDK().catch(() => puter);
+  }
+  if (typeof puter?.ai?.txt2img !== "function") {
+    throw internalError(
+      "Image feature tayyar nahi ho saka — app band karke dobara kholein."
+    );
+  }
+  return puter;
+}
+
 export async function puterGenerateImage(
   prompt: string,
   onProgress?: (p: PuterProgress) => void
 ): Promise<PuterMediaResult> {
   try {
-    const puter = await loadPuterSDK();
-    if (typeof puter.ai?.txt2img !== "function") {
-      throw internalError("Is Puter version mein image generation nahi mili.");
-    }
+    const puter = await ensureImageApi();
     onProgress?.({ message: "🖼️ Image ban rahi hai..." });
 
     // No model pinned — Puter's default image model is used.
@@ -313,12 +347,16 @@ export async function puterGenerateVideo(
   onProgress?: (p: PuterProgress) => void
 ): Promise<PuterMediaResult> {
   try {
-    const puter = await loadPuterSDK();
-    if (typeof puter.ai?.txt2vid !== "function") {
+    let puter: any = await loadPuterSDK();
+    if (typeof puter?.ai?.txt2vid !== "function") {
+      // Stale or partial SDK object — one fresh load before giving up.
+      puter = await reloadPuterSDK().catch(() => puter);
+    }
+    if (typeof puter?.ai?.txt2vid !== "function") {
       return {
         ok: false,
         error:
-          "Is Puter version mein video generation nahi mili — text aur image istemal karein, ya Puter update ka intezar karein.",
+          "Video feature tayyar nahi ho saka — app band karke dobara kholein.",
       };
     }
 

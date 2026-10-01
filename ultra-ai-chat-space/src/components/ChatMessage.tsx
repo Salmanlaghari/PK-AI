@@ -215,11 +215,11 @@ export default function ChatMessage({ message, userName, onRegenerate, onGenerat
                 <div className="flex gap-2">
                   <button
                     onClick={() => {
-                      const safeName = "ultra_ai_image_" + Date.now() + ".jpg";
-                      handleDownload(message.imageUrl || "", safeName, "image/jpeg");
+                      const safeName = "ultra_ai_video_" + Date.now() + ".mp4";
+                      handleDownload(message.videoUrl || "", safeName, "video/mp4");
                     }}
                     className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800/80 text-slate-300 hover:text-white hover:bg-slate-700 border border-slate-700 transition-all text-[11px] font-medium active:scale-95"
-                    title="Download Image"
+                    title="Download Video"
                   >
                     <Download className="w-3.5 h-3.5 text-cyan-400" />
                     Download

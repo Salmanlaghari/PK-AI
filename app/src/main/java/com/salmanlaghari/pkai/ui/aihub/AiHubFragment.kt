@@ -22,6 +22,8 @@ import android.view.inputmethod.EditorInfo
 import android.webkit.ConsoleMessage
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
+import android.webkit.JsResult
+import android.webkit.JsPromptResult
 import android.webkit.PermissionRequest
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
@@ -103,6 +105,191 @@ class AiHubFragment : Fragment() {
 
     /** True once the hidden backend engine WebView finished its first page load. */
     private var backendPageLoaded = false
+
+    /** Holds the Puter auth popup dialog while it is open (null otherwise). */
+    private var puterPopupDialog: android.app.AlertDialog? = null
+
+    /** The WebView hosted inside [puterPopupDialog]; destroyed with the dialog. */
+    private var puterPopupWebView: WebView? = null
+
+    /**
+     * Active JS dialog (confirm/alert/prompt) and its pending result, if any.
+     * Tracked so a rotation or fragment teardown can dismiss the dialog and
+     * settle the result — otherwise the window leaks and the page's JS thread
+     * hangs forever waiting for an answer.
+     */
+    private var jsDialog: AlertDialog? = null
+    private var pendingJsResult: JsResult? = null
+    private var pendingJsPromptResult: JsPromptResult? = null
+    // Which WebView (main page or Puter auth popup) owns the active JS dialog.
+    private var jsDialogOwner: WebView? = null
+
+    /** Dismiss any active JS dialog and settle its pending result. */
+    private fun dismissJsDialog() {
+        jsDialog?.dismiss()
+        jsDialog = null
+        jsDialogOwner = null
+        pendingJsResult?.cancel()
+        pendingJsResult = null
+        pendingJsPromptResult?.cancel()
+        pendingJsPromptResult = null
+    }
+
+    /**
+     * WebChromeClient with native UI for the JS dialogs (confirm/alert/prompt).
+     * The default client never shows them, so a page calling alert() would hang
+     * its JS thread forever with no visible UI. Shared by the main WebView and
+     * the Puter auth popup. Pending results are nulled once the user answers so
+     * teardown can't settle them twice.
+     */
+    private open inner class JsDialogChromeClient : WebChromeClient() {
+        /**
+         * Origin host of the requesting page, shown as the dialog title so a
+         * page can't impersonate a trusted site behind an app-styled prompt.
+         * Our own UI needs no origin chrome; opaque origins get a generic label.
+         */
+        private fun dialogTitle(url: String?): String? {
+            val host = url?.let { Uri.parse(it).host } ?: return "Web page"
+            return if (host == "appassets.androidplatform.net") null else host
+        }
+
+        // window.confirm() from the web UI (e.g. the Puter disconnect prompt).
+        override fun onJsConfirm(
+            view: WebView?,
+            url: String?,
+            message: String?,
+            result: JsResult?
+        ): Boolean {
+            val hostActivity = activity ?: return false
+            // A dialog owned by the other WebView is already showing: settle
+            // this one as cancelled so neither JS thread hangs.
+            if (jsDialog != null && jsDialogOwner !== view) {
+                Log.w("AiHubFragment", "dropped JS confirm from ${dialogTitle(url) ?: "app page"} (active dialog owner: ${if (jsDialogOwner === puterPopupWebView) "popup" else "main"})")
+                result?.cancel()
+                return true
+            }
+            dismissJsDialog()
+            jsDialogOwner = view
+            pendingJsResult = result
+            jsDialog = AlertDialog.Builder(hostActivity)
+                .setTitle(dialogTitle(url))
+                .setMessage(message)
+                .setPositiveButton(android.R.string.ok) { _, _ ->
+                    result?.confirm()
+                    pendingJsResult = null
+                }
+                .setNegativeButton(android.R.string.cancel) { _, _ ->
+                    result?.cancel()
+                    pendingJsResult = null
+                }
+                .setOnCancelListener {
+                    result?.cancel()
+                    pendingJsResult = null
+                }
+                .setOnDismissListener { jsDialog = null; jsDialogOwner = null }
+                .show()
+            return true
+        }
+
+        override fun onJsAlert(
+            view: WebView?,
+            url: String?,
+            message: String?,
+            result: JsResult?
+        ): Boolean {
+            val hostActivity = activity ?: return false
+            // A dialog owned by the other WebView is already showing: settle
+            // this one as cancelled so neither JS thread hangs.
+            if (jsDialog != null && jsDialogOwner !== view) {
+                Log.w("AiHubFragment", "dropped JS alert from ${dialogTitle(url) ?: "app page"} (active dialog owner: ${if (jsDialogOwner === puterPopupWebView) "popup" else "main"})")
+                result?.cancel()
+                return true
+            }
+            dismissJsDialog()
+            jsDialogOwner = view
+            pendingJsResult = result
+            jsDialog = AlertDialog.Builder(hostActivity)
+                .setTitle(dialogTitle(url))
+                .setMessage(message)
+                .setPositiveButton(android.R.string.ok) { _, _ ->
+                    result?.confirm()
+                    pendingJsResult = null
+                }
+                .setOnCancelListener {
+                    result?.cancel()
+                    pendingJsResult = null
+                }
+                .setOnDismissListener { jsDialog = null; jsDialogOwner = null }
+                .show()
+            return true
+        }
+
+        override fun onJsPrompt(
+            view: WebView?,
+            url: String?,
+            message: String?,
+            defaultValue: String?,
+            result: JsPromptResult?
+        ): Boolean {
+            val hostActivity = activity ?: return false
+            // A dialog owned by the other WebView is already showing: settle
+            // this one as cancelled so neither JS thread hangs.
+            if (jsDialog != null && jsDialogOwner !== view) {
+                Log.w("AiHubFragment", "dropped JS prompt from ${dialogTitle(url) ?: "app page"} (active dialog owner: ${if (jsDialogOwner === puterPopupWebView) "popup" else "main"})")
+                result?.cancel()
+                return true
+            }
+            dismissJsDialog()
+            jsDialogOwner = view
+            pendingJsPromptResult = result
+            val input = EditText(hostActivity)
+            input.setText(defaultValue)
+            jsDialog = AlertDialog.Builder(hostActivity)
+                .setTitle(dialogTitle(url))
+                .setMessage(message)
+                .setView(input)
+                .setPositiveButton(android.R.string.ok) { _, _ ->
+                    result?.confirm(input.text.toString())
+                    pendingJsPromptResult = null
+                }
+                .setNegativeButton(android.R.string.cancel) { _, _ ->
+                    result?.cancel()
+                    pendingJsPromptResult = null
+                }
+                .setOnCancelListener {
+                    result?.cancel()
+                    pendingJsPromptResult = null
+                }
+                .setOnDismissListener { jsDialog = null; jsDialogOwner = null }
+                .show()
+            return true
+        }
+    }
+
+    /**
+     * Dismiss the Puter auth popup and destroy its WebView on every path
+     * (cancel, window.close(), fragment teardown, or a fresh popup replacing
+     * the old one). A leaked WebView keeps its renderer process alive.
+     */
+    private fun dismissPuterPopup() {
+        val popupView = puterPopupWebView
+        // The popup shares the fragment-level JS-dialog tracker — settle a
+        // pending dialog only when it belongs to the popup. A main-page dialog
+        // (e.g. the Puter disconnect confirm) must survive popup dismissal.
+        if (jsDialog != null && jsDialogOwner === popupView) {
+            dismissJsDialog()
+        }
+        try {
+            puterPopupDialog?.dismiss()
+        } catch (_: Exception) {
+        }
+        puterPopupDialog = null
+        try {
+            puterPopupWebView?.destroy()
+        } catch (_: Exception) {
+        }
+        puterPopupWebView = null
+    }
 
     /**
      * Set when [autoInjectSession] already reloaded the engine with a fresh
@@ -1014,6 +1201,11 @@ class AiHubFragment : Fragment() {
             useWideViewPort = true
             loadWithOverviewMode = true
             cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
+            // Puter one-tap sign-in opens a popup via window.open() — without
+            // multi-window support the popup dies silently and auth never
+            // completes.
+            setSupportMultipleWindows(true)
+            javaScriptCanOpenWindowsAutomatically = true
         }
 
         webView.webViewClient = object : WebViewClient() {
@@ -1128,9 +1320,68 @@ class AiHubFragment : Fragment() {
             }
         }
 
-        webView.webChromeClient = object : WebChromeClient() {
+        webView.webChromeClient = object : JsDialogChromeClient() {
             override fun onPermissionRequest(request: PermissionRequest?) {
                 request?.grant(request.resources)
+            }
+
+            // Puter auth popup: puter.auth.signIn() calls window.open(). Show
+            // the popup in a dialog WebView; Puter closes it via
+            // window.close() once sign-in completes.
+            override fun onCreateWindow(
+                view: WebView?,
+                isDialog: Boolean,
+                isUserGesture: Boolean,
+                resultMsg: android.os.Message?
+            ): Boolean {
+                val transport = resultMsg?.obj as? WebView.WebViewTransport ?: return false
+                val hostActivity = activity ?: return false
+                // A previous popup that never closed would otherwise leak its
+                // WebView when the dialog field is overwritten below.
+                dismissPuterPopup()
+                val popupWebView = WebView(hostActivity).apply {
+                    settings.javaScriptEnabled = true
+                    settings.domStorageEnabled = true
+                    settings.databaseEnabled = true
+                    settings.userAgentString = view?.settings?.userAgentString
+                    // Puter auth only: block navigation away from Puter/OAuth
+                    // hosts so an arbitrary page can't render inside app chrome.
+                    webViewClient = object : WebViewClient() {
+                        override fun shouldOverrideUrlLoading(
+                            view: WebView?,
+                            request: WebResourceRequest?
+                        ): Boolean {
+                            val raw = request?.url?.toString() ?: return true
+                            if (raw.startsWith("about:")) return false
+                            val host = request.url.host?.lowercase() ?: return true
+                            val allowed = host == "puter.com" ||
+                                host.endsWith(".puter.com") ||
+                                host.endsWith(".google.com") ||
+                                host.endsWith(".googleapis.com") ||
+                                host.endsWith(".gstatic.com") ||
+                                host.endsWith(".googleusercontent.com") ||
+                                host == "github.com"
+                            return !allowed
+                        }
+                    }
+                    // JS dialogs on sign-in pages get native UI via the shared
+                    // client — the default no-op would hang the popup's JS
+                    // thread with no visible UI.
+                    webChromeClient = object : JsDialogChromeClient() {
+                        override fun onCloseWindow(window: WebView?) {
+                            dismissPuterPopup()
+                        }
+                    }
+                }
+                puterPopupWebView = popupWebView
+                puterPopupDialog = android.app.AlertDialog.Builder(hostActivity)
+                    .setView(popupWebView)
+                    .setOnCancelListener { dismissPuterPopup() }
+                    .create()
+                puterPopupDialog?.show()
+                transport.webView = popupWebView
+                resultMsg.sendToTarget()
+                return true
             }
 
             override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
@@ -1412,6 +1663,8 @@ class AiHubFragment : Fragment() {
         statusHandler.removeCallbacksAndMessages(null)
         connectFailedDialog?.dismiss()
         connectFailedDialog = null
+        dismissJsDialog()
+        dismissPuterPopup()
         CookieManager.getInstance().flush()
         _binding?.webviewFlowmusicBackend?.removeJavascriptInterface("FlowMusicNative")
         super.onDestroyView()

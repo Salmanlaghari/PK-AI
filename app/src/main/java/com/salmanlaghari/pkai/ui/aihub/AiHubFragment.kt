@@ -812,19 +812,15 @@ class AiHubFragment : Fragment() {
     private fun importPastedSession(pasted: String) {
         if (!isAdded) return
         viewLifecycleOwner.lifecycleScope.launch {
-            var truncatedPaste = false
             val session: JSONObject? = try {
                 val json = JSONObject(pasted.trim())
                 val accessToken = json.opt("access_token") as? String
                 val refreshToken = json.opt("refresh_token") as? String
                 if (json.has("error") || accessToken.isNullOrBlank() || refreshToken.isNullOrBlank()) null
-                // Guard against a truncated paste (e.g. copied from a chat
-                // message): real Supabase tokens are long; a short one means
-                // the session was cut off and refresh would fail within hours.
-                else if (accessToken.length < 40 || refreshToken.length < 20) {
-                    truncatedPaste = true
-                    null
-                }
+                // NOTE: no length check on the tokens - this Supabase project
+                // issues short opaque refresh tokens (~12 chars); they are
+                // valid and sustain the session for days. A cut-off paste
+                // fails JSON parsing above instead.
                 else json
             } catch (e: JSONException) {
                 null
@@ -834,10 +830,7 @@ class AiHubFragment : Fragment() {
                 if (isAdded) {
                     Toast.makeText(
                         requireContext(),
-                        getString(
-                            if (truncatedPaste) R.string.msg_session_incomplete
-                            else R.string.msg_import_session_invalid
-                        ),
+                        getString(R.string.msg_import_session_invalid),
                         Toast.LENGTH_LONG
                     ).show()
                 }

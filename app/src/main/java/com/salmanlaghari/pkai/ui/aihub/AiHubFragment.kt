@@ -104,6 +104,9 @@ class AiHubFragment : Fragment() {
     /** True once the hidden backend engine WebView finished its first page load. */
     private var backendPageLoaded = false
 
+    /** Holds the Puter auth popup dialog while it is open (null otherwise). */
+    private var puterPopupDialog: android.app.AlertDialog? = null
+
     /**
      * Set when [autoInjectSession] already reloaded the engine with a fresh
      * session: the following [onEngineConnected] must show the toast but
@@ -1014,6 +1017,11 @@ class AiHubFragment : Fragment() {
             useWideViewPort = true
             loadWithOverviewMode = true
             cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
+            // Puter one-tap sign-in opens a popup via window.open() — without
+            // multi-window support the popup dies silently and auth never
+            // completes.
+            setSupportMultipleWindows(true)
+            javaScriptCanOpenWindowsAutomatically = true
         }
 
         webView.webViewClient = object : WebViewClient() {
@@ -1131,6 +1139,40 @@ class AiHubFragment : Fragment() {
         webView.webChromeClient = object : WebChromeClient() {
             override fun onPermissionRequest(request: PermissionRequest?) {
                 request?.grant(request.resources)
+            }
+
+            // Puter auth popup: puter.auth.signIn() calls window.open(). Show
+            // the popup in a dialog WebView; Puter closes it via
+            // window.close() once sign-in completes.
+            override fun onCreateWindow(
+                view: WebView?,
+                isDialog: Boolean,
+                isUserGesture: Boolean,
+                resultMsg: android.os.Message?
+            ): Boolean {
+                val transport = resultMsg?.obj as? WebView.WebViewTransport ?: return false
+                val hostActivity = activity ?: return false
+                val popupWebView = WebView(hostActivity).apply {
+                    settings.javaScriptEnabled = true
+                    settings.domStorageEnabled = true
+                    settings.databaseEnabled = true
+                    settings.userAgentString = view?.settings?.userAgentString
+                    webViewClient = WebViewClient()
+                    webChromeClient = object : WebChromeClient() {
+                        override fun onCloseWindow(window: WebView?) {
+                            puterPopupDialog?.dismiss()
+                            puterPopupDialog = null
+                        }
+                    }
+                }
+                puterPopupDialog = android.app.AlertDialog.Builder(hostActivity)
+                    .setView(popupWebView)
+                    .setOnCancelListener { popupWebView.destroy() }
+                    .create()
+                puterPopupDialog?.show()
+                transport.webView = popupWebView
+                resultMsg.sendToTarget()
+                return true
             }
 
             override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
@@ -1412,6 +1454,8 @@ class AiHubFragment : Fragment() {
         statusHandler.removeCallbacksAndMessages(null)
         connectFailedDialog?.dismiss()
         connectFailedDialog = null
+        puterPopupDialog?.dismiss()
+        puterPopupDialog = null
         CookieManager.getInstance().flush()
         _binding?.webviewFlowmusicBackend?.removeJavascriptInterface("FlowMusicNative")
         super.onDestroyView()

@@ -55,15 +55,17 @@ const NON_MUSIC_RE = /(image|photo|picture|pic|tasveer|wallpaper|video|clip|code
 // Puter free stack: image & video intents route to puter.ai.txt2img / video.
 // Noun-first routing with a verb fallback, word-boundaried throughout so
 // substrings ("topic" -> "pic", "clipboard" -> "clip") never match. Bare nouns
-// ("photo", "tasveer") route to image gen; verbs ("draw", "paint", "sketch")
-// only when an art noun follows in the SAME sentence — so "draw a conclusion",
-// "painted blue" and "what does the icon do" stay text, while "draw me a
-// picture of a cat" still generates.
+// ("photo", "tasveer") route to image gen; verbs ("draw", "paint", "sketch",
+// plus explicit generation verbs) only when an art noun follows in the SAME
+// sentence. Ambiguous nouns ("icon", "logo", "portrait", "artwork") are never
+// bare nouns — they need an explicit verb — so "what does the icon do" stays
+// text while "generate a portrait of a cat" still generates.
 const ART_NOUN_SRC =
   "images?|photos?|pictures?|drawings?|tasveer(en)?|pics?|wallpapers?|paintings?|sketch(es)?";
+const AMBIG_ART_NOUN_SRC = "portraits?|artworks?|logos?|icons?";
 const IMAGE_RE = new RegExp(`\\b(?:${ART_NOUN_SRC})\\b`, "i");
 const IMAGE_VERB_RE = new RegExp(
-  `\\b(?:draw|paint|sketch)(?:ing|ed|s)?\\b(?=[^.?!\\n]{0,40}\\b(?:${ART_NOUN_SRC})\\b)`,
+  `\\b(?:draw|paint|sketch|create|make|generate|design)(?:ing|ed|s)?\\b(?=[^.?!\\n]{0,40}\\b(?:${ART_NOUN_SRC}|${AMBIG_ART_NOUN_SRC})\\b)`,
   "i"
 );
 const VIDEO_RE = /\b(videos?|clips?|animations?|films?|movies?)\b/i;

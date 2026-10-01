@@ -18,11 +18,19 @@ import {
   requestFlowMusicTrack,
   requestFlowMusicChat,
   syncFlowMusicProfile,
-  generateStrictVisual,
-  deductFlowCredits,
   type FlowMusicUser,
   type FlowMusicStatus,
 } from "./services/flowMusicService";
+import {
+  isPuterSignedIn,
+  getCachedPuterUser,
+  signOutFromPuter,
+  puterChat,
+  puterGenerateImage,
+  puterGenerateVideo,
+  type PuterUser,
+} from "./services/puterService";
+import PuterAuthModal from "./components/PuterAuthModal";
 
 function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -36,17 +44,78 @@ function createWelcomeMessage(model: AIModel): Message {
   return {
     id: generateId(),
     sender: "ai",
-    text: `Namaste! Main ${model.name} hoon — Ultra AI 4, ab real Ultra AI 4 music engine ke saath. Aap mujhse seedha gaana banao, lyrics likhwao, ya HD image banwao. Music ke liye pehle header se apne Ultra Chat AI account ko connect karein.`,
+    text: `Namaste! Main ${model.name} hoon — Ultra AI 4. Header se "Connect" tap karke apna free Puter account connect karein, phir mujhse text, HD image aur video — teeno free mein banwayein (aapke apne quota mein). Gaane ke liye Ultra Chat AI (Pro) connect karein.`,
     timestamp: getTimestamp(),
-    modelName: `${model.name} × Ultra AI 4`,
+    modelName: `${model.name} × Puter AI`,
   };
 }
 
 const MUSIC_RE = /(song|music|audio|gana|gaana|track|beat|melody|tune|dhun|compose|instrumental|remix|vocal)/i;
 const NON_MUSIC_RE = /(image|photo|picture|pic|tasveer|wallpaper|video|clip|code|function|program)/i;
+// Puter free stack: image & video intents route to puter.ai.txt2img / video.
+// Noun-first routing with a verb fallback, word-boundaried throughout so
+// substrings ("topic" -> "pic", "clipboard" -> "clip") never match. Bare nouns
+// ("photo", "tasveer") route to image gen; verbs ("draw", "paint", "sketch",
+// plus explicit generation verbs) only when an art noun follows in the SAME
+// sentence. Ambiguous nouns ("icon", "logo", "portrait", "artwork") are never
+// bare nouns — they need an explicit verb — so "what does the icon do" stays
+// text while "generate a portrait of a cat" still generates.
+const ART_NOUN_SRC =
+  "images?|photos?|pictures?|drawings?|tasveer(en)?|pics?|wallpapers?|paintings?|sketch(es)?";
+const AMBIG_ART_NOUN_SRC = "portraits?|artworks?|logos?|icons?";
+const IMAGE_RE = new RegExp(`\\b(?:${ART_NOUN_SRC})\\b`, "i");
+const IMAGE_VERB_RE = new RegExp(
+  `\\b(?:draw|paint|sketch|create|make|generate|design|render|illustrate)(?:ing|ed|s)?\\b(?=[^.?!\\n]{0,40}\\b(?:${ART_NOUN_SRC}|${AMBIG_ART_NOUN_SRC})\\b)`,
+  "i"
+);
+// Interrogative/analytical prompts ("What makes a portrait good?") aren't
+// media requests — unless the prompt OPENS with an explicit generation
+// request ("Can you draw a picture of a cat?", "How do I make a video?"),
+// as opposed to third-person analytical verbs ("what makes…", "what creates…").
+const QUESTION_RE = /^\s*(what|how|why|when|where|which|who|whom|whose|explain|describe|tell\s+me)\b/i;
+const REQUEST_LEAD_RE =
+  /^\s*(?:please\s+|hey[,.]?\s+|how\s+(?:can|would|should)\s+i\s+|how\s+to\s+|tell\s+me\s+(?:how\s+to\s+)?|i\s+(?:want|need)\s+(?:you\s+)?to\s+|(?:can|could|would)\s+you\s+(?:please\s+)?|how\s+do\s+i\s+)?(?:draw|paint|sketch|create|make|generate|design|render|illustrate|record|film|shoot)\b/i;
+// "video call" / "video chat" / "video conference" are never generation requests.
+const VIDEO_NOUN_SRC =
+  "(?:videos?|clips?|animations?|films?|movies?)(?!\\s+(?:call(?:ing|s)?|chat(?:ting|s)?|conference)\\b)";
+const VIDEO_RE = new RegExp(`\\b${VIDEO_NOUN_SRC}\\b`, "i");
 
 function isMusicPrompt(text: string): boolean {
   return MUSIC_RE.test(text) && !NON_MUSIC_RE.test(text);
+}
+
+// Question-shaped prompts need a closely-governed generation request:
+// verb + (article) + (up to 2 adjectives) + art noun, with no possessive,
+// demonstrative or qualitative adjective in between. "How can I draw a
+// portrait in oil?" yes; "How to draw better portraits?" no.
+const IMAGE_TIGHT_VERB_RE = new RegExp(
+  `\\b(?:draw|paint|sketch|create|make|generate|design|render|illustrate)(?:ing|ed|s)?\\s+(?:(?:a|an|the|some)\\s+)?(?!(?:this|that|these|those|my|your|his|her|its|our|their|better|best|good|great|nicer|sharper)\\b)(?:(?!(?:this|that|these|those|my|your|his|her|its|our|their|better|best|good|great|nicer|sharper)\\b)[a-z0-9]+(?:-[a-z0-9]+)*\\s+){0,2}\\b(?:${ART_NOUN_SRC}|${AMBIG_ART_NOUN_SRC})\\b`,
+  "i"
+);
+function isImagePrompt(text: string): boolean {
+  const media = (IMAGE_RE.test(text) || IMAGE_VERB_RE.test(text)) && !VIDEO_RE.test(text);
+  if (!media) return false;
+  if (QUESTION_RE.test(text)) {
+    return REQUEST_LEAD_RE.test(text) && IMAGE_TIGHT_VERB_RE.test(text);
+  }
+  return true;
+}
+
+// Verb closely governing the video noun ("make a video"), not advice about
+// one ("make this movie scene look better"). Possessives/demonstratives are
+// excluded across the whole bridge ("make sure my video works" stays text).
+const VIDEO_VERB_RE = new RegExp(
+  `\\b(?:record|film|shoot|make|create|generate|render|illustrate)(?:ing|ed|s)?\\s+(?:(?:a|an|the|some)\\s+)?(?!(?:this|that|these|those|my|your|his|her|its|our|their)\\b)(?:(?!(?:this|that|these|those|my|your|his|her|its|our|their)\\b)[a-z0-9]+(?:-[a-z0-9]+)*\\s+){0,2}\\b${VIDEO_NOUN_SRC}\\b`,
+  "i"
+);
+function isVideoPrompt(text: string): boolean {
+  if (!VIDEO_RE.test(text)) return false;
+  if (QUESTION_RE.test(text)) {
+    // Questions need an explicit generation request: "How do I make a video?"
+    // yes, "How do I make this movie scene look better?" no.
+    return REQUEST_LEAD_RE.test(text) && VIDEO_VERB_RE.test(text);
+  }
+  return true;
 }
 
 function App() {
@@ -62,6 +131,9 @@ function App() {
   const [imageModal, setImageModal] = useState<{ isOpen: boolean; url: string }>({ isOpen: false, url: "" });
   const [flowUser, setFlowUser] = useState<FlowMusicUser>(() => getFlowMusicSession());
   const [flowStatus, setFlowStatus] = useState<FlowMusicStatus>(() => getFlowMusicStatus());
+  // Puter free stack (text + image + video) — one-tap connect, per-user quota.
+  const [puterUser, setPuterUser] = useState<PuterUser | null>(() => getCachedPuterUser());
+  const [puterAuthOpen, setPuterAuthOpen] = useState(false);
   // Transient "connect failed" notice — never overwrites flowStatus.
   const [connectError, setConnectError] = useState<string | null>(null);
   const [authUser, setAuthUser] = useState<{ name: string; email: string; picture: string } | null>(() => {
@@ -122,6 +194,22 @@ function App() {
     };
   }, [authUser?.picture]);
 
+  // Puter session: verify the cached user is still signed in (SDK session).
+  useEffect(() => {
+    let cancelled = false;
+    isPuterSignedIn().then((signedIn) => {
+      if (cancelled) return;
+      if (!signedIn) {
+        setPuterUser(null);
+      } else if (!getCachedPuterUser()) {
+        setPuterUser({ username: "Puter User", uuid: "" });
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const handleSelectModel = (model: AIModel) => {
     setSelectedModel(model);
     setMessages([createWelcomeMessage(model)]);
@@ -146,69 +234,169 @@ function App() {
     setMessages([createWelcomeMessage(selectedModel)]);
   };
 
-  const simulateAIResponse = useCallback((userText: string): Message => {
-    const lower = userText.toLowerCase();
+  /**
+   * Puter free stack: text + image + video. One-tap connect, per-user quota,
+   * no API keys. Replaces the old simulated replies — every answer here is
+   * real, generated under the user's own Puter account.
+   */
+  const sendViaPuter = useCallback(
+    async (text: string) => {
+      const placeholderId = generateId();
 
-    // IMAGE GENERATION (real, keyless Flux)
-    if (/(image|photo|picture|draw|tasveer|pic|wallpaper)/.test(lower)) {
-      const visual = generateStrictVisual(userText);
-      setFlowUser(getFlowMusicSession());
-      return {
-        id: generateId(),
+      // ---- Image ----
+      if (isImagePrompt(text)) {
+        const placeholder: Message = {
+          id: placeholderId,
+          sender: "ai",
+          text: "🖼️ Image ban rahi hai...",
+          timestamp: getTimestamp(),
+          type: "real_image",
+          modelName: "Puter AI × FLUX",
+          isGeneratingMedia: true,
+          mediaCategory: "image",
+        };
+        setMessages((prev) => [...prev, placeholder]);
+        setIsGenerating(true);
+        try {
+          const result = await puterGenerateImage(text, (p) => {
+            setMessages((prev) =>
+              prev.map((m) => (m.id === placeholderId ? { ...m, text: p.message } : m))
+            );
+          });
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === placeholderId
+                ? result.ok && result.url
+                  ? {
+                      ...m,
+                      text: `Aapke prompt ke mutabiq image tayyar hai:`,
+                      imageUrl: result.url,
+                      isGeneratingMedia: false,
+                    }
+                  : {
+                      ...m,
+                      type: "text",
+                      text: `⚠️ ${result.error || "Image nahi ban saki."}${
+                        result.needsAuth ? "\n\nHeader se \"Connect\" tap karein." : ""
+                      }`,
+                      isGeneratingMedia: false,
+                    }
+                : m
+            )
+          );
+          if (result.needsAuth) setPuterUser(null);
+        } finally {
+          setIsGenerating(false);
+        }
+        return;
+      }
+
+      // ---- Video ----
+      if (isVideoPrompt(text)) {
+        const placeholder: Message = {
+          id: placeholderId,
+          sender: "ai",
+          text: "🎬 Video ban raha hai... (thoda waqt lagega)",
+          timestamp: getTimestamp(),
+          type: "real_video",
+          modelName: "Puter AI × Veo",
+          isGeneratingMedia: true,
+          mediaCategory: "video",
+        };
+        setMessages((prev) => [...prev, placeholder]);
+        setIsGenerating(true);
+        try {
+          const result = await puterGenerateVideo(text, (p) => {
+            setMessages((prev) =>
+              prev.map((m) => (m.id === placeholderId ? { ...m, text: p.message } : m))
+            );
+          });
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === placeholderId
+                ? result.ok && result.url
+                  ? {
+                      ...m,
+                      text: `Aapka video tayyar hai:`,
+                      videoUrl: result.url,
+                      isGeneratingMedia: false,
+                    }
+                  : {
+                      ...m,
+                      type: "text",
+                      text: `⚠️ ${result.error || "Video nahi ban saka."}${
+                        result.needsAuth ? "\n\nHeader se \"Connect\" tap karein." : ""
+                      }`,
+                      isGeneratingMedia: false,
+                    }
+                : m
+            )
+          );
+          if (result.needsAuth) setPuterUser(null);
+        } finally {
+          setIsGenerating(false);
+        }
+        return;
+      }
+
+      // ---- Text chat (streaming) ----
+      const placeholder: Message = {
+        id: placeholderId,
         sender: "ai",
-        text: `Aapke prompt "${visual.prompt}" ke mutabiq HD image generate kar di gayi hai:`,
+        text: "Puter AI jawab tayyar kar raha hai...",
         timestamp: getTimestamp(),
-        type: "real_image",
-        imageUrl: visual.imageUrl,
-        modelName: `${selectedModel.name} × Ultra AI`,
+        type: "text",
+        modelName: "Puter AI",
         isGeneratingMedia: false,
-        mediaCategory: "image",
       };
-    }
+      setMessages((prev) => [...prev, placeholder]);
+      setIsGenerating(true);
+      try {
+        const result = await puterChat(text, (p) => {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === placeholderId ? { ...m, text: p.partialText || p.message } : m
+            )
+          );
+        });
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === placeholderId
+              ? result.ok && result.text
+                ? { ...m, text: result.text, modelName: "Puter AI", isGeneratingMedia: false }
+                : {
+                    ...m,
+                    type: "text",
+                    text: `⚠️ ${result.error || "Jawab nahi mil saka."}${
+                      result.needsAuth ? "\n\nHeader se \"Connect\" tap karein." : ""
+                    }`,
+                    isGeneratingMedia: false,
+                  }
+              : m
+          )
+        );
+        if (result.needsAuth) setPuterUser(null);
+      } finally {
+        setIsGenerating(false);
+      }
+    },
+    // [] is correct here: everything referenced is module-scope or stable
+    // setState — no reactive values are closed over.
+    []
+  );
 
-    // LYRICS (text)
-    if (/(lyrics|geet|song words|shairi)/.test(lower)) {
-      const remainingCredits = deductFlowCredits(1);
-      setFlowUser(getFlowMusicSession());
-      const lyricsText = `[Ultra AI 4 Original]\n\nVerse 1:\nAaj ki raat nayi dhun bajegi\nHar ek saaz pe zindagi sajegi\n\nChorus:\nUltra AI ka yeh jaadu chale\nKhushi ke deep har ek pal jale!`;
-      return {
-        id: generateId(),
-        sender: "ai",
-        text: `Yeh raha aapke liye likha gaya lyrics (${remainingCredits}/50 daily credits baqi):`,
-        timestamp: getTimestamp(),
-        type: "real_lyrics",
-        lyricsText,
-        modelName: `${selectedModel.name} × Ultra AI`,
-      };
-    }
-
-    if (/(code|function|program)/.test(lower)) {
-      const codeSnippet = `function helloUltraAI() {\n  // Ultra AI 4 + real music engine session\n  console.log("Connected to Ultra AI 4 Engine");\n}`;
-      return {
-        id: generateId(),
-        sender: "ai",
-        text: "Yeh raha aapka code:",
-        timestamp: getTimestamp(),
-        type: "code",
-        codeSnippet,
-        modelName: selectedModel.name,
-      };
-    }
-
-    const responses = [
-      "Bilkul! Maine aapka sawal samajh liya hai. Main is par kaam kar raha hoon.",
-      "Zaroor! Main aapki is request par mukammal madad karne ke liye tayyar hoon.",
-      "Yeh bahut behtareen request hai. Ultra AI 4 engine iska behtar result generate kar raha hai.",
-      "Ji haan, bilkul. Main aapke liye step-by-step complete solution provide karta hoon.",
-    ];
-    return {
+  /** Honest prompt when neither Puter nor FlowMusic is connected — no fake replies. */
+  const connectPromptMessage = useCallback(
+    (): Message => ({
       id: generateId(),
       sender: "ai",
-      text: responses[Math.floor(Math.random() * responses.length)],
+      text: "👋 Free AI use karne ke liye pehle connect karein:\n\nHeader se \"Connect\" tap karein — ek tap par apna free Puter account jud jayega, phir text, image aur video sab free (aapke apne quota mein).",
       timestamp: getTimestamp(),
+      type: "text",
       modelName: selectedModel.name,
-    };
-  }, [selectedModel]);
+    }),
+    [selectedModel]
+  );
 
   const updateSessionTitle = useCallback(
     (text: string) => {
@@ -302,12 +490,15 @@ function App() {
         return;
       }
 
-      // ---- Standard assistant path ---------------------------------------
-      // When the Flow Music bridge is connected, EVERY prompt gets a REAL
-      // answer from the Flow Music AI (same AI the user knows from the
-      // FlowMusic site: text, explanations, everything). Only when
-      // disconnected do we fall back to the local simulated reply so the
-      // chat stays usable for guests.
+      // ---- Puter free stack (default): text + image + video ---------------
+      // One-tap connect, per-user quota, no API keys. This is the default
+      // path for every prompt — FlowMusic stays as the Pro option for songs.
+      if (puterUser) {
+        await sendViaPuter(text);
+        return;
+      }
+
+      // ---- FlowMusic chat (Pro fallback when Puter is not connected) -------
       const connected = getFlowMusicStatus().signedIn;
       if (connected) {
         const placeholderId = generateId();
@@ -368,14 +559,10 @@ function App() {
         return;
       }
 
-      setIsGenerating(true);
-      setTimeout(() => {
-        const aiMessage = simulateAIResponse(text);
-        setMessages((prev) => [...prev, aiMessage]);
-        setIsGenerating(false);
-      }, 700 + Math.random() * 900);
+      // ---- Not connected: honest prompt, never a simulated reply --------
+      setMessages((prev) => [...prev, connectPromptMessage()]);
     },
-    [simulateAIResponse, updateSessionTitle]
+    [sendViaPuter, connectPromptMessage, updateSessionTitle, puterUser]
   );
 
   const handleRegenerate = useCallback(() => {
@@ -492,6 +679,30 @@ function App() {
     }
   }, []);
 
+  const handleOpenPuterAuth = useCallback(() => {
+    setPuterAuthOpen(true);
+  }, []);
+
+  const handlePuterAuthSuccess = useCallback((user: PuterUser) => {
+    setPuterUser(user);
+    setPuterAuthOpen(false);
+  }, []);
+
+  const handlePuterSignOut = useCallback(() => {
+    signOutFromPuter().finally(() => setPuterUser(null));
+  }, []);
+
+  /** Explicit Puter disconnect (header "Puter AI ✓" tap) — confirm first. */
+  const handlePuterDisconnectRequest = useCallback(() => {
+    if (
+      window.confirm(
+        "Puter AI disconnect karna hai? Text, image aur video ke liye dobara Connect karna hoga."
+      )
+    ) {
+      handlePuterSignOut();
+    }
+  }, [handlePuterSignOut]);
+
   const flowConnected = flowStatus.signedIn;
 
   return (
@@ -515,6 +726,8 @@ function App() {
           try {
             localStorage.removeItem("ultra_ai_user");
           } catch {}
+          // Puter has its own disconnect affordance (header "Puter AI ✓") —
+          // signing out of Ultra Chat AI must not kill the Puter session.
         }}
         flowCredits={flowUser.dailyCreditsRemaining}
       />
@@ -527,16 +740,24 @@ function App() {
           onOpenSettings={() => setSettingsOpen(true)}
           onOpenFlowStudio={handleOpenFlowMusic}
           onOpenAuth={handleOpenFlowMusic}
+          onOpenPuterAuth={handleOpenPuterAuth}
+          onPuterDisconnect={handlePuterDisconnectRequest}
           authUser={authUser}
           flowCredits={flowUser.dailyCreditsRemaining}
-          flowConnected={flowConnected}
+          puterConnected={!!puterUser}
         />
 
-        {(!flowConnected || connectError) && (
-          <div className="shrink-0 px-4 py-2 bg-gradient-to-r from-pink-950/60 via-purple-950/40 to-slate-950 border-b border-pink-900/40 flex items-center justify-center gap-2 text-[12px] text-pink-200">
-            <Plug className="w-3.5 h-3.5 text-pink-400" />
+        {(!puterUser || !flowConnected || connectError) && (
+          <div className={`shrink-0 px-4 py-2 border-b flex items-center justify-center gap-2 text-[12px] ${
+            !puterUser && !connectError
+              ? "bg-gradient-to-r from-cyan-950/60 via-indigo-950/40 to-slate-950 border-cyan-900/40 text-cyan-200"
+              : "bg-gradient-to-r from-pink-950/60 via-purple-950/40 to-slate-950 border-pink-900/40 text-pink-200"
+          }`}>
+            <Plug className={`w-3.5 h-3.5 ${!puterUser && !connectError ? "text-cyan-400" : "text-pink-400"}`} />
             {connectError ? (
               <span>{connectError}</span>
+            ) : !puterUser ? (
+              <span>Free AI connect nahi hai — text, image aur video ke liye</span>
             ) : flowStatus.accountMismatch ? (
               <span>Device ka Google account PK-AI wale account se mukhtalif hai — real songs ke liye</span>
             ) : (
@@ -545,9 +766,12 @@ function App() {
             <button
               onClick={() => {
                 setConnectError(null);
-                handleOpenFlowMusic();
+                if (!puterUser) handleOpenPuterAuth();
+                else handleOpenFlowMusic();
               }}
-              className="font-semibold text-pink-300 underline underline-offset-2 hover:text-white"
+              className={`font-semibold underline underline-offset-2 hover:text-white ${
+                !puterUser && !connectError ? "text-cyan-300" : "text-pink-300"
+              }`}
             >
               {connectError ? "Dobara try karein" : "Connect karein"}
             </button>
@@ -615,6 +839,11 @@ function App() {
         isOpen={authOpen}
         onClose={() => setAuthOpen(false)}
         onAuthSuccess={handleAuthSuccess}
+      />
+      <PuterAuthModal
+        isOpen={puterAuthOpen}
+        onClose={() => setPuterAuthOpen(false)}
+        onAuthSuccess={handlePuterAuthSuccess}
       />
     </div>
   );

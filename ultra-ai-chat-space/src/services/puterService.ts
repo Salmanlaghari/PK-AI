@@ -109,7 +109,10 @@ export async function isPuterSignedIn(): Promise<boolean> {
 /** One-tap sign-in via Puter's own popup. Resolves with the Puter user. */
 export async function signInToPuter(): Promise<PuterUser> {
   const puter = await loadPuterSDK();
-  await puter.auth.signIn();
+  // attempt_temp_user_creation: one-tap onboarding — auto-creates a throwaway
+  // Puter account, no signup form. The user can convert to a full account later.
+  // (If a popup is still needed, the native WebView handles it via onCreateWindow.)
+  await puter.auth.signIn({ attempt_temp_user_creation: true });
   let username = "Puter User";
   let uuid = "";
   try {
@@ -157,12 +160,16 @@ export function getCachedPuterUser(): PuterUser | null {
 // ---------------------------------------------------------------------------
 
 function classifyError(err: any): { error: string; needsAuth?: boolean; quotaExceeded?: boolean } {
+  const code = String(err?.code || "").toLowerCase();
   const raw = String(err?.message || err || "Unknown error");
   const msg = raw.toLowerCase();
   // Metadata only — never log prompts or user content.
-  console.debug("[puter] call failed:", raw.slice(0, 160));
+  console.debug("[puter] call failed:", code || "(no code)", raw.slice(0, 160));
 
   const needsAuth =
+    code === "token_missing" ||
+    code === "token_auth_failed" ||
+    code === "account_is_not_verified" ||
     msg.includes("not signed in") ||
     msg.includes("sign in") ||
     msg.includes("unauthorized") ||
@@ -182,6 +189,7 @@ function classifyError(err: any): { error: string; needsAuth?: boolean; quotaExc
   }
 
   const quotaExceeded =
+    code === "too_many_requests" ||
     msg.includes("quota") ||
     msg.includes("rate limit") ||
     msg.includes("too many requests") ||
@@ -215,7 +223,7 @@ export async function puterChat(
     onProgress?.({ message: "Puter AI jawab tayyar kar raha hai..." });
 
     const stream = await puter.ai.chat(prompt, {
-      model: "openai/gpt-4o-mini",
+      // No model pinned — Puter's default chat model is used.
       stream: true,
     });
 
@@ -264,9 +272,8 @@ export async function puterGenerateImage(
     }
     onProgress?.({ message: "🖼️ Image ban rahi hai..." });
 
-    const img = await puter.ai.txt2img(prompt, {
-      model: "black-forest-labs/FLUX.1-schnell",
-    });
+    // No model pinned — Puter's default image model is used.
+    const img = await puter.ai.txt2img(prompt);
     const url = img?.src || img?.url || "";
     if (!url) throw new Error("Image bani lekin uska URL nahi mila.");
     return { ok: true, url };
@@ -277,13 +284,8 @@ export async function puterGenerateImage(
 }
 
 // ---------------------------------------------------------------------------
-// Video generation (Google Veo via puter.video.generate, polled)
+// Video generation (puter.ai.txt2vid — Google Veo)
 // ---------------------------------------------------------------------------
-
-const VIDEO_POLL_MS = 5000;
-const VIDEO_TIMEOUT_MS = 10 * 60 * 1000;
-
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export async function puterGenerateVideo(
   prompt: string,
@@ -291,8 +293,7 @@ export async function puterGenerateVideo(
 ): Promise<PuterMediaResult> {
   try {
     const puter = await loadPuterSDK();
-    const videoNs = (puter as any).video || puter.ai?.video;
-    if (!videoNs || typeof videoNs.generate !== "function") {
+    if (typeof puter.ai?.txt2vid !== "function") {
       return {
         ok: false,
         error:
@@ -300,34 +301,15 @@ export async function puterGenerateVideo(
       };
     }
 
-    onProgress?.({ message: "🎬 Video ban raha hai... (thoda waqt lagega)" });
-    let job = await videoNs.generate(prompt, { model: "google/veo-3.1-fast" });
-    const deadline = Date.now() + VIDEO_TIMEOUT_MS;
-
-    while (Date.now() < deadline) {
-      const status = String(job?.status || job?.state || "").toLowerCase();
-      const url = job?.url || job?.video_url || job?.src || "";
-      if (url) return { ok: true, url };
-
-      if (status === "completed" || status === "succeeded" || status === "done") {
-        const finalUrl = job?.url || job?.video_url || job?.src || "";
-        if (finalUrl) return { ok: true, url: finalUrl };
-        throw new Error("Video complete hua lekin URL nahi mila.");
-      }
-      if (status === "failed" || status === "error" || status === "cancelled") {
-        throw new Error(job?.error || job?.message || "Video generation fail ho gaya.");
-      }
-
-      onProgress?.({ message: `🎬 Video ban raha hai... (${status || "processing"})` });
-      await sleep(VIDEO_POLL_MS);
-      try {
-        if (job && typeof job.refresh === "function") job = await job.refresh();
-        else if (job?.id && typeof videoNs.get === "function") job = await videoNs.get(job.id);
-      } catch {
-        // Keep polling with the last known job state.
-      }
-    }
-    throw new Error("Video 10 minute mein complete nahi hua — dobara try karein.");
+    onProgress?.({ message: "🎬 Video ban raha hai... (1-3 minute lag sakte hain)" });
+    // txt2vid resolves with a ready-to-play HTMLVideoElement once the
+    // server-side render finishes — no client polling needed.
+    const videoEl = await puter.ai.txt2vid(prompt, {
+      model: "google/veo-3.1",
+    });
+    const url = videoEl?.src || "";
+    if (!url) throw new Error("Video bana lekin uska URL nahi mila.");
+    return { ok: true, url };
   } catch (err) {
     const c = classifyError(err);
     return { ok: false, ...c };

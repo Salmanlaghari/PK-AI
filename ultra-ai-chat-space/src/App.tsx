@@ -68,10 +68,13 @@ const IMAGE_VERB_RE = new RegExp(
   `\\b(?:draw|paint|sketch|create|make|generate|design)(?:ing|ed|s)?\\b(?=[^.?!\\n]{0,40}\\b(?:${ART_NOUN_SRC}|${AMBIG_ART_NOUN_SRC})\\b)`,
   "i"
 );
-// Interrogative/analytical prompts are never media requests, even when they
-// mention an art noun ("What makes a portrait good?", "How is Mona Lisa's
-// design different?").
+// Interrogative/analytical prompts ("What makes a portrait good?") aren't
+// media requests — unless the prompt OPENS with an explicit generation
+// request ("Can you draw a picture of a cat?", "How do I make a video?"),
+// as opposed to third-person analytical verbs ("what makes…", "what creates…").
 const QUESTION_RE = /^\s*(what|how|why|when|where|which|who|whom|whose|explain|describe|tell\s+me)\b/i;
+const REQUEST_LEAD_RE =
+  /^\s*(?:please\s+|hey[,.]?\s+|can\s+you\s+|could\s+you\s+|would\s+you\s+|how\s+do\s+i\s+)?(?:draw|paint|sketch|create|make|generate|design|render|illustrate|record|film|shoot)\b/i;
 const VIDEO_RE = /\b(videos?|clips?|animations?|films?|movies?)\b/i;
 
 function isMusicPrompt(text: string): boolean {
@@ -79,12 +82,18 @@ function isMusicPrompt(text: string): boolean {
 }
 
 function isImagePrompt(text: string): boolean {
-  if (QUESTION_RE.test(text)) return false;
-  return (IMAGE_RE.test(text) || IMAGE_VERB_RE.test(text)) && !VIDEO_RE.test(text);
+  const media = (IMAGE_RE.test(text) || IMAGE_VERB_RE.test(text)) && !VIDEO_RE.test(text);
+  if (!media) return false;
+  if (QUESTION_RE.test(text) && !REQUEST_LEAD_RE.test(text)) return false;
+  return true;
 }
 
 function isVideoPrompt(text: string): boolean {
-  return VIDEO_RE.test(text);
+  if (!VIDEO_RE.test(text)) return false;
+  // Same interrogative guard as images: "What is a video?" is a question,
+  // "How do I make a video?" is a generation request.
+  if (QUESTION_RE.test(text) && !REQUEST_LEAD_RE.test(text)) return false;
+  return true;
 }
 
 function App() {

@@ -164,6 +164,10 @@ class AiHubFragment : Fragment() {
             // A dialog owned by the other WebView is already showing — don't
             // clobber it; settle this one immediately so nothing hangs.
             if (jsDialog != null && jsDialogOwner !== view) {
+                // The other WebView already has a dialog up: settle this one
+                // as cancelled so neither JS thread hangs. Logged so a
+                // swallowed popup prompt stays diagnosable.
+                Log.w("AiHubFragment", "JS dialog from a second WebView dropped while another dialog is showing")
                 result?.cancel()
                 return true
             }
@@ -200,6 +204,10 @@ class AiHubFragment : Fragment() {
             // A dialog owned by the other WebView is already showing — don't
             // clobber it; settle this one immediately so nothing hangs.
             if (jsDialog != null && jsDialogOwner !== view) {
+                // The other WebView already has a dialog up: settle this one
+                // as cancelled so neither JS thread hangs. Logged so a
+                // swallowed popup prompt stays diagnosable.
+                Log.w("AiHubFragment", "JS dialog from a second WebView dropped while another dialog is showing")
                 result?.cancel()
                 return true
             }
@@ -233,6 +241,10 @@ class AiHubFragment : Fragment() {
             // A dialog owned by the other WebView is already showing — don't
             // clobber it; settle this one immediately so nothing hangs.
             if (jsDialog != null && jsDialogOwner !== view) {
+                // The other WebView already has a dialog up: settle this one
+                // as cancelled so neither JS thread hangs. Logged so a
+                // swallowed popup prompt stays diagnosable.
+                Log.w("AiHubFragment", "JS dialog from a second WebView dropped while another dialog is showing")
                 result?.cancel()
                 return true
             }

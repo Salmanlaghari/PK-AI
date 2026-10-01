@@ -53,10 +53,18 @@ function createWelcomeMessage(model: AIModel): Message {
 const MUSIC_RE = /(song|music|audio|gana|gaana|track|beat|melody|tune|dhun|compose|instrumental|remix|vocal)/i;
 const NON_MUSIC_RE = /(image|photo|picture|pic|tasveer|wallpaper|video|clip|code|function|program)/i;
 // Puter free stack: image & video intents route to puter.ai.txt2img / video.
-// Noun-only, plural-aware, word-boundaried: verb forms ("painted", "draw a
-// conclusion") and substrings ("topic" -> "pic", "clipboard" -> "clip") must
-// not route ordinary text into media generation.
-const IMAGE_RE = /\b(images?|photos?|pictures?|drawings?|tasveer(en)?|pics?|wallpapers?|paintings?|sketches?)\b/i;
+// Noun-first routing with a verb fallback, word-boundaried throughout so
+// substrings ("topic" -> "pic", "clipboard" -> "clip") never match. Bare nouns
+// ("photo", "tasveer") route to image gen; verbs ("draw", "paint", "sketch")
+// only when an art noun follows nearby — so "draw a conclusion" and "painted
+// blue" stay text, while "draw me a picture of a cat" still generates.
+const ART_NOUN_SRC =
+  "images?|photos?|pictures?|drawings?|tasveer(en)?|pics?|wallpapers?|paintings?|sketch(es)?|portraits?|artworks?|logos?|icons?";
+const IMAGE_RE = new RegExp(`\\b(?:${ART_NOUN_SRC})\\b`, "i");
+const IMAGE_VERB_RE = new RegExp(
+  `\\b(?:draw|paint|sketch)(?:ing|ed|s)?\\b(?=[\\s\\S]{0,40}\\b(?:${ART_NOUN_SRC})\\b)`,
+  "i"
+);
 const VIDEO_RE = /\b(videos?|clips?|animations?|films?|movies?)\b/i;
 
 function isMusicPrompt(text: string): boolean {
@@ -64,7 +72,7 @@ function isMusicPrompt(text: string): boolean {
 }
 
 function isImagePrompt(text: string): boolean {
-  return IMAGE_RE.test(text) && !VIDEO_RE.test(text);
+  return (IMAGE_RE.test(text) || IMAGE_VERB_RE.test(text)) && !VIDEO_RE.test(text);
 }
 
 function isVideoPrompt(text: string): boolean {

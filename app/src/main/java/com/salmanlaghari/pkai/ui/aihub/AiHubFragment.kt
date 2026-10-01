@@ -139,7 +139,14 @@ class AiHubFragment : Fragment() {
      * the Puter auth popup. Pending results are nulled once the user answers so
      * teardown can't settle them twice.
      */
-    private inner class JsDialogChromeClient : WebChromeClient() {
+    private open inner class JsDialogChromeClient : WebChromeClient() {
+        /**
+         * Origin host of the requesting page, shown as the dialog title so a
+         * page can't impersonate a trusted site behind an app-styled prompt.
+         */
+        private fun dialogTitle(url: String?): String? =
+            url?.let { Uri.parse(it).host }
+
         // window.confirm() from the web UI (e.g. the Puter disconnect prompt).
         override fun onJsConfirm(
             view: WebView?,
@@ -151,6 +158,7 @@ class AiHubFragment : Fragment() {
             dismissJsDialog()
             pendingJsResult = result
             jsDialog = AlertDialog.Builder(hostActivity)
+                .setTitle(dialogTitle(url))
                 .setMessage(message)
                 .setPositiveButton(android.R.string.ok) { _, _ ->
                     result?.confirm()
@@ -179,6 +187,7 @@ class AiHubFragment : Fragment() {
             dismissJsDialog()
             pendingJsResult = result
             jsDialog = AlertDialog.Builder(hostActivity)
+                .setTitle(dialogTitle(url))
                 .setMessage(message)
                 .setPositiveButton(android.R.string.ok) { _, _ ->
                     result?.confirm()
@@ -206,6 +215,7 @@ class AiHubFragment : Fragment() {
             val input = EditText(hostActivity)
             input.setText(defaultValue)
             jsDialog = AlertDialog.Builder(hostActivity)
+                .setTitle(dialogTitle(url))
                 .setMessage(message)
                 .setView(input)
                 .setPositiveButton(android.R.string.ok) { _, _ ->
@@ -232,6 +242,10 @@ class AiHubFragment : Fragment() {
      * the old one). A leaked WebView keeps its renderer process alive.
      */
     private fun dismissPuterPopup() {
+        // The popup shares the fragment-level JS-dialog tracker — settle any
+        // pending dialog first so a dismiss can't leak its window or strand
+        // the popup's JS thread on a destroyed WebView.
+        dismissJsDialog()
         try {
             puterPopupDialog?.dismiss()
         } catch (_: Exception) {

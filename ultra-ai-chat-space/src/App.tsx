@@ -56,13 +56,14 @@ const NON_MUSIC_RE = /(image|photo|picture|pic|tasveer|wallpaper|video|clip|code
 // Noun-first routing with a verb fallback, word-boundaried throughout so
 // substrings ("topic" -> "pic", "clipboard" -> "clip") never match. Bare nouns
 // ("photo", "tasveer") route to image gen; verbs ("draw", "paint", "sketch")
-// only when an art noun follows nearby — so "draw a conclusion" and "painted
-// blue" stay text, while "draw me a picture of a cat" still generates.
+// only when an art noun follows in the SAME sentence — so "draw a conclusion",
+// "painted blue" and "what does the icon do" stay text, while "draw me a
+// picture of a cat" still generates.
 const ART_NOUN_SRC =
-  "images?|photos?|pictures?|drawings?|tasveer(en)?|pics?|wallpapers?|paintings?|sketch(es)?|portraits?|artworks?|logos?|icons?";
+  "images?|photos?|pictures?|drawings?|tasveer(en)?|pics?|wallpapers?|paintings?|sketch(es)?";
 const IMAGE_RE = new RegExp(`\\b(?:${ART_NOUN_SRC})\\b`, "i");
 const IMAGE_VERB_RE = new RegExp(
-  `\\b(?:draw|paint|sketch)(?:ing|ed|s)?\\b(?=[\\s\\S]{0,40}\\b(?:${ART_NOUN_SRC})\\b)`,
+  `\\b(?:draw|paint|sketch)(?:ing|ed|s)?\\b(?=[^.?!\\n]{0,40}\\b(?:${ART_NOUN_SRC})\\b)`,
   "i"
 );
 const VIDEO_RE = /\b(videos?|clips?|animations?|films?|movies?)\b/i;

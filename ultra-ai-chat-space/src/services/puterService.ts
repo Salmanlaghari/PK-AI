@@ -47,15 +47,13 @@ const PUTER_SDK_URL = "https://js.puter.com/v2/";
 const STORAGE_KEY = "pkai_puter_user";
 const SDK_TIMEOUT_MS = 30000;
 
-let sdkPromise: Promise<any> | null = null;
+// In-flight SDK load only — never a settled promise, so a stale rejection can
+// never wipe a newer generation and concurrent callers join one script load.
+let sdkLoad: Promise<any> | null = null;
 
-/** Load the puter.js SDK once; resolves to window.puter. */
-export function loadPuterSDK(): Promise<any> {
-  const existing = (window as any).puter;
-  if (existing) return Promise.resolve(existing);
-  if (sdkPromise) return sdkPromise;
-
-  sdkPromise = new Promise((resolve, reject) => {
+/** Raw script-tag load of the Puter SDK (single-flight via [sdkLoad]). */
+function startSdkLoad(): Promise<any> {
+  const p: Promise<any> = new Promise((resolve, reject) => {
     let settled = false;
     const done = (fn: () => void) => {
       if (!settled) {
@@ -64,7 +62,9 @@ export function loadPuterSDK(): Promise<any> {
       }
     };
     const timer = setTimeout(() => {
-      done(() => reject(new Error("Puter SDK load nahi ho saka (timeout) — internet check karein.")));
+      done(() =>
+        reject(internalError("Puter SDK load nahi ho saka (timeout) — internet check karein."))
+      );
     }, SDK_TIMEOUT_MS);
 
     const script = document.createElement("script");
@@ -76,31 +76,47 @@ export function loadPuterSDK(): Promise<any> {
       done(() =>
         puter
           ? resolve(puter)
-          : reject(new Error("Puter SDK load ho gaya lekin tayyar nahi hua."))
+          : reject(internalError("Puter SDK load ho gaya lekin tayyar nahi hua."))
       );
     };
     script.onerror = () => {
       clearTimeout(timer);
-      done(() => reject(new Error("Puter SDK download nahi ho saka — internet check karein.")));
+      done(() => reject(internalError("Puter SDK download nahi ho saka — internet check karein.")));
     };
     document.head.appendChild(script);
   });
 
-  // Allow a retry on failure instead of caching a rejected promise forever.
-  sdkPromise.catch(() => {
-    sdkPromise = null;
-  });
-  return sdkPromise;
+  // Identity-checked settle: only the current generation clears the slot, so a
+  // slow older load can never cancel a newer one, and failures stay retryable.
+  sdkLoad = p;
+  p.then(
+    () => {
+      if (sdkLoad === p) sdkLoad = null;
+    },
+    () => {
+      if (sdkLoad === p) sdkLoad = null;
+    }
+  );
+  return p;
+}
+
+/** Load the puter.js SDK once; resolves to window.puter. */
+export function loadPuterSDK(): Promise<any> {
+  const existing = (window as any).puter;
+  if (existing) return Promise.resolve(existing);
+  if (sdkLoad) return sdkLoad;
+  return startSdkLoad();
 }
 
 /**
  * Force a fresh SDK load. Used when the cached SDK object is stale or partial
  * (e.g. window.puter exists but ai.txt2img is missing) — one retry before the
- * user ever sees a dead-end error. Auth state is cookie-based, so reloading the
+ * user ever sees a dead-end error. Joins an already in-flight load instead of
+ * injecting a duplicate script. Auth state is cookie-based, so reloading the
  * script never signs the user out.
  */
 export function reloadPuterSDK(): Promise<any> {
-  sdkPromise = null;
+  if (sdkLoad) return sdkLoad;
   try {
     delete (window as any).puter;
   } catch {
@@ -109,7 +125,7 @@ export function reloadPuterSDK(): Promise<any> {
   document
     .querySelectorAll(`script[src="${PUTER_SDK_URL}"]`)
     .forEach((s) => s.remove());
-  return loadPuterSDK();
+  return startSdkLoad();
 }
 
 // ---------------------------------------------------------------------------
@@ -302,19 +318,15 @@ export async function puterChat(
 // ---------------------------------------------------------------------------
 
 /**
- * Resolve a puter SDK object with ai.txt2img available. If the cached SDK
- * object is stale/partial, one fresh load is attempted before failing — the
- * user should get a working feature, not a dead-end "version" message.
+ * Resolve a puter SDK object exposing the given ai.* API. If the cached SDK
+ * object is stale/partial, one fresh load is attempted first. A reload failure
+ * (e.g. offline) throws its own actionable error instead of being swallowed,
+ * so the user sees "internet check karein" rather than a generic message.
  */
-async function ensureImageApi(): Promise<any> {
+async function ensurePuterApi(apiName: "txt2img" | "txt2vid"): Promise<any> {
   let puter: any = await loadPuterSDK();
-  if (typeof puter?.ai?.txt2img !== "function") {
-    puter = await reloadPuterSDK().catch(() => puter);
-  }
-  if (typeof puter?.ai?.txt2img !== "function") {
-    throw internalError(
-      "Image feature tayyar nahi ho saka — app band karke dobara kholein."
-    );
+  if (typeof puter?.ai?.[apiName] !== "function") {
+    puter = await reloadPuterSDK();
   }
   return puter;
 }
@@ -324,7 +336,10 @@ export async function puterGenerateImage(
   onProgress?: (p: PuterProgress) => void
 ): Promise<PuterMediaResult> {
   try {
-    const puter = await ensureImageApi();
+    const puter = await ensurePuterApi("txt2img");
+    if (typeof puter?.ai?.txt2img !== "function") {
+      throw internalError("Image feature tayyar nahi ho saka — app band karke dobara kholein.");
+    }
     onProgress?.({ message: "🖼️ Image ban rahi hai..." });
 
     // No model pinned — Puter's default image model is used.
@@ -347,16 +362,11 @@ export async function puterGenerateVideo(
   onProgress?: (p: PuterProgress) => void
 ): Promise<PuterMediaResult> {
   try {
-    let puter: any = await loadPuterSDK();
-    if (typeof puter?.ai?.txt2vid !== "function") {
-      // Stale or partial SDK object — one fresh load before giving up.
-      puter = await reloadPuterSDK().catch(() => puter);
-    }
+    const puter = await ensurePuterApi("txt2vid");
     if (typeof puter?.ai?.txt2vid !== "function") {
       return {
         ok: false,
-        error:
-          "Video feature tayyar nahi ho saka — app band karke dobara kholein.",
+        error: "Video feature tayyar nahi ho saka — app band karke dobara kholein.",
       };
     }
 

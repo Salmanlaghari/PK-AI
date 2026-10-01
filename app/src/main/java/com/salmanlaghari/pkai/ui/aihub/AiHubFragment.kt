@@ -164,7 +164,7 @@ class AiHubFragment : Fragment() {
             // A dialog owned by the other WebView is already showing: settle
             // this one as cancelled so neither JS thread hangs.
             if (jsDialog != null && jsDialogOwner !== view) {
-                Log.w("AiHubFragment", "dropped JS confirm from ${dialogTitle(url)} (active dialog owner: ${if (jsDialogOwner === puterPopupWebView) "popup" else "main"})")
+                Log.w("AiHubFragment", "dropped JS confirm from ${dialogTitle(url) ?: "app page"} (active dialog owner: ${if (jsDialogOwner === puterPopupWebView) "popup" else "main"})")
                 result?.cancel()
                 return true
             }
@@ -201,7 +201,7 @@ class AiHubFragment : Fragment() {
             // A dialog owned by the other WebView is already showing: settle
             // this one as cancelled so neither JS thread hangs.
             if (jsDialog != null && jsDialogOwner !== view) {
-                Log.w("AiHubFragment", "dropped JS alert from ${dialogTitle(url)} (active dialog owner: ${if (jsDialogOwner === puterPopupWebView) "popup" else "main"})")
+                Log.w("AiHubFragment", "dropped JS alert from ${dialogTitle(url) ?: "app page"} (active dialog owner: ${if (jsDialogOwner === puterPopupWebView) "popup" else "main"})")
                 result?.cancel()
                 return true
             }
@@ -235,7 +235,7 @@ class AiHubFragment : Fragment() {
             // A dialog owned by the other WebView is already showing: settle
             // this one as cancelled so neither JS thread hangs.
             if (jsDialog != null && jsDialogOwner !== view) {
-                Log.w("AiHubFragment", "dropped JS prompt from ${dialogTitle(url)} (active dialog owner: ${if (jsDialogOwner === puterPopupWebView) "popup" else "main"})")
+                Log.w("AiHubFragment", "dropped JS prompt from ${dialogTitle(url) ?: "app page"} (active dialog owner: ${if (jsDialogOwner === puterPopupWebView) "popup" else "main"})")
                 result?.cancel()
                 return true
             }

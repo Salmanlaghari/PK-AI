@@ -166,7 +166,7 @@ class AiHubFragment : Fragment() {
             if (jsDialog != null && jsDialogOwner !== view) {
                 // The other WebView already has a dialog up: settle this one
                 // as cancelled so neither JS thread hangs.
-                Log.w("AiHubFragment", "dropped JS ${if (result is JsPromptResult) \"prompt\" else \"dialog\"} from $url while $jsDialogOwner was showing")
+                Log.w("AiHubFragment", "dropped JS ${if (result is JsPromptResult) "prompt" else "dialog"} from $url while $jsDialogOwner was showing")
                 result?.cancel()
                 return true
             }
@@ -205,7 +205,7 @@ class AiHubFragment : Fragment() {
             if (jsDialog != null && jsDialogOwner !== view) {
                 // The other WebView already has a dialog up: settle this one
                 // as cancelled so neither JS thread hangs.
-                Log.w("AiHubFragment", "dropped JS ${if (result is JsPromptResult) \"prompt\" else \"dialog\"} from $url while $jsDialogOwner was showing")
+                Log.w("AiHubFragment", "dropped JS ${if (result is JsPromptResult) "prompt" else "dialog"} from $url while $jsDialogOwner was showing")
                 result?.cancel()
                 return true
             }
@@ -241,7 +241,7 @@ class AiHubFragment : Fragment() {
             if (jsDialog != null && jsDialogOwner !== view) {
                 // The other WebView already has a dialog up: settle this one
                 // as cancelled so neither JS thread hangs.
-                Log.w("AiHubFragment", "dropped JS ${if (result is JsPromptResult) \"prompt\" else \"dialog\"} from $url while $jsDialogOwner was showing")
+                Log.w("AiHubFragment", "dropped JS ${if (result is JsPromptResult) "prompt" else "dialog"} from $url while $jsDialogOwner was showing")
                 result?.cancel()
                 return true
             }

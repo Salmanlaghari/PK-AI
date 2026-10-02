@@ -1364,25 +1364,22 @@ class AiHubFragment : Fragment() {
                     settings.domStorageEnabled = true
                     settings.databaseEnabled = true
                     settings.userAgentString = view?.settings?.userAgentString
-                    // Puter auth only: block navigation away from Puter/OAuth
-                    // hosts so an arbitrary page can't render inside app chrome.
+                    // Auth popup: allow all HTTPS navigation so multi-step
+                    // flows (email/phone verification, OAuth redirects) can't
+                    // get stuck on a blank page. The popup is a temporary
+                    // dialog dismissed after auth; the main app WebView keeps
+                    // its own stricter policy.
                     webViewClient = object : WebViewClient() {
                         override fun shouldOverrideUrlLoading(
                             view: WebView?,
                             request: WebResourceRequest?
                         ): Boolean {
                             val raw = request?.url?.toString() ?: return true
+                            // Let the WebView handle about: and https URLs.
+                            // Block only non-https schemes (tel:, mailto:, etc.)
+                            // except about:blank which is the initial page.
                             if (raw.startsWith("about:")) return false
-                            val host = request.url.host?.lowercase() ?: return true
-                            val allowed = host == "puter.com" ||
-                                host.endsWith(".puter.com") ||
-                                host == "challenges.cloudflare.com" ||
-                                host.endsWith(".google.com") ||
-                                host.endsWith(".googleapis.com") ||
-                                host.endsWith(".gstatic.com") ||
-                                host.endsWith(".googleusercontent.com") ||
-                                host == "github.com"
-                            return !allowed
+                            return !(raw.startsWith("https://") || raw.startsWith("http://"))
                         }
                     }
                     // JS dialogs on sign-in pages get native UI via the shared

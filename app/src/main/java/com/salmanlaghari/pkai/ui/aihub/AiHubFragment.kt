@@ -107,7 +107,7 @@ class AiHubFragment : Fragment() {
     private var backendPageLoaded = false
 
     /** Holds the Puter auth popup dialog while it is open (null otherwise). */
-    private var puterPopupDialog: android.app.AlertDialog? = null
+    private var puterPopupDialog: android.app.Dialog? = null
 
     /** The WebView hosted inside [puterPopupDialog]; destroyed with the dialog. */
     private var puterPopupWebView: WebView? = null
@@ -1395,11 +1395,18 @@ class AiHubFragment : Fragment() {
                     }
                 }
                 puterPopupWebView = popupWebView
-                puterPopupDialog = android.app.AlertDialog.Builder(hostActivity)
-                    .setView(popupWebView)
-                    .setOnCancelListener { dismissPuterPopup() }
-                    .create()
+                // Plain Dialog (not AlertDialog): explicit content view + window
+                // size, so the auth popup is always visible at a usable size.
+                puterPopupDialog = android.app.Dialog(hostActivity).apply {
+                    setContentView(popupWebView)
+                    setOnCancelListener { dismissPuterPopup() }
+                    setCanceledOnTouchOutside(true)
+                }
                 puterPopupDialog?.show()
+                puterPopupDialog?.window?.setLayout(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    (600 * hostActivity.resources.displayMetrics.density).toInt()
+                )
                 // The sign-in promise only settles when the user finishes (or
                 // closes) this popup — let the web layer stop its watchdog.
                 view?.evaluateJavascript(

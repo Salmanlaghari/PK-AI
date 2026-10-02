@@ -1353,6 +1353,13 @@ class AiHubFragment : Fragment() {
                 // must not treat this as the user closing sign-in.
                 destroyPuterPopupViews()
                 val popupWebView = WebView(hostActivity).apply {
+                    // A fresh WebView has no LayoutParams — without an explicit
+                    // size the AlertDialog measures it as 0x0 and the auth
+                    // popup is invisible even though it opened.
+                    layoutParams = ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        (520 * resources.displayMetrics.density).toInt()
+                    )
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true
                     settings.databaseEnabled = true

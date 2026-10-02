@@ -44,9 +44,9 @@ function createWelcomeMessage(model: AIModel): Message {
   return {
     id: generateId(),
     sender: "ai",
-    text: `Namaste! Main ${model.name} hoon — Ultra AI 4. Header se "Connect" tap karke apna free Puter account connect karein, phir mujhse text, HD image aur video — teeno free mein banwayein (aapke apne quota mein). Gaane ke liye Ultra Chat AI (Pro) connect karein.`,
+    text: `Namaste! Main ${model.name} hoon — Ultra AI 4. Header se "Connect" tap karke apna free AI account connect karein, phir mujhse text, HD image aur video — teeno free mein banwayein (aapke apne quota mein). Gaane ke liye Ultra Chat AI (Pro) connect karein.`,
     timestamp: getTimestamp(),
-    modelName: `${model.name} × Puter AI`,
+    modelName: `${model.name} × AI`,
   };
 }
 
@@ -202,7 +202,7 @@ function App() {
       if (!signedIn) {
         setPuterUser(null);
       } else if (!getCachedPuterUser()) {
-        setPuterUser({ username: "Puter User", uuid: "" });
+        setPuterUser({ username: "AI User", uuid: "" });
       }
     });
     return () => {
@@ -251,7 +251,7 @@ function App() {
           text: "🖼️ Image ban rahi hai...",
           timestamp: getTimestamp(),
           type: "real_image",
-          modelName: "Puter AI × FLUX",
+          modelName: "AI × FLUX",
           isGeneratingMedia: true,
           mediaCategory: "image",
         };
@@ -299,7 +299,7 @@ function App() {
           text: "🎬 Video ban raha hai... (thoda waqt lagega)",
           timestamp: getTimestamp(),
           type: "real_video",
-          modelName: "Puter AI × Veo",
+          modelName: "AI × Veo",
           isGeneratingMedia: true,
           mediaCategory: "video",
         };
@@ -343,10 +343,10 @@ function App() {
       const placeholder: Message = {
         id: placeholderId,
         sender: "ai",
-        text: "Puter AI jawab tayyar kar raha hai...",
+        text: "AI jawab tayyar kar raha hai...",
         timestamp: getTimestamp(),
         type: "text",
-        modelName: "Puter AI",
+        modelName: "AI",
         isGeneratingMedia: false,
       };
       setMessages((prev) => [...prev, placeholder]);
@@ -363,7 +363,7 @@ function App() {
           prev.map((m) =>
             m.id === placeholderId
               ? result.ok && result.text
-                ? { ...m, text: result.text, modelName: "Puter AI", isGeneratingMedia: false }
+                ? { ...m, text: result.text, modelName: "AI", isGeneratingMedia: false }
                 : {
                     ...m,
                     type: "text",
@@ -390,7 +390,7 @@ function App() {
     (): Message => ({
       id: generateId(),
       sender: "ai",
-      text: "👋 Free AI use karne ke liye pehle connect karein:\n\nHeader se \"Connect\" tap karein — ek tap par apna free Puter account jud jayega, phir text, image aur video sab free (aapke apne quota mein).",
+      text: "👋 Free AI use karne ke liye pehle connect karein:\n\nHeader se \"Connect\" tap karein — ek tap par apna free AI account jud jayega, phir text, image aur video sab free (aapke apne quota mein).",
       timestamp: getTimestamp(),
       type: "text",
       modelName: selectedModel.name,
@@ -692,11 +692,11 @@ function App() {
     signOutFromPuter().finally(() => setPuterUser(null));
   }, []);
 
-  /** Explicit Puter disconnect (header "Puter AI ✓" tap) — confirm first. */
+  /** Explicit AI disconnect (header "AI ✓" tap) — confirm first. */
   const handlePuterDisconnectRequest = useCallback(() => {
     if (
       window.confirm(
-        "Puter AI disconnect karna hai? Text, image aur video ke liye dobara Connect karna hoga."
+        "AI disconnect karna hai? Text, image aur video ke liye dobara Connect karna hoga."
       )
     ) {
       handlePuterSignOut();
@@ -726,7 +726,7 @@ function App() {
           try {
             localStorage.removeItem("ultra_ai_user");
           } catch {}
-          // Puter has its own disconnect affordance (header "Puter AI ✓") —
+          // The provider has its own disconnect affordance (header "AI ✓") —
           // signing out of Ultra Chat AI must not kill the Puter session.
         }}
         flowCredits={flowUser.dailyCreditsRemaining}

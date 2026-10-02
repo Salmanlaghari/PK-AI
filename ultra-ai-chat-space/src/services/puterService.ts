@@ -65,7 +65,7 @@ function startSdkLoad(): Promise<any> {
     const timer = setTimeout(() => {
       script.remove(); // don't pile up dead script tags across retries
       done(() =>
-        reject(internalError("Puter SDK load nahi ho saka (timeout) — internet check karein."))
+        reject(internalError("AI load nahi ho saka (timeout) — internet check karein."))
       );
     }, SDK_TIMEOUT_MS);
 
@@ -78,13 +78,13 @@ function startSdkLoad(): Promise<any> {
       done(() =>
         puter
           ? resolve(puter)
-          : reject(internalError("Puter SDK load ho gaya lekin tayyar nahi hua."))
+          : reject(internalError("AI load ho gaya lekin tayyar nahi hua."))
       );
     };
     script.onerror = () => {
       clearTimeout(timer);
       script.remove();
-      done(() => reject(internalError("Puter SDK download nahi ho saka — internet check karein.")));
+      done(() => reject(internalError("AI download nahi ho saka — internet check karein.")));
     };
     document.head.appendChild(script);
   });
@@ -132,8 +132,35 @@ export function reloadPuterSDK(): Promise<any> {
 }
 
 // ---------------------------------------------------------------------------
-// Auth — one tap, free Puter account, per-user quota
+// Auth — one tap, free AI account, per-user quota
 // ---------------------------------------------------------------------------
+
+/** True while the native sign-in popup is on screen. */
+let puterPopupOpen = false;
+/** Settles the in-flight signInToPuter() when the user closes the popup. */
+let popupClosedReject: ((err: Error) => void) | null = null;
+
+if (typeof window !== "undefined") {
+  // Dispatched by the native layer (AiHubFragment) when the auth popup
+  // opens/closes. The SDK's signIn() promise never rejects, so without
+  // these the UI could hang on "Connecting..." forever.
+  window.addEventListener("puter-popup-opened", () => {
+    puterPopupOpen = true;
+  });
+  window.addEventListener("puter-popup-closed", () => {
+    if (!puterPopupOpen) return;
+    puterPopupOpen = false;
+    const reject = popupClosedReject;
+    popupClosedReject = null;
+    reject?.(
+      internalError(
+        "Sign-in popup band kar diya gaya. Dobara Connect dabayein aur popup mein sign-in poora karein."
+      )
+    );
+  });
+}
+
+export type PuterSignInStage = "sdk" | "popup-wait";
 
 export async function isPuterSignedIn(): Promise<boolean> {
   try {
@@ -144,14 +171,43 @@ export async function isPuterSignedIn(): Promise<boolean> {
   }
 }
 
-/** One-tap sign-in via Puter's own popup. Resolves with the Puter user. */
-export async function signInToPuter(): Promise<PuterUser> {
+/**
+ * One-tap sign-in via the provider's own popup. Resolves with the user.
+ * The SDK promise never rejects, so it is raced against a timeout and the
+ * native popup-closed event — "Connecting..." can never hang forever.
+ */
+export async function signInToPuter(
+  onStage?: (stage: PuterSignInStage) => void
+): Promise<PuterUser> {
+  if (!(window as any).puter) onStage?.("sdk");
   const puter = await loadPuterSDK();
   // attempt_temp_user_creation: one-tap onboarding — auto-creates a throwaway
-  // Puter account, no signup form. The user can convert to a full account later.
-  // (If a popup is still needed, the native WebView handles it via onCreateWindow.)
-  await puter.auth.signIn({ attempt_temp_user_creation: true });
-  let username = "Puter User";
+  // account, no signup form. The user can convert to a full account later.
+  // (The native WebView shows the popup via onCreateWindow.)
+  onStage?.("popup-wait");
+  const signIn = puter.auth.signIn({ attempt_temp_user_creation: true });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () =>
+        reject(
+          internalError(
+            "Connect poora nahi ho saka (time khatam ho gaya). Popup band ho gaya ho to dobara Connect dabayein."
+          )
+        ),
+      90000
+    );
+  });
+  const popupClosed = new Promise<never>((_, reject) => {
+    popupClosedReject = reject as (err: Error) => void;
+  });
+  try {
+    await Promise.race([signIn, timeout, popupClosed]);
+  } finally {
+    if (timer) clearTimeout(timer);
+    popupClosedReject = null;
+  }
+  let username = "AI User";
   let uuid = "";
   try {
     const u = await puter.auth.getUser();
@@ -208,7 +264,7 @@ function classifyError(err: any): { error: string; needsAuth?: boolean; quotaExc
   // Our own tagged internal errors are safe to surface verbatim — they never
   // contain SDK text or user content.
   if (err?.isPuterInternal) {
-    return { error: String(err?.message || "Puter se jawab nahi mil saka.") };
+    return { error: String(err?.message || "AI se jawab nahi mil saka.") };
   }
   const code = String(err?.code || "").toLowerCase();
   const raw = String(err?.message || err || "Unknown error");
@@ -234,7 +290,7 @@ function classifyError(err: any): { error: string; needsAuth?: boolean; quotaExc
     return {
       needsAuth: true,
       error:
-        "Puter connect nahi hai — header se 'Connect' tap karke apne free Puter account se sign in karein, phir dobara try karein.",
+        "AI connect nahi hai — header se 'Connect' tap karke apne free AI account se sign in karein, phir dobara try karein.",
     };
   }
 
@@ -254,12 +310,12 @@ function classifyError(err: any): { error: string; needsAuth?: boolean; quotaExc
     return {
       quotaExceeded: true,
       error:
-        "Aapka free Puter quota filhal khatam ho gaya hai — thori der baad dobara try karein.",
+        "Aapka free AI quota filhal khatam ho gaya hai — thori der baad dobara try karein.",
     };
   }
 
   // Never surface raw SDK text: it may echo the user's prompt or PII.
-  return { error: "Puter se jawab nahi mil saka — dobara try karein." };
+  return { error: "AI se jawab nahi mil saka — dobara try karein." };
 }
 
 // ---------------------------------------------------------------------------
@@ -272,7 +328,7 @@ export async function puterChat(
 ): Promise<PuterTextResult> {
   try {
     const puter = await loadPuterSDK();
-    onProgress?.({ message: "Puter AI jawab tayyar kar raha hai..." });
+    onProgress?.({ message: "AI jawab tayyar kar raha hai..." });
 
     const stream = await puter.ai.chat(prompt, {
       // No model pinned — Puter's default chat model is used.
@@ -286,7 +342,7 @@ export async function puterChat(
         const delta = part?.text || "";
         if (delta) {
           fullText += delta;
-          onProgress?.({ message: "Puter AI likh raha hai...", partialText: fullText });
+          onProgress?.({ message: "AI likh raha hai...", partialText: fullText });
         }
       }
     }

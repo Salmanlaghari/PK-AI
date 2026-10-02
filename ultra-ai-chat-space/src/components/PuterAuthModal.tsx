@@ -15,32 +15,55 @@ interface PuterAuthModalProps {
 
 /**
  * One-tap free connect: opens Puter's own sign-in popup. The user gets a
- * free Puter account with their own quota — no API keys, no tokens, no
+ * free AI account with their own quota — no API keys, no tokens, no
  * cookies to paste. After this single connect, text + image + video are
  * free inside Ultra AI 4.
  */
 export default function PuterAuthModal({ isOpen, onClose, onAuthSuccess }: PuterAuthModalProps) {
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stage, setStage] = useState<null | "sdk" | "popup-wait" | "popup-open">(null);
+  const [hint, setHint] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isOpen) {
       setIsSigningIn(false);
       setError(null);
+      setStage(null);
+      setHint(null);
     }
   }, [isOpen]);
+
+  // Once the sign-in popup is requested, watch for it actually opening —
+  // if it never opens the user would otherwise stare at a spinner forever.
+  useEffect(() => {
+    if (stage !== "popup-wait") return;
+    const onOpened = () => {
+      setStage("popup-open");
+      setHint(null);
+    };
+    window.addEventListener("puter-popup-opened", onOpened);
+    const t = setTimeout(() => {
+      setHint("Popup nazar nahi aa raha? Cancel karke dobara Connect dabayein.");
+    }, 12000);
+    return () => {
+      window.removeEventListener("puter-popup-opened", onOpened);
+      clearTimeout(t);
+    };
+  }, [stage]);
 
   const handleConnect = useCallback(async () => {
     setIsSigningIn(true);
     setError(null);
+    setHint(null);
     try {
       // A cached session may already be valid (e.g. app was backgrounded).
       if (await isPuterSignedIn()) {
         const cached = getCachedPuterUser();
-        onAuthSuccess(cached || { username: "Puter User", uuid: "" });
+        onAuthSuccess(cached || { username: "AI User", uuid: "" });
         return;
       }
-      const user = await signInToPuter();
+      const user = await signInToPuter(setStage);
       onAuthSuccess(user);
     } catch (err: any) {
       const msg = String(err?.message || "Connect nahi ho saka.");
@@ -81,7 +104,7 @@ export default function PuterAuthModal({ isOpen, onClose, onAuthSuccess }: Puter
         </div>
 
         <p className="text-sm text-slate-300 mb-4 leading-relaxed">
-          Ek tap par apna <b className="text-white">free Puter account</b> connect karein —
+          Ek tap par apna <b className="text-white">free AI account</b> connect karein —
           phir <b className="text-white">text, image aur video</b> sab free, aapke apne
           quota mein. Koi API key, token ya cookie paste nahi karni.
         </p>
@@ -89,7 +112,7 @@ export default function PuterAuthModal({ isOpen, onClose, onAuthSuccess }: Puter
         <div className="mb-4 space-y-2 text-[13px] text-slate-400">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span>Chat — Puter ke free AI models</span>
+            <span>Chat — free AI models</span>
           </div>
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
@@ -115,17 +138,27 @@ export default function PuterAuthModal({ isOpen, onClose, onAuthSuccess }: Puter
           {isSigningIn ? (
             <>
               <Loader2 className="w-5 h-5 animate-spin" />
-              Connecting...
+              {stage === "popup-open"
+                ? "Popup mein sign-in poora karein..."
+                : stage === "popup-wait"
+                  ? "Sign-in popup khul raha hai..."
+                  : "Connecting..."}
             </>
           ) : (
             "Connect — Bilkul Free"
           )}
         </button>
 
+        {hint && !error && (
+          <p className="mt-2 text-[11px] text-amber-300/90 text-center leading-relaxed">
+            {hint}
+          </p>
+        )}
+
         <p className="mt-3 text-[11px] text-slate-500 text-center leading-relaxed">
-          Sirf ek baar connect karein. Connect tap karne par aapke liye ek free Puter
+          Sirf ek baar connect karein. Connect tap karne par aapke liye ek free AI
           account ban jayega (one-tap) — baad mein ise full account mein convert kar
-          sakte hain. Free quota har user ke apne Puter account par hota hai.
+          sakte hain. Free quota har user ke apne AI account par hota hai.
         </p>
       </div>
     </div>

@@ -4,6 +4,7 @@ import {
   signInToPuter,
   isPuterSignedIn,
   getCachedPuterUser,
+  loadPuterSDK,
   type PuterUser,
 } from "../services/puterService";
 
@@ -24,6 +25,7 @@ export default function PuterAuthModal({ isOpen, onClose, onAuthSuccess }: Puter
   const [error, setError] = useState<string | null>(null);
   const [stage, setStage] = useState<null | "sdk" | "popup-wait" | "popup-open">(null);
   const [hint, setHint] = useState<string | null>(null);
+  const [sdkReady, setSdkReady] = useState(false);
 
   useEffect(() => {
     if (!isOpen) {
@@ -31,7 +33,21 @@ export default function PuterAuthModal({ isOpen, onClose, onAuthSuccess }: Puter
       setError(null);
       setStage(null);
       setHint(null);
+      return;
     }
+    // Preload the SDK while the modal is open so the Connect tap needs no
+    // network awaits: puter.auth.signIn() opens a real popup only while the
+    // tap's user activation is alive. The button stays disabled until ready.
+    setSdkReady(false);
+    let cancelled = false;
+    loadPuterSDK().catch(() => {
+      // The tap will retry and surface the real error.
+    }).finally(() => {
+      if (!cancelled) setSdkReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [isOpen]);
 
   // Once the sign-in popup is requested, watch for it actually opening —
@@ -52,6 +68,25 @@ export default function PuterAuthModal({ isOpen, onClose, onAuthSuccess }: Puter
     };
   }, [stage]);
 
+  useEffect(() => {
+    if (stage !== "popup-wait") return;
+    const iv = setInterval(() => {
+      try {
+        const dlg = document.querySelector("puter-dialog");
+        const btn = dlg?.shadowRoot?.querySelector(
+          "#launch-auth-popup"
+        ) as HTMLElement | null;
+        if (btn) {
+          clearInterval(iv);
+          btn.click();
+        }
+      } catch {
+        // SDK internals changed — the dialog is top-layer and tappable.
+      }
+    }, 800);
+    return () => clearInterval(iv);
+  }, [stage]);
+
   const handleConnect = useCallback(async () => {
     setIsSigningIn(true);
     setError(null);
@@ -66,7 +101,7 @@ export default function PuterAuthModal({ isOpen, onClose, onAuthSuccess }: Puter
       const user = await signInToPuter(setStage);
       onAuthSuccess(user);
     } catch (err: any) {
-      const msg = String(err?.message || "Connect nahi ho saka.");
+      const msg = String(err?.msg || err?.message || "Connect nahi ho saka.");
       // A closed popup is the user changing their mind — not an error.
       if (/dismiss|close|cancel|denied/i.test(msg)) {
         setIsSigningIn(false);
@@ -75,6 +110,7 @@ export default function PuterAuthModal({ isOpen, onClose, onAuthSuccess }: Puter
       setError(msg);
     } finally {
       setIsSigningIn(false);
+      setStage(null);
     }
   }, [onAuthSuccess]);
 
@@ -132,10 +168,15 @@ export default function PuterAuthModal({ isOpen, onClose, onAuthSuccess }: Puter
 
         <button
           onClick={handleConnect}
-          disabled={isSigningIn}
+          disabled={isSigningIn || !sdkReady}
           className="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 disabled:opacity-60 text-white font-bold text-sm shadow-lg shadow-cyan-500/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
         >
-          {isSigningIn ? (
+          {!sdkReady ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              Taiyar ho raha hai...
+            </>
+          ) : isSigningIn ? (
             <>
               <Loader2 className="w-5 h-5 animate-spin" />
               {stage === "popup-open"

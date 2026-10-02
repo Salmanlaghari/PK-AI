@@ -272,6 +272,17 @@ class AiHubFragment : Fragment() {
      * the old one). A leaked WebView keeps its renderer process alive.
      */
     private fun dismissPuterPopup() {
+        destroyPuterPopupViews()
+        // Tell the web layer the popup went away so a pending sign-in
+        // settles instead of hanging on "Connecting..." forever.
+        _binding?.webviewUltraAi?.evaluateJavascript(
+            "window.dispatchEvent(new Event('puter-popup-closed'))",
+            null
+        )
+    }
+
+    /** Tears down the popup views without notifying the web layer. */
+    private fun destroyPuterPopupViews() {
         val popupView = puterPopupWebView
         // The popup shares the fragment-level JS-dialog tracker — settle a
         // pending dialog only when it belongs to the popup. A main-page dialog
@@ -1338,7 +1349,9 @@ class AiHubFragment : Fragment() {
                 val hostActivity = activity ?: return false
                 // A previous popup that never closed would otherwise leak its
                 // WebView when the dialog field is overwritten below.
-                dismissPuterPopup()
+                // Silent: a fresh popup opens immediately, so the web layer
+                // must not treat this as the user closing sign-in.
+                destroyPuterPopupViews()
                 val popupWebView = WebView(hostActivity).apply {
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true
@@ -1356,6 +1369,7 @@ class AiHubFragment : Fragment() {
                             val host = request.url.host?.lowercase() ?: return true
                             val allowed = host == "puter.com" ||
                                 host.endsWith(".puter.com") ||
+                                host == "challenges.cloudflare.com" ||
                                 host.endsWith(".google.com") ||
                                 host.endsWith(".googleapis.com") ||
                                 host.endsWith(".gstatic.com") ||
@@ -1379,6 +1393,12 @@ class AiHubFragment : Fragment() {
                     .setOnCancelListener { dismissPuterPopup() }
                     .create()
                 puterPopupDialog?.show()
+                // The sign-in promise only settles when the user finishes (or
+                // closes) this popup — let the web layer stop its watchdog.
+                view?.evaluateJavascript(
+                    "window.dispatchEvent(new Event('puter-popup-opened'))",
+                    null
+                )
                 transport.webView = popupWebView
                 resultMsg.sendToTarget()
                 return true

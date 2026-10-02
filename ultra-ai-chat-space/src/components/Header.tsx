@@ -81,11 +81,11 @@ export default function Header({
               ? "bg-gradient-to-r from-emerald-500/20 via-teal-500/20 to-cyan-500/20 border-emerald-500/50 hover:border-emerald-400 text-emerald-200 hover:text-white shadow-emerald-500/10"
               : "bg-gradient-to-r from-cyan-500/20 via-indigo-500/20 to-purple-500/20 border-cyan-500/40 hover:border-cyan-400 text-cyan-200 hover:text-white shadow-cyan-500/10"
           }`}
-          title={puterConnected ? "Puter AI connected — disconnect karne ke liye tap karein" : "Connect free Puter AI — text, image, video"}
+          title={puterConnected ? "AI connected — disconnect karne ke liye tap karein" : "Connect free AI — text, image, video"}
         >
           <Sparkles className={`w-3.5 h-3.5 shrink-0 ${puterConnected ? "text-emerald-400" : "text-cyan-400 animate-pulse"}`} />
           <span className="hidden xs:inline sm:inline">
-            {puterConnected ? "Puter AI ✓" : "Connect"}
+            {puterConnected ? "AI ✓" : "Connect"}
           </span>
         </button>
 

@@ -49,6 +49,19 @@ data class LlmProvider(
     companion object {
         val ALL: List<LlmProvider> = listOf(
             LlmProvider(
+                id = "gemini",
+                displayName = "Gemini",
+                tagline = "Google's latest flagship models",
+                logoEmoji = "✨",
+                format = ProviderFormat.OPENAI,
+                // Gemini's OpenAI-compatible endpoint — reuses OpenAiCompatibleProvider
+                baseUrl = "https://generativelanguage.googleapis.com/v1beta/openai/",
+                defaultModel = "gemini-2.0-flash",
+                apiKeyBuildConfig = "GEMINI_API_KEY",
+                supportsVision = true,
+                visionModel = "gemini-2.0-flash"
+            ),
+            LlmProvider(
                 id = "groq",
                 displayName = "Groq",
                 tagline = "Fastest inference on earth",

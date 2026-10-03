@@ -39,6 +39,9 @@ class TipsFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         prefs = requireContext().getSharedPreferences("super_chat_prefs", Context.MODE_PRIVATE)
 
+        // Start the live water background animation 🌊
+        (view.findViewById<View>(R.id.tipsRoot).background as? android.graphics.drawable.AnimationDrawable)?.start()
+
         view.findViewById<View>(R.id.btnTipsBack).setOnClickListener {
             findNavController().popBackStack()
         }
@@ -58,6 +61,7 @@ class TipsFragment : Fragment() {
             TipItem("🎤", "Voice Notes", "Mic dabayein, boliye, dobara dabayein — voice note chat mein aa jayega."),
             TipItem("📎", "Images", "📎 se gallery se tasveer bhejein aur us par baat karein."),
             TipItem("🔊", "Suniye", "Kisi bhi jawab par 🔊 dabakar use sun sakte hain."),
+            TipItem("⚡", "Super Stickers Shortcut", "Super Chat mein /18+ likh kar bhejein — special sticker mode foran on ho jayega!"),
             TipItem(
                 "🔞",
                 "Secret Stickers",

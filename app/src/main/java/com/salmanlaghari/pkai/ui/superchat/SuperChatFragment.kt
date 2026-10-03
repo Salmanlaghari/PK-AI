@@ -106,6 +106,9 @@ class SuperChatFragment : Fragment() {
             .getSharedPreferences("super_chat_prefs", Context.MODE_PRIVATE)
         viewModel.setFavorites(loadFavorites())
 
+        // Start the live water background animation 🌊
+        (binding.superChatRoot.background as? android.graphics.drawable.AnimationDrawable)?.start()
+
         setupChat()
         setupHeader()
         setupMediaButtons()

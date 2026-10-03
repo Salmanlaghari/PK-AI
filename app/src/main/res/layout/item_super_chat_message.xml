@@ -146,6 +146,44 @@
                     android:layout_height="wrap_content"
                     android:orientation="vertical">
 
+                    <!-- PK-AI visual result header — shown for PK-AI mode replies -->
+                    <LinearLayout
+                        android:id="@+id/pkAiVisualHeader"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:background="@drawable/bg_pkai_badge_active"
+                        android:paddingHorizontal="10dp"
+                        android:paddingVertical="6dp"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="✨"
+                            android:textSize="14sp" />
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="6dp"
+                            android:text="PK-AI Visual Result"
+                            android:textColor="#FFFFFF"
+                            android:textSize="11sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="8K"
+                            android:textColor="#FFD166"
+                            android:textSize="10sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+
                     <TextView
                         android:id="@+id/tvAiMessage"
                         android:layout_width="wrap_content"
@@ -167,41 +205,50 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
+                        android:gravity="center_vertical"
                         android:orientation="horizontal">
 
                         <TextView
                             android:id="@+id/btnSpeak"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:paddingEnd="14dp"
+                            android:layout_width="34dp"
+                            android:layout_height="34dp"
+                            android:layout_marginEnd="10dp"
+                            android:background="@drawable/bg_action_button"
+                            android:gravity="center"
                             android:text="🔊"
-                            android:textSize="13sp"
+                            android:textSize="14sp"
                             android:contentDescription="@string/superchat_speak" />
 
                         <TextView
                             android:id="@+id/btnCopy"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:paddingEnd="14dp"
+                            android:layout_width="34dp"
+                            android:layout_height="34dp"
+                            android:layout_marginEnd="10dp"
+                            android:background="@drawable/bg_action_button"
+                            android:gravity="center"
                             android:text="📋"
-                            android:textSize="13sp"
+                            android:textSize="14sp"
                             android:contentDescription="@string/superchat_copy" />
 
                         <TextView
                             android:id="@+id/btnFav"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:paddingEnd="14dp"
+                            android:layout_width="34dp"
+                            android:layout_height="34dp"
+                            android:layout_marginEnd="10dp"
+                            android:background="@drawable/bg_action_button"
+                            android:gravity="center"
                             android:text="💜"
-                            android:textSize="13sp"
+                            android:textSize="14sp"
                             android:contentDescription="@string/superchat_favorite" />
 
                         <TextView
                             android:id="@+id/btnShare"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
+                            android:layout_width="34dp"
+                            android:layout_height="34dp"
+                            android:background="@drawable/bg_action_button"
+                            android:gravity="center"
                             android:text="↗️"
-                            android:textSize="13sp"
+                            android:textSize="14sp"
                             android:contentDescription="@string/superchat_share" />
                     </LinearLayout>
                 </LinearLayout>

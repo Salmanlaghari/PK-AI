@@ -105,7 +105,8 @@ class SuperChatViewModel @Inject constructor(
      * Song requests ("play kesariya") are routed to PagalWorld search and come
      * back as a visual song card.
      */
-    fun sendMessage(text: String) {        val trimmed = text.trim()
+    fun sendMessage(text: String) {
+        val trimmed = text.trim()
         if (trimmed.isEmpty() || _isGenerating.value) return
 
         // Check for /18+ command — toggles special sticker mode
@@ -122,9 +123,10 @@ class SuperChatViewModel @Inject constructor(
             return
         }
 
-        // Song search intent → visual song card via PagalWorld
+        // Song search intent → visual song card via PagalWorld.
+        // Guarded by _isGenerating so rapid taps can't stack searches.
         val songQuery = com.salmanlaghari.pkai.util.SongSearchHelper.extractSongQuery(trimmed)
-        if (songQuery != null) {
+        if (songQuery != null && !_isGenerating.value) {
             searchAndSendSong(trimmed, songQuery)
             return
         }

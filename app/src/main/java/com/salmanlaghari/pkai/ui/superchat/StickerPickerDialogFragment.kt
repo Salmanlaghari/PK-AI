@@ -58,7 +58,10 @@ class StickerPickerDialogFragment : BottomSheetDialogFragment() {
         view.findViewById<TextView>(R.id.tvSuperHeader).visibility =
             if (superUnlocked) View.VISIBLE else View.GONE
         val orderedIndices = if (superUnlocked) {
-            PoseRegistry.specialStickers.toIntArray() + indices
+            // SUPER pack first, then the rest WITHOUT duplicating 200..215
+            // (allStickers() already contains them).
+            PoseRegistry.specialStickers.toIntArray() +
+                indices.filter { it !in PoseRegistry.specialStickers }.toIntArray()
         } else {
             indices
         }

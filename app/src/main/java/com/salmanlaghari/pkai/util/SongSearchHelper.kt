@@ -19,6 +19,8 @@ object SongSearchHelper {
     private const val TAG = "SongSearch"
     private const val BASE = "https://pagal-world.com.co"
     private const val TIMEOUT = 8000
+    /** Max chars read from any HTTP response (OOM guard). */
+    private const val MAX_RESPONSE_CHARS = 512 * 1024
 
     data class SongResult(
         val title: String,
@@ -31,25 +33,39 @@ object SongSearchHelper {
 
     /**
      * Detects a song-search intent. Returns the extracted song query, or null.
-     * Matches: "play kesariya", "kesariya song", "kesariya gana sunao", "song: tum hi ho"
+     *
+     * Only EXPLICIT requests match — a bare "X song" no longer hijacks normal
+     * chat about songs. Supported:
+     * "play kesariya", "kesariya play karo", "kesariya song sunao",
+     * "song: tum hi ho", "kesariya sunao"
      */
     fun extractSongQuery(text: String): String? {
         val t = text.trim()
-        // "play X" / "X play karo"
-        Regex("(?i)^play\\s+(.+)$").find(t)?.let { return it.groupValues[1].trim() }
-        Regex("(?i)^(.+?)\\s+play\\s+(karo|kar)\\s*$").find(t)?.let { return it.groupValues[1].trim() }
-        // "X song" / "X gana" / "X song sunao"
-        Regex("(?i)^(.+?)\\s+(song|gana|gaana)(\\s+(sunao|suna|play|chalao|lagao))?\\s*$")
+        // "play X" — explicit
+        Regex("(?i)^play\\s+(.+)$").find(t)?.let {
+            val q = it.groupValues[1].trim()
+            if (q.length >= 2) return q
+        }
+        // "X play karo/kar" — explicit
+        Regex("(?i)^(.+?)\\s+play\\s+(karo|kar)\\s*$").find(t)?.let {
+            val q = it.groupValues[1].trim()
+            if (q.length >= 2) return q
+        }
+        // "X song/gana sunao|play|chalao|lagao" — action verb REQUIRED
+        Regex("(?i)^(.+?)\\s+(song|gana|gaana)\\s+(sunao|suna|play|chalao|lagao)\\s*$")
             .find(t)?.let {
                 val q = it.groupValues[1].trim()
                 if (q.length >= 2) return q
             }
-        // "song: X" / "gana: X"
-        Regex("(?i)^(song|gana|gaana)\\s*:\\s*(.+)$").find(t)?.let { return it.groupValues[2].trim() }
-        // "X sunao" (e.g. "kesariya sunao")
-        Regex("(?i)^(.+?)\\s+sunao\\s*$").find(t)?.let {
+        // "song: X" / "gana: X" — explicit prefix
+        Regex("(?i)^(song|gana|gaana)\\s*:\\s*(.+)$").find(t)?.let {
+            val q = it.groupValues[2].trim()
+            if (q.length >= 2) return q
+        }
+        // "X sunao" — single-word title only (avoids hijacking sentences)
+        Regex("(?i)^([^\\s]+)\\s+sunao\\s*$").find(t)?.let {
             val q = it.groupValues[1].trim()
-            if (q.length >= 2 && !q.contains(" ")) return q
+            if (q.length >= 2) return q
         }
         return null
     }
@@ -112,17 +128,32 @@ object SongSearchHelper {
     }
 
     private fun httpGet(urlStr: String): String? {
+        var conn: HttpURLConnection? = null
         return try {
-            val conn = (URL(urlStr).openConnection() as HttpURLConnection).apply {
+            conn = (URL(urlStr).openConnection() as HttpURLConnection).apply {
                 connectTimeout = TIMEOUT
                 readTimeout = TIMEOUT
                 setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14)")
                 instanceFollowRedirects = true
             }
             if (conn.responseCode !in 200..299) return null
-            conn.inputStream.bufferedReader().use { it.readText() }.also { conn.disconnect() }
+            // Bounded read: cap at 512KB to avoid OOM on huge pages
+            val sb = StringBuilder()
+            conn.inputStream.bufferedReader().use { reader ->
+                val buf = CharArray(8192)
+                var total = 0
+                while (total < MAX_RESPONSE_CHARS) {
+                    val n = reader.read(buf, 0, minOf(buf.size, MAX_RESPONSE_CHARS - total))
+                    if (n < 0) break
+                    sb.append(buf, 0, n)
+                    total += n
+                }
+            }
+            sb.toString().takeIf { it.isNotBlank() }
         } catch (_: Exception) {
             null
+        } finally {
+            conn?.disconnect()
         }
     }
 

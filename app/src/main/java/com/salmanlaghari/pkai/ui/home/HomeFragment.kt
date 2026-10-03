@@ -545,9 +545,21 @@ class HomeFragment : Fragment() {
             .show()
     }
 
+    override fun onPause() {
+        super.onPause()
+        // Stop the wallpaper animation when the screen isn't visible (battery)
+        (view?.background as? android.graphics.drawable.AnimationDrawable)?.stop()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        (view?.background as? android.graphics.drawable.AnimationDrawable)?.start()
+    }
+
     override fun onDestroyView() {
         voiceHelper?.destroy()
         voiceHelper = null
+        (view?.background as? android.graphics.drawable.AnimationDrawable)?.stop()
         super.onDestroyView()
         _binding = null
     }

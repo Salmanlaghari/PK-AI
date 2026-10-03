@@ -93,6 +93,8 @@ class TipsFragment : Fragment() {
         }
         AlertDialog.Builder(requireContext())
             .setTitle("⚡ Super Stickers Unlock")
+            // NOTE: showing the code here is INTENTIONAL — it's an 18+ easter-egg
+            // unlock mechanic, not a security boundary. The age gate comes first.
             .setMessage("🔞 Khufiya 18+ code:\n\n👉 $SUPER_CODE 👈\n\n(neeche darj karke Unlock dabayein)")
             .setView(input)
             .setPositiveButton("Unlock") { _, _ ->

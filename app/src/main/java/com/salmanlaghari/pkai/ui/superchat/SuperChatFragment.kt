@@ -6,6 +6,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.SharedPreferences
 import android.graphics.BitmapFactory
+import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.os.Build
 import android.os.Bundle
@@ -72,6 +73,7 @@ class SuperChatFragment : Fragment() {
     // Song streaming player 🎵
     private var songPlayer: MediaPlayer? = null
     private var playingSongId: String? = null
+    private var isSongPaused = false
     private var recordingJob: Job? = null
     private var isRecording = false
 
@@ -141,48 +143,84 @@ class SuperChatFragment : Fragment() {
             Toast.makeText(requireContext(), "😔 Audio stream nahi mila", Toast.LENGTH_SHORT).show()
             return
         }
-        // Tapping the currently playing song pauses it
-        if (playingSongId == message.id) {
-            songPlayer?.let {
-                if (it.isPlaying) it.pause() else it.start()
-            }
-            adapter.playingSongId = if (songPlayer?.isPlaying == true) message.id else null
-            playingSongId = adapter.playingSongId
-            adapter.notifyDataSetChanged()
-            return
-        }
-        // Stop any previous song
-        try { songPlayer?.stop() } catch (_: Exception) { }
-        songPlayer?.release()
-        Toast.makeText(requireContext(), "🎵 Loading song…", Toast.LENGTH_SHORT).show()
-        songPlayer = MediaPlayer().apply {
-            setAudioAttributes(
-                android.media.AudioAttributes.Builder()
-                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC)
-                    .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
-                    .build()
-            )
-            setDataSource(audioUrl)
-            setOnPreparedListener {
-                it.start()
-                playingSongId = message.id
+        try {
+            // Tapping the currently playing song toggles pause/resume (id stays set)
+            if (playingSongId == message.id && songPlayer != null) {
+                val player = songPlayer!!
+                if (player.isPlaying) {
+                    player.pause()
+                    isSongPaused = true
+                } else {
+                    player.start()
+                    isSongPaused = false
+                }
                 adapter.playingSongId = message.id
+                adapter.isSongPaused = isSongPaused
                 adapter.notifyDataSetChanged()
+                return
             }
-            setOnCompletionListener {
-                playingSongId = null
-                adapter.playingSongId = null
-                adapter.notifyDataSetChanged()
+            // Stop any previous song
+            try { songPlayer?.stop() } catch (_: Exception) { }
+            songPlayer?.release()
+            songPlayer = null
+            isSongPaused = false
+            Toast.makeText(requireContext(), "🎵 Loading song…", Toast.LENGTH_SHORT).show()
+            songPlayer = MediaPlayer().apply {
+                setAudioAttributes(
+                    android.media.AudioAttributes.Builder()
+                        .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                        .build()
+                )
+                setDataSource(audioUrl)
+                setOnPreparedListener {
+                    it.start()
+                    playingSongId = message.id
+                    isSongPaused = false
+                    adapter.playingSongId = message.id
+                    adapter.isSongPaused = false
+                    adapter.notifyDataSetChanged()
+                }
+                setOnCompletionListener {
+                    playingSongId = null
+                    isSongPaused = false
+                    adapter.playingSongId = null
+                    adapter.notifyDataSetChanged()
+                }
+                setOnErrorListener { _, _, _ ->
+                    Toast.makeText(requireContext(), "😔 Song play nahi ho saka", Toast.LENGTH_SHORT).show()
+                    playingSongId = null
+                    isSongPaused = false
+                    adapter.playingSongId = null
+                    adapter.notifyDataSetChanged()
+                    true
+                }
+                prepareAsync()
             }
-            setOnErrorListener { _, _, _ ->
-                Toast.makeText(requireContext(), "😔 Song play nahi ho saka", Toast.LENGTH_SHORT).show()
-                playingSongId = null
-                adapter.playingSongId = null
-                adapter.notifyDataSetChanged()
-                true
-            }
-            prepareAsync()
+        } catch (e: Exception) {
+            android.util.Log.w("SuperChat", "Song playback failed: ${e.message}")
+            Toast.makeText(requireContext(), "😔 Song play nahi ho saka", Toast.LENGTH_SHORT).show()
+            try { songPlayer?.release() } catch (_: Exception) { }
+            songPlayer = null
+            playingSongId = null
+            adapter.playingSongId = null
+            adapter.notifyDataSetChanged()
         }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // Stop voice recording if the user leaves mid-recording
+        if (isRecording) stopVoiceRecording(send = false)
+        // Pause song playback when leaving the screen
+        try { songPlayer?.takeIf { it.isPlaying }?.pause() } catch (_: Exception) { }
+        // Stop wallpaper animation off-screen (battery)
+        (view?.findViewById<View>(R.id.superChatRoot)?.background as? android.graphics.drawable.AnimationDrawable)?.stop()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        (view?.findViewById<View>(R.id.superChatRoot)?.background as? android.graphics.drawable.AnimationDrawable)?.start()
     }
 
     /** Loads the banner ad — this was the missing piece (ads never showed). */
@@ -283,8 +321,16 @@ class SuperChatFragment : Fragment() {
                         val items = messages.map { SuperChatAdapter.Item.Message(it) } +
                             (if (viewModel.isGenerating.value) listOf(SuperChatAdapter.Item.Typing) else emptyList())
                         val nearBottom = isNearBottom()
+                        val lastVisibleBefore = (binding.rvSuperChat.layoutManager as? LinearLayoutManager)
+                            ?.findLastVisibleItemPosition() ?: -1
                         adapter.submitList(items) {
-                            if (nearBottom || messages.isNotEmpty()) {
+                            if (items.isEmpty()) return@submitList
+                            // Smart scroll: only auto-scroll when the user was already
+                            // near the bottom, or when THEY just sent a message
+                            // (last item is theirs).
+                            val userJustSent = messages.lastOrNull()?.isUser == true &&
+                                lastVisibleBefore >= items.size - 3
+                            if (nearBottom || userJustSent) {
                                 binding.rvSuperChat.smoothScrollToPosition(items.size - 1)
                             }
                         }
@@ -485,6 +531,11 @@ class SuperChatFragment : Fragment() {
     override fun onDestroyView() {
         if (isRecording) stopVoiceRecording(send = false)
         adapter.releasePlayer()
+        // Release the song streaming player so audio never leaks past the screen
+        try { songPlayer?.stop() } catch (_: Exception) { }
+        try { songPlayer?.release() } catch (_: Exception) { }
+        songPlayer = null
+        playingSongId = null
         tts?.stop()
         tts?.shutdown()
         tts = null

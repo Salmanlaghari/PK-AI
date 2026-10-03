@@ -101,6 +101,9 @@ class SuperChatViewModel @Inject constructor(
     /**
      * Sends a user message: appends it, switches the avatar pose to match the
      * detected mood, then streams an AI reply.
+     *
+     * Song requests ("play kesariya") are routed to PagalWorld search and come
+     * back as a visual song card.
      */
     fun sendMessage(text: String) {        val trimmed = text.trim()
         if (trimmed.isEmpty() || _isGenerating.value) return
@@ -116,6 +119,13 @@ class SuperChatViewModel @Inject constructor(
             val stickerIdx = PoseRegistry.randomSpecialSticker()
             _messageStickers.value = _messageStickers.value + (modeMsg.id to stickerIdx)
             _messages.value = _messages.value + modeMsg
+            return
+        }
+
+        // Song search intent → visual song card via PagalWorld
+        val songQuery = com.salmanlaghari.pkai.util.SongSearchHelper.extractSongQuery(trimmed)
+        if (songQuery != null) {
+            searchAndSendSong(trimmed, songQuery)
             return
         }
 
@@ -172,6 +182,53 @@ class SuperChatViewModel @Inject constructor(
         _messageStickers.value = _messageStickers.value + (userMessage.id to pose)
         _messages.value = _messages.value + userMessage
         fetchReply("The user sent me a voice note.", specialMode)
+    }
+
+    /**
+     * Song search: appends the user message, searches PagalWorld, and posts a
+     * visual song card (artwork + title + artist + streamable audio).
+     * Song data is packed into the attachment fields as:
+     * attachmentType="song", attachmentUri=audioUrl,
+     * attachmentName="title|||artist|||artworkUrl".
+     */
+    fun searchAndSendSong(originalText: String, query: String) {
+        val userMessage = ChatMessage(
+            content = originalText,
+            isUser = true,
+            timestamp = System.currentTimeMillis()
+        )
+        val pose = if (specialMode) PoseRegistry.randomSpecialSticker()
+            else nextPoseFor(MoodDetector.detect(originalText))
+        _currentSticker.value = pose
+        _messageStickers.value = _messageStickers.value + (userMessage.id to pose)
+        _messages.value = _messages.value + userMessage
+
+        _isGenerating.value = true
+        viewModelScope.launch {
+            val song = com.salmanlaghari.pkai.util.SongSearchHelper.searchSong(query)
+            val replyMessage = if (song != null) {
+                ChatMessage(
+                    content = "🎵 Ye raha aapka song:",
+                    isUser = false,
+                    modelUsed = "Song Search",
+                    timestamp = System.currentTimeMillis(),
+                    attachmentType = "song",
+                    attachmentUri = song.audioUrl,
+                    attachmentName = "${song.title}|||${song.artist}|||${song.artworkUrl}"
+                )
+            } else {
+                ChatMessage(
+                    content = "😔 \"$query\" nahi mila. Koi aur song try karein!",
+                    isUser = false,
+                    timestamp = System.currentTimeMillis()
+                )
+            }
+            val sticker = if (specialMode) PoseRegistry.randomSpecialSticker()
+                else nextPoseFor(Mood.HAPPY)
+            _messageStickers.value = _messageStickers.value + (replyMessage.id to sticker)
+            _messages.value = _messages.value + replyMessage
+            _isGenerating.value = false
+        }
     }
 
     /**

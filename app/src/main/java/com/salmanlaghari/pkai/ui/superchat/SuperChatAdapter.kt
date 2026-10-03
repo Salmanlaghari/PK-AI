@@ -54,6 +54,38 @@ class SuperChatAdapter(
     private var voicePlayer: MediaPlayer? = null
     private var playingMessageId: String? = null
 
+    /** Callback when the song play button is tapped (handled by Fragment). */
+    var onSongPlayClicked: ((ChatMessage) -> Unit)? = null
+
+    /** Id of the song message currently streaming. */
+    var playingSongId: String? = null
+
+    /** Simple in-memory artwork cache for song cards. */
+    private val artworkCache = mutableMapOf<String, android.graphics.Bitmap>()
+
+    /** Loads a remote artwork URL into an ImageView (background thread + cache). */
+    private fun loadArtwork(url: String, target: ImageView) {
+        if (url.isBlank()) return
+        artworkCache[url]?.let { target.setImageBitmap(it); return }
+        target.tag = url
+        Thread {
+            try {
+                val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+                conn.connectTimeout = 6000
+                conn.readTimeout = 6000
+                conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14)")
+                if (conn.responseCode in 200..299) {
+                    val bmp = BitmapFactory.decodeStream(conn.inputStream)
+                    conn.disconnect()
+                    if (bmp != null) {
+                        artworkCache[url] = bmp
+                        target.post { if (target.tag == url) target.setImageBitmap(bmp) }
+                    }
+                }
+            } catch (_: Exception) { /* keep placeholder */ }
+        }.start()
+    }
+
     fun setStickers(map: Map<String, Int>) {
         stickers = map
         notifyDataSetChanged()
@@ -82,6 +114,12 @@ class SuperChatAdapter(
         private val voiceUserRow: View = view.findViewById(R.id.voiceUserRow)
         private val btnUserVoicePlay: TextView = view.findViewById(R.id.btnUserVoicePlay)
         private val tvUserVoiceDuration: TextView = view.findViewById(R.id.tvUserVoiceDuration)
+        // Song card
+        private val songCard: View = view.findViewById(R.id.songCard)
+        private val ivSongArt: ImageView = view.findViewById(R.id.ivSongArt)
+        private val tvSongTitle: TextView = view.findViewById(R.id.tvSongTitle)
+        private val tvSongArtist: TextView = view.findViewById(R.id.tvSongArtist)
+        private val btnSongPlay: TextView = view.findViewById(R.id.btnSongPlay)
 
         fun bind(item: Item.Message) {
             val message = item.message
@@ -102,6 +140,22 @@ class SuperChatAdapter(
                 pkAiVisualHeader.visibility =
                     if (message.modelUsed == com.salmanlaghari.pkai.util.PkAiAssistant.PK_AI_LABEL)
                         View.VISIBLE else View.GONE
+
+                // 🎵 Song visual card
+                if (message.attachmentType == "song") {
+                    val parts = (message.attachmentName ?: "").split("|||")
+                    val title = parts.getOrElse(0) { "Unknown Song" }
+                    val artist = parts.getOrElse(1) { "Unknown Artist" }
+                    val artwork = parts.getOrElse(2) { "" }
+                    songCard.visibility = View.VISIBLE
+                    tvSongTitle.text = title
+                    tvSongArtist.text = artist
+                    loadArtwork(artwork, ivSongArt)
+                    btnSongPlay.text = if (playingSongId == message.id) "⏸" else "▶"
+                    btnSongPlay.setOnClickListener { onSongPlayClicked?.invoke(message) }
+                } else {
+                    songCard.visibility = View.GONE
+                }
 
                 stickers[message.id]?.let { index ->
                     itemView.findViewById<ImageView>(R.id.ivAiSticker)

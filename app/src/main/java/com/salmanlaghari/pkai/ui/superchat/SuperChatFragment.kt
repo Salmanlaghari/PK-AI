@@ -68,6 +68,10 @@ class SuperChatFragment : Fragment() {
     private var recorder: MediaRecorder? = null
     private var recordingFile: File? = null
     private var recordingStartMs: Long = 0L
+
+    // Song streaming player 🎵
+    private var songPlayer: MediaPlayer? = null
+    private var playingSongId: String? = null
     private var recordingJob: Job? = null
     private var isRecording = false
 
@@ -124,8 +128,60 @@ class SuperChatFragment : Fragment() {
             onShare = { share(it) },
             onImageClick = { showFullscreenImage(it) }
         )
+        adapter.onSongPlayClicked = { toggleSongPlayback(it) }
         binding.rvSuperChat.layoutManager = LinearLayoutManager(requireContext())
         binding.rvSuperChat.adapter = adapter
+    }
+
+    /** Toggles streaming playback for a song card. */
+    private fun toggleSongPlayback(message: com.salmanlaghari.pkai.data.model.ChatMessage) {
+        val audioUrl = message.attachmentUri
+        if (audioUrl.isNullOrBlank()) {
+            Toast.makeText(requireContext(), "😔 Audio stream nahi mila", Toast.LENGTH_SHORT).show()
+            return
+        }
+        // Tapping the currently playing song pauses it
+        if (playingSongId == message.id) {
+            songPlayer?.let {
+                if (it.isPlaying) it.pause() else it.start()
+            }
+            adapter.playingSongId = if (songPlayer?.isPlaying == true) message.id else null
+            playingSongId = adapter.playingSongId
+            adapter.notifyDataSetChanged()
+            return
+        }
+        // Stop any previous song
+        try { songPlayer?.stop() } catch (_: Exception) { }
+        songPlayer?.release()
+        Toast.makeText(requireContext(), "🎵 Loading song…", Toast.LENGTH_SHORT).show()
+        songPlayer = MediaPlayer().apply {
+            setAudioAttributes(
+                android.media.AudioAttributes.Builder()
+                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                    .build()
+            )
+            setDataSource(audioUrl)
+            setOnPreparedListener {
+                it.start()
+                playingSongId = message.id
+                adapter.playingSongId = message.id
+                adapter.notifyDataSetChanged()
+            }
+            setOnCompletionListener {
+                playingSongId = null
+                adapter.playingSongId = null
+                adapter.notifyDataSetChanged()
+            }
+            setOnErrorListener { _, _, _ ->
+                Toast.makeText(requireContext(), "😔 Song play nahi ho saka", Toast.LENGTH_SHORT).show()
+                playingSongId = null
+                adapter.playingSongId = null
+                adapter.notifyDataSetChanged()
+                true
+            }
+            prepareAsync()
+        }
     }
 
     private fun setupHeader() {

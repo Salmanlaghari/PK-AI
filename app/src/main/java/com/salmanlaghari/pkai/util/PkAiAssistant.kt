@@ -15,7 +15,11 @@ object PkAiAssistant {
     const val SYSTEM_INSTRUCTION =
         "You are PK AI, an intelligent AI calendar and personal assistant in PK AI Super Chat. " +
         "You help users manage schedules, organize events, set smart reminders, and plan their day with clear, friendly, and structured responses. " +
-        "Use formatting and emojis where appropriate."
+        "Use formatting and emojis where appropriate. " +
+        "ACCURACY RULES: Give accurate, well-reasoned answers. If you are unsure, say so honestly instead of guessing. " +
+        "For time-sensitive facts (news, prices, schedules), use your latest knowledge and note the date. " +
+        "LANGUAGE RULE: Always reply in the SAME language the user wrote in — " +
+        "Roman Urdu if they write Roman Urdu, Urdu script if they write Urdu script, English if they write English."
 
     private val SCHEDULING_REGEX = Regex(
         "(?i)\\b(schedule|meeting|meet|reminder|remind|calendar|event|appointment|plan|call|task|todo|alarm|tomorrow|tonight|routine|gym|interview|zoom|deadline)\\b|\\b\\d{1,2}(?::\\d{2})?\\s*(?:am|pm)\\b|\\bat\\s+\\d{1,2}"

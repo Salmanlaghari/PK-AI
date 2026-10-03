@@ -275,7 +275,13 @@ class SuperChatViewModel @Inject constructor(
     }
 
     private suspend fun tryRequest(prompt: String): String? {
-        val finalPrompt = if (_isPkAiMode.value) PkAiAssistant.buildPkAiPrompt(prompt) else prompt
+        // 🌐 Language matching: reply in the SAME language the user wrote in
+        val lang = com.salmanlaghari.pkai.util.LanguageDetector.detect(prompt)
+        val langInstruction = "\n\n[Language instruction: ${lang.instruction}]"
+        // 🎯 Accuracy: ask for precise, honest answers
+        val accuracyNote = "\n[Accuracy: be precise and factual. If unsure, say so — never invent facts.]"
+        val finalPrompt = (if (_isPkAiMode.value) PkAiAssistant.buildPkAiPrompt(prompt) else prompt) +
+                langInstruction + accuracyNote
         // 1. Try default provider
         try {
             var text: String? = null

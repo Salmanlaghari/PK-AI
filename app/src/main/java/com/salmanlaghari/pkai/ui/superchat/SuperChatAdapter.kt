@@ -73,6 +73,7 @@ class SuperChatAdapter(
         private val userRow: View = view.findViewById(R.id.userRow)
         private val aiRow: View = view.findViewById(R.id.aiRow)
         private val aiCard: View = view.findViewById(R.id.aiCard)
+        private val pkAiVisualHeader: View = view.findViewById(R.id.pkAiVisualHeader)
         private val shimmerView: View = view.findViewById(R.id.shimmerView)
         private val tvUserMessage: TextView = view.findViewById(R.id.tvUserMessage)
         private val tvAiMessage: TextView = view.findViewById(R.id.tvAiMessage)
@@ -96,6 +97,11 @@ class SuperChatAdapter(
                 userRow.visibility = View.GONE
                 aiRow.visibility = View.VISIBLE
                 tvAiMessage.text = message.content
+
+                // PK-AI visual result header for PK-AI mode replies ✨
+                pkAiVisualHeader.visibility =
+                    if (message.modelUsed == com.salmanlaghari.pkai.util.PkAiAssistant.PK_AI_LABEL)
+                        View.VISIBLE else View.GONE
 
                 stickers[message.id]?.let { index ->
                     itemView.findViewById<ImageView>(R.id.ivAiSticker)

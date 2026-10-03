@@ -85,6 +85,9 @@ class HomeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        // Start the Gemini-style light live wallpaper animation 🌅
+        (view.background as? android.graphics.drawable.AnimationDrawable)?.start()
+
         val chatAdapter = ChatAdapter { code, lang, onResult ->
             viewModel.runCode(code, lang, onResult)
         }

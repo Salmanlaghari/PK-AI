@@ -116,6 +116,7 @@ class SuperChatFragment : Fragment() {
         setupChat()
         setupHeader()
         setupMediaButtons()
+        setupBannerAd()
         initTts()
         observeViewModel()
     }
@@ -184,12 +185,29 @@ class SuperChatFragment : Fragment() {
         }
     }
 
+    /** Loads the banner ad — this was the missing piece (ads never showed). */
+    private fun setupBannerAd() {
+        try {
+            val adView = com.salmanlaghari.pkai.ads.AdManager.createBannerAdView(
+                requireContext(),
+                com.salmanlaghari.pkai.ads.AdManager.BANNER_HOME_ID
+            )
+            binding.bannerAdContainer.addView(adView)
+        } catch (e: Exception) {
+            android.util.Log.w("SuperChat", "Banner ad failed: ${e.message}")
+        }
+    }
+
     private fun setupHeader() {
         binding.btnBack.setOnClickListener { findNavController().popBackStack() }
         binding.navBackToChat.setOnClickListener { findNavController().popBackStack() }
         binding.btnTips.setOnClickListener {
             it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
             findNavController().navigate(R.id.action_superChatFragment_to_tipsFragment)
+        }
+        binding.btnHistory.setOnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+            findNavController().navigate(R.id.action_superChatFragment_to_historyFragment)
         }
         binding.btnSuperSend.setOnClickListener {
             popSendButton()

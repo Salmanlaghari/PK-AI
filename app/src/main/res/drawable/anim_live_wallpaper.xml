@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<animation-list xmlns:android="http://schemas.android.com/apk/res/android"
+    android:oneshot="false">
+    <item android:drawable="@drawable/bg_wp_light_1" android:duration="2200" />
+    <item android:drawable="@drawable/bg_wp_light_2" android:duration="2200" />
+    <item android:drawable="@drawable/bg_wp_light_3" android:duration="2200" />
+    <item android:drawable="@drawable/bg_wp_light_4" android:duration="2200" />
+    <item android:drawable="@drawable/bg_wp_light_5" android:duration="2200" />
+    <item android:drawable="@drawable/bg_wp_light_6" android:duration="2200" />
+</animation-list>

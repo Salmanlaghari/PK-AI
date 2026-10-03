@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@drawable/anim_live_water">
+    android:background="@drawable/anim_live_wallpaper">
 
     <!-- Header -->
     <LinearLayout
@@ -33,7 +33,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/tips_title"
-                android:textColor="#FFFFFF"
+                android:textColor="#1A1A2E"
                 android:textSize="18sp"
                 android:textStyle="bold" />
 
@@ -41,7 +41,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/tips_subtitle"
-                android:textColor="#9D4EDD"
+                android:textColor="#6D28D9"
                 android:textSize="11sp" />
         </LinearLayout>
     </LinearLayout>

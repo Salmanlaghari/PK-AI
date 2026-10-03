@@ -193,6 +193,67 @@
                         android:lineSpacingExtra="2dp"
                         tools:text="Hello! 👋 How are you?" />
 
+                    <!-- 🎵 Song visual card — shown for song search results -->
+                    <LinearLayout
+                        android:id="@+id/songCard"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:background="@drawable/bg_superchat_user_bubble"
+                        android:padding="10dp"
+                        android:visibility="gone">
+
+                        <ImageView
+                            android:id="@+id/ivSongArt"
+                            android:layout_width="56dp"
+                            android:layout_height="56dp"
+                            android:scaleType="centerCrop"
+                            android:background="@drawable/bg_superchat_side_button"
+                            android:contentDescription="@string/superchat_image" />
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="10dp"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/tvSongTitle"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:textColor="#FFFFFF"
+                                android:textSize="13sp"
+                                android:textStyle="bold"
+                                android:maxLines="1"
+                                android:ellipsize="end"
+                                tools:text="Kesariya" />
+
+                            <TextView
+                                android:id="@+id/tvSongArtist"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:textColor="#C4B5FD"
+                                android:textSize="11sp"
+                                android:maxLines="1"
+                                android:ellipsize="end"
+                                tools:text="Arijit Singh" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/btnSongPlay"
+                            android:layout_width="44dp"
+                            android:layout_height="44dp"
+                            android:background="@drawable/bg_action_button"
+                            android:gravity="center"
+                            android:text="▶"
+                            android:textColor="#FFFFFF"
+                            android:textSize="16sp" />
+                    </LinearLayout>
+
                     <!-- Shimmer sweep overlay (animated once per new reply) -->
                     <View
                         android:id="@+id/shimmerView"

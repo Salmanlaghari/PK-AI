@@ -102,8 +102,7 @@ class SuperChatViewModel @Inject constructor(
      * Sends a user message: appends it, switches the avatar pose to match the
      * detected mood, then streams an AI reply.
      */
-    fun sendMessage(text: String) {
-        val trimmed = text.trim()
+    fun sendMessage(text: String) {        val trimmed = text.trim()
         if (trimmed.isEmpty() || _isGenerating.value) return
 
         // Check for /18+ command — toggles special sticker mode
@@ -133,6 +132,46 @@ class SuperChatViewModel @Inject constructor(
         _messageStickers.value = _messageStickers.value + (userMessage.id to pose)
         _messages.value = _messages.value + userMessage
         fetchReply(trimmed, specialMode)
+    }
+
+    /** Sends an image attachment as a user message, then fetches an AI reply. */
+    fun sendImageMessage(uri: String, displayName: String? = null) {
+        if (_isGenerating.value) return
+        val userMessage = ChatMessage(
+            content = "📷 Image",
+            isUser = true,
+            timestamp = System.currentTimeMillis(),
+            attachmentType = "image",
+            attachmentUri = uri,
+            attachmentName = displayName
+        )
+        _currentMood.value = Mood.NEUTRAL
+        val pose = if (specialMode) PoseRegistry.randomSpecialSticker()
+            else nextPoseFor(Mood.NEUTRAL)
+        _currentSticker.value = pose
+        _messageStickers.value = _messageStickers.value + (userMessage.id to pose)
+        _messages.value = _messages.value + userMessage
+        fetchReply("The user shared an image with me.", specialMode)
+    }
+
+    /** Sends a voice note as a user message, then fetches an AI reply. */
+    fun sendVoiceMessage(uri: String, durationLabel: String) {
+        if (_isGenerating.value) return
+        val userMessage = ChatMessage(
+            content = "🎤 Voice note",
+            isUser = true,
+            timestamp = System.currentTimeMillis(),
+            attachmentType = "audio",
+            attachmentUri = uri,
+            attachmentName = durationLabel
+        )
+        _currentMood.value = Mood.NEUTRAL
+        val pose = if (specialMode) PoseRegistry.randomSpecialSticker()
+            else nextPoseFor(Mood.NEUTRAL)
+        _currentSticker.value = pose
+        _messageStickers.value = _messageStickers.value + (userMessage.id to pose)
+        _messages.value = _messages.value + userMessage
+        fetchReply("The user sent me a voice note.", specialMode)
     }
 
     /**

@@ -815,15 +815,25 @@ class AiHubFragment : Fragment() {
                             // misreported as "account refused".
                             val snippet = FlowMusicOAuth.sanitizedErrorSnippet(exchange.errorBody)
                             Log.w("AiHubFragment", "ID-token rejected (${exchange.httpCode})" + (snippet?.let { ": $it" } ?: ""))
-                            val reason = when (exchange.httpCode) {
-                                429 -> "Bahut zyada koshishen ho gayin - thodi der baad dobara try karein (429)."
-                                in 500..599 -> "FlowMusic ka server abhi masla kar raha hai (code ${exchange.httpCode}) - thodi der baad try karein."
+                            // 400 "audience" rejection: FlowMusic's server does not trust
+                            // this app's Google client id. Retrying the same Google flow
+                            // can NEVER fix it - only FlowMusic adding our client id
+                            // server-side, or the manual session import. Marking it
+                            // retryable would trap the user in an endless
+                            // "Dobara try karein" loop, so it is NOT retryable and the
+                            // session-paste path becomes the primary action.
+                            val isAudienceMismatch = exchange.httpCode == 400 &&
+                                snippet?.contains("audience", ignoreCase = true) == true
+                            val reason = when {
+                                exchange.httpCode == 429 -> "Bahut zyada koshishen ho gayin - thodi der baad dobara try karein (429)."
+                                exchange.httpCode in 500..599 -> "FlowMusic ka server abhi masla kar raha hai (code ${exchange.httpCode}) - thodi der baad try karein."
+                                isAudienceMismatch -> "FlowMusic ne is app ke Google account ko qabool nahi kiya (code 400).\nYe FlowMusic ke server ki setting hai - dobara try karne se fix nahi hoga.\n\"Session paste karein\" dabaa kar apna FlowMusic session ek baar paste kar dein."
                                 else -> buildString {
                                     append("FlowMusic ne Google account qabool nahi kiya (code ${exchange.httpCode}).")
                                     if (!snippet.isNullOrBlank()) append("\nWajah: $snippet")
                                 }
                             }
-                            onFlowMusicConnectFailed(reason = reason, retryable = true)
+                            onFlowMusicConnectFailed(reason = reason, retryable = !isAudienceMismatch)
                         }
                         is FlowMusicOAuth.ExchangeResult.MalformedResponse -> {
                             // Bad server response (not a network problem).
@@ -901,9 +911,19 @@ class AiHubFragment : Fragment() {
                 // token (audience mismatch) and we cannot change their
                 // config, so the user can paste their own FlowMusic web
                 // session once instead. Never opens the website.
-                builder.setNeutralButton(getString(R.string.btn_import_session)) { d, _ ->
-                    d.dismiss()
-                    showSessionImportDialog()
+                // When the failure is NOT retryable (audience mismatch), the
+                // retry button is gone, so session-paste becomes the PRIMARY
+                // positive action instead of a neutral afterthought.
+                if (retryable) {
+                    builder.setNeutralButton(getString(R.string.btn_import_session)) { d, _ ->
+                        d.dismiss()
+                        showSessionImportDialog()
+                    }
+                } else {
+                    builder.setPositiveButton(getString(R.string.btn_import_session)) { d, _ ->
+                        d.dismiss()
+                        showSessionImportDialog()
+                    }
                 }
                 // Clear the field on dismiss so a dismissed dialog (holding
                 // the Activity context) is not retained by the fragment.

@@ -451,8 +451,8 @@
                 android:hint="Ask anything…"
                 android:inputType="textMultiLine|textCapSentences"
                 android:maxLines="4"
-                android:textColor="@color/white"
-                android:textColorHint="@color/outline" />
+                android:textColor="#1A1A2E"
+                android:textColorHint="#9D8DF1" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <!-- Voice input button (compact, inline beside the input) -->

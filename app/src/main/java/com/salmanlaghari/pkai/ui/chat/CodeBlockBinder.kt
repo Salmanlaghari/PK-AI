@@ -56,11 +56,6 @@ object CodeBlockBinder {
                     blockBinding.tvCodeLang.text = rawLangUpper
                     blockBinding.tvCodeContent.text = segment.code
 
-                    // Recycling guard: tag the card with this block's identity so a
-                    // late run-code result can't mutate a card recycled for other code.
-                    val codeToken = segment.code.hashCode()
-                    blockBinding.root.tag = codeToken
-
                     // Copy code button
                     blockBinding.btnCopyCode.setOnClickListener {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -82,10 +77,16 @@ object CodeBlockBinder {
                             blockBinding.layoutRunOutputPanel.visibility = View.GONE
 
                             onRunCode.invoke(segment.code, heLang) { result ->
-                                // Drop results for a card that was recycled/rebound
-                                // since the run started (stale output would land on
-                                // the wrong card, leaving this one stuck loading).
-                                if (blockBinding.root.tag != codeToken) return@invoke
+                                // Recycling guard, keyed on something that actually
+                                // changes across binds: bind() calls
+                                // container.removeAllViews() before inflating fresh
+                                // cards, so a card detached by a rebind (streaming
+                                // update, scroll + RecyclerView reuse) no longer
+                                // has this container as its parent. Writing the
+                                // result to a detached card would leave the
+                                // visible card stuck in the loading state with no
+                                // way to recover — drop the stale result instead.
+                                if (blockBinding.root.parent !== container) return@invoke
                                 blockBinding.btnRunCode.isEnabled = true
                                 blockBinding.layoutRunLoading.visibility = View.GONE
                                 blockBinding.layoutRunOutputPanel.visibility = View.VISIBLE
@@ -147,6 +148,17 @@ object CodeBlockBinder {
                                         blockBinding.tvOutputContent.setTextColor(Color.parseColor("#FFD700"))
                                         blockBinding.layoutErrorPanel.visibility = View.GONE
                                         blockBinding.tvQuotaWarning.text = "Network required for execution"
+                                    }
+                                    is CodeExecutionResult.UnsupportedLanguage -> {
+                                        blockBinding.tvOutputStatusBadge.text = "⚠️ LANGUAGE NOT SUPPORTED"
+                                        blockBinding.tvOutputStatusBadge.setBackgroundColor(Color.parseColor("#3D2610"))
+                                        blockBinding.tvOutputStatusBadge.setTextColor(Color.parseColor("#FFAB40"))
+                                        blockBinding.tvOutputMetrics.text = "Not run"
+                                        blockBinding.tvOutputContent.text =
+                                            "The \"${result.label}\" language is not supported by the code runner."
+                                        blockBinding.tvOutputContent.setTextColor(Color.parseColor("#FFAB40"))
+                                        blockBinding.layoutErrorPanel.visibility = View.GONE
+                                        blockBinding.tvQuotaWarning.text = "Quota unchanged"
                                     }
                                 }
                             }

@@ -70,6 +70,15 @@ class GeminiKeyStore @Inject constructor(
         keyCacheLoaded = true
     }
 
+    /**
+     * Drops the in-memory copy so the next read goes back to disk. Used when
+     * a write fails: the cache must not claim a value that isn't on disk.
+     */
+    private fun invalidateCache() {
+        cachedKey = null
+        keyCacheLoaded = false
+    }
+
     private fun isCorruptionSignal(e: Exception): Boolean {
         var cur: Throwable? = e
         var depth = 0
@@ -151,8 +160,17 @@ class GeminiKeyStore @Inject constructor(
     /**
      * Stores the user's Gemini API key. Trims whitespace; blank values are rejected.
      *
+     * Uses [SharedPreferences.Editor.commit] (synchronous) rather than
+     * `apply()`: `apply()` only queues the write, so returning `true` right
+     * after it would tell the user the key was saved before it is actually on
+     * disk. Every caller already runs on a background IO thread, so the blocking
+     * commit is safe. On a failed commit the in-memory cache is invalidated
+     * so the next read re-reads from disk instead of trusting a value that
+     * was never persisted.
+     *
      * @return true only when the key was actually persisted; false when the
-     * value was blank or the encrypted store was unavailable.
+     * value was blank, the write failed, or the encrypted store was
+     * unavailable.
      */
     fun saveApiKey(apiKey: String): Boolean {
         val value = apiKey.trim()
@@ -163,9 +181,9 @@ class GeminiKeyStore @Inject constructor(
         return try {
             val existing = prefsOrNull()
             if (existing != null) {
-                existing.edit().putString(KEY_GEMINI_API_KEY, value).apply()
-                updateCache(value)
-                return true
+                val ok = existing.edit().putString(KEY_GEMINI_API_KEY, value).commit()
+                if (ok) updateCache(value) else invalidateCache()
+                return ok
             }
             val err = lastInitError
             if (err != null && isCorruptionSignal(err)) {
@@ -177,9 +195,9 @@ class GeminiKeyStore @Inject constructor(
                 }
                 val recovered = prefsOrNull()
                 if (recovered != null) {
-                    recovered.edit().putString(KEY_GEMINI_API_KEY, value).apply()
-                    updateCache(value)
-                    true
+                    val ok = recovered.edit().putString(KEY_GEMINI_API_KEY, value).commit()
+                    if (ok) updateCache(value) else invalidateCache()
+                    ok
                 } else {
                     Log.w(TAG, "saveApiKey skipped: encrypted prefs unavailable after recovery")
                     false
@@ -197,16 +215,17 @@ class GeminiKeyStore @Inject constructor(
     /**
      * Removes the stored key.
      *
-     * @return true only when the key was actually removed (store reachable);
-     * false when the encrypted store was unavailable.
+     * @return true only when the key was actually removed (synchronous commit
+     * succeeded); false when the write failed or the encrypted store was
+     * unavailable.
      */
     fun clearApiKey(): Boolean {
         return try {
             val prefs = prefsOrNull()
             if (prefs != null) {
-                prefs.edit().remove(KEY_GEMINI_API_KEY).apply()
-                updateCache(null)
-                true
+                val ok = prefs.edit().remove(KEY_GEMINI_API_KEY).commit()
+                if (ok) updateCache(null) else invalidateCache()
+                ok
             } else {
                 Log.w(TAG, "clearApiKey skipped: encrypted prefs unavailable (transient)")
                 false

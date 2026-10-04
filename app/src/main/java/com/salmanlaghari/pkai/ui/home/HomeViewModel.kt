@@ -33,6 +33,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 import javax.inject.Inject
 import android.util.Base64
 
@@ -417,17 +418,18 @@ class HomeViewModel @Inject constructor(
                     )
                     // Best-effort: isolated from the streaming try/catch above so a
                     // Room failure here can't surface as a bogus error bubble
-                    // after a successful reply.
-                    if (historySessionTitle == null) {
-                        historySessionTitle = content.trim().take(60)
-                    }
-                    runCatching {
+                    // after a successful reply. Cancellation is always rethrown
+                    // — swallowing CancellationException breaks structured
+                    // concurrency.
+                    try {
                         historySessionId = chatHistoryRecorder.recordSession(
                             sessionId = historySessionId,
                             title = historySessionTitle ?: content.trim().take(60),
                             preview = builder.toString().take(120)
                         )
-                    }.onFailure { e ->
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
                         Log.w(TAG, "History recording failed (best-effort)", e)
                     }
                 }

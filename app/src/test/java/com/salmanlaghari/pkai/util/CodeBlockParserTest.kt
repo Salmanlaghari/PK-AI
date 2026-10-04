@@ -12,7 +12,7 @@ class CodeBlockParserTest {
     fun testLanguageMapping() {
         assertEquals("PYTHON3_8", CodeBlockParser.mapToHackerEarthLanguage("python"))
         assertEquals("PYTHON3_8", CodeBlockParser.mapToHackerEarthLanguage("py"))
-        assertEquals("JAVA17", CodeBlockParser.mapToHackerEarthLanguage("java"))
+        assertEquals("JAVA14", CodeBlockParser.mapToHackerEarthLanguage("java"))
         assertEquals("CPP17", CodeBlockParser.mapToHackerEarthLanguage("cpp"))
         assertEquals("CPP17", CodeBlockParser.mapToHackerEarthLanguage("c++"))
         assertEquals("JAVASCRIPT_NODE", CodeBlockParser.mapToHackerEarthLanguage("js"))

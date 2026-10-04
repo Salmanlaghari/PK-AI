@@ -27,6 +27,14 @@ interface ChatHistoryDao {
     @Query("UPDATE chat_history SET isPinned = :isPinned WHERE id = :itemId")
     suspend fun setPinned(itemId: String, isPinned: Boolean)
 
+    /**
+     * Reads only the pin flag for one session — used by [ChatHistoryRecorder]
+     * so pin preservation doesn't materialise the whole history table on
+     * every recorded message.
+     */
+    @Query("SELECT isPinned FROM chat_history WHERE id = :itemId LIMIT 1")
+    suspend fun isPinned(itemId: String): Boolean?
+
     @Query("DELETE FROM chat_history")
     suspend fun clearAll()
 }

@@ -96,13 +96,26 @@ class CodeRunnerRepositoryTest {
         assertEquals("CPP17", CodeRunnerRepository.resolveLanguageArgument("CPP17"))
         // python2 must NOT resolve to the removed v4 "PYTHON" code (would 400)
         assertEquals("PYTHON3", CodeRunnerRepository.resolveLanguageArgument("python2"))
-        // Unknown fence labels are never forwarded verbatim — they fall back
-        // to the default instead of 400ing on the backend
-        assertEquals("PYTHON3", CodeRunnerRepository.resolveLanguageArgument("JAVA17"))
-        assertEquals("PYTHON3", CodeRunnerRepository.resolveLanguageArgument("json"))
-        assertEquals("PYTHON3", CodeRunnerRepository.resolveLanguageArgument("bash"))
-        assertEquals("PYTHON3", CodeRunnerRepository.resolveLanguageArgument("sql"))
-        assertEquals("PYTHON3", CodeRunnerRepository.resolveLanguageArgument(""))
+        // Versioned codes the v4 set does not list map to the nearest
+        // supported one — never silently reinterpreted as Python.
+        assertEquals("JAVA14", CodeRunnerRepository.resolveLanguageArgument("JAVA17"))
+        assertEquals("JAVA14", CodeRunnerRepository.resolveLanguageArgument("java17"))
+        // Unknown fence labels resolve to null (unsupported) — they are never
+        // forwarded verbatim (the backend would 400) and never silently
+        // reinterpreted as another language.
+        assertEquals(null, CodeRunnerRepository.resolveLanguageArgument("json"))
+        assertEquals(null, CodeRunnerRepository.resolveLanguageArgument("bash"))
+        assertEquals(null, CodeRunnerRepository.resolveLanguageArgument("sql"))
+        assertEquals(null, CodeRunnerRepository.resolveLanguageArgument(""))
+    }
+
+    @Test
+    fun testUnknownLanguageReturnsUnsupportedLanguage() = runTest {
+        `when`(mockPreferencesManager.getCodeRunCount()).thenReturn(5)
+
+        val result = repository.executeCode("{\"a\": 1}", "json")
+        assertTrue(result is CodeExecutionResult.UnsupportedLanguage)
+        assertEquals("json", (result as CodeExecutionResult.UnsupportedLanguage).label)
     }
 
     @Test

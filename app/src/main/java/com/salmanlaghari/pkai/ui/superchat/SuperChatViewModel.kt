@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 import javax.inject.Inject
 
 /**
@@ -321,13 +322,18 @@ class SuperChatViewModel @Inject constructor(
             }
             // Best-effort: a Room failure here must never crash this coroutine
             // or skip the _isGenerating reset below — history is secondary.
-            historySessionId = runCatching {
+            // Cancellation is always rethrown: swallowing CancellationException
+            // breaks structured concurrency (the cancelled coroutine would keep
+            // mutating state instead of unwinding).
+            historySessionId = try {
                 chatHistoryRecorder.recordSession(
                     sessionId = historySessionId,
                     title = historySessionTitle ?: prompt.trim().take(60),
                     preview = reply.take(120)
                 )
-            }.getOrElse { e ->
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
                 Log.w(TAG, "History recording failed (best-effort)", e)
                 historySessionId
             }

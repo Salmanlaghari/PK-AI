@@ -31,6 +31,14 @@ sealed class CodeExecutionResult {
         val message: String
     ) : CodeExecutionResult()
 
+    /**
+     * The requested language label is not supported by the execution backend.
+     * Returned instead of silently reinterpreting unknown labels (e.g. `json`,
+     * `bash`, `sql`) as Python — the user sees an honest "not supported"
+     * message rather than a bogus Python SyntaxError.
+     */
+    data class UnsupportedLanguage(val label: String) : CodeExecutionResult()
+
     object QuotaExceeded : CodeExecutionResult()
     object NoNetwork : CodeExecutionResult()
 }
@@ -74,6 +82,9 @@ class CodeRunnerRepository @Inject constructor(
             "CPP11" to "CPP14",
             // Java family
             "JAVA" to "JAVA8",
+            // Versioned codes the v4 set does not list map to the nearest
+            // supported one instead of falling through to "unsupported".
+            "JAVA17" to "JAVA14",
             // JavaScript / TypeScript
             "JS" to "JAVASCRIPT_NODE",
             "NODE" to "JAVASCRIPT_NODE",
@@ -100,17 +111,20 @@ class CodeRunnerRepository @Inject constructor(
          *
          * Only labels in the known v4 set ([HACKEREARTH_LANGS]) or the defined
          * [LANGUAGE_ALIASES] are ever forwarded. Anything else (unknown fence
-         * labels like `json`, `bash`, `sql`...) falls back to PYTHON3 — never
-         * forwarded verbatim, because the v4 API answers unsupported
-         * languages with HTTP 400.
+         * labels like `json`, `bash`, `sql`...) resolves to **null** so the
+         * caller can report an honest "language not supported" result —
+         * silently reinterpreting them as Python produced bogus SyntaxErrors
+         * (e.g. Java code executed as Python 3).
          *
          * This is the root cause of "python nahin chal raha": code blocks carry
          * lowercase fence labels (`python`) which the v4 API rejects with HTTP
          * 400 "Unsupported language".
+         *
+         * @return the v4 lang argument, or null when the label is unsupported.
          */
-        fun resolveLanguageArgument(lang: String): String {
+        fun resolveLanguageArgument(lang: String): String? {
             val raw = lang.trim()
-            if (raw.isEmpty()) return "PYTHON3"
+            if (raw.isEmpty()) return null
             // Already a valid v4 code — pass through untouched.
             if (raw in HACKEREARTH_LANGS) return raw
             val normalized = raw.uppercase()
@@ -121,9 +135,10 @@ class CodeRunnerRepository @Inject constructor(
                 .replace(" ", "_")
             if (normalized in HACKEREARTH_LANGS) return normalized
             LANGUAGE_ALIASES[normalized]?.let { return it }
-            // Unknown label (json, yaml, bash, sql, ...) — fall back to the
-            // default instead of sending a value the backend will 400 on.
-            return "PYTHON3"
+            // Unknown label (json, yaml, bash, sql, ...) — unsupported, never
+            // forwarded verbatim (the v4 API would 400) and never silently
+            // reinterpreted as another language.
+            return null
         }
     }
 
@@ -138,7 +153,10 @@ class CodeRunnerRepository @Inject constructor(
         val proxyUrl = BuildConfig.CODE_RUNNER_PROXY_URL
         // The UI passes markdown fence labels ("python", "c++"); the v4 API only
         // accepts its own uppercase lang arguments ("PYTHON3", "CPP17", ...).
+        // Unknown labels resolve to null — report them honestly instead of
+        // silently running the code as another language.
         val resolvedLang = resolveLanguageArgument(lang)
+            ?: return CodeExecutionResult.UnsupportedLanguage(lang.trim().ifBlank { "code" })
 
         return try {
             if (proxyUrl.isNotBlank()) {

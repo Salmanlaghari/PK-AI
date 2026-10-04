@@ -145,6 +145,11 @@ class SettingsFragment : Fragment() {
                 return@setOnClickListener
             }
             viewModel.saveGeminiKey(key) { saved ->
+                // The save runs on IO and this callback lands later: the user
+                // may have left the screen by then (_binding is nulled in
+                // onDestroyView), so never touch binding/requireContext() on a
+                // dead view — bail out instead of crashing with an NPE.
+                if (!isAdded || _binding == null) return@saveGeminiKey
                 if (saved) {
                     binding.etGeminiKey.text?.clear()
                     binding.etGeminiKey.clearFocus()
@@ -157,6 +162,8 @@ class SettingsFragment : Fragment() {
 
         binding.btnClearGeminiKey.setOnClickListener {
             viewModel.clearGeminiKey { cleared ->
+                // Same dead-view hazard as the save callback above.
+                if (!isAdded || _binding == null) return@clearGeminiKey
                 if (cleared) {
                     binding.etGeminiKey.text?.clear()
                     Toast.makeText(requireContext(), "Personal Gemini key removed", Toast.LENGTH_SHORT).show()

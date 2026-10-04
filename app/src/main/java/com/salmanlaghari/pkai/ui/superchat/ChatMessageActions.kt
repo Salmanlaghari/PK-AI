@@ -99,11 +99,18 @@ class ChatMessageActions(private val context: Context) {
             .setNegativeButton("Share") { _, _ ->
                 when {
                     source.startsWith("http://") || source.startsWith("https://") -> {
-                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(Intent.EXTRA_TEXT, source)
+                        // Same error guard as the content:// branch below: an
+                        // ActivityNotFoundException (no app handles the chooser)
+                        // must show a toast, not crash.
+                        runCatching {
+                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, source)
+                            }
+                            context.startActivity(Intent.createChooser(shareIntent, "Share image"))
+                        }.onFailure {
+                            Toast.makeText(context, "Could not share image", Toast.LENGTH_SHORT).show()
                         }
-                        context.startActivity(Intent.createChooser(shareIntent, "Share image"))
                     }
                     source.startsWith("content://") -> {
                         runCatching {

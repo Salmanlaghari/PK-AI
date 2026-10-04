@@ -47,9 +47,9 @@ class ChatHistoryRecorder @Inject constructor(
         val id = sessionId ?: UUID.randomUUID().toString()
         // REPLACE rewrites the whole row with isPinned=false by default, which
         // would silently unpin entries pinned via HistoryViewModel.togglePinItem.
-        // Preserve the stored pin state instead (no DAO change needed).
-        val pinned = isPinned ||
-            chatHistoryDao.getAllHistory().firstOrNull { it.id == id }?.isPinned == true
+        // Preserve the stored pin state with a targeted single-column read —
+        // not a full-table scan — so recording stays cheap on every message.
+        val pinned = isPinned || chatHistoryDao.isPinned(id) == true
         chatHistoryDao.insertItem(
             ChatHistoryItem(
                 id = id,

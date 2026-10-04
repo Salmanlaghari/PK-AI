@@ -255,9 +255,15 @@ export async function signInToPuter(
       // session poll.
       return await readPuterUser();
     }
-    // Popup closed with the SDK promise still pending: a genuine session
-    // may be one token message away, so the short settle wait decides.
-    if (await waitForPuterSession(POPUP_CLOSED_SETTLE_MS)) {
+    // Popup closed with the SDK promise still pending: race the still-pending
+    // SDK promise against the settle window. A late token resolution upgrades
+    // to success instead of being discarded as a user cancellation; an SDK
+    // rejection during the window surfaces as the real error.
+    const settled = await Promise.race([
+      signInSettled.then(() => true as const),
+      waitForPuterSession(POPUP_CLOSED_SETTLE_MS),
+    ]);
+    if (settled) {
       return await readPuterUser();
     }
   } catch (e) {

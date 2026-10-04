@@ -6,6 +6,7 @@ import com.salmanlaghari.pkai.data.model.ChatMessage
 import com.salmanlaghari.pkai.data.remote.provider.AiProviderFactory
 import com.salmanlaghari.pkai.data.remote.provider.AiResponse
 import com.salmanlaghari.pkai.data.local.datastore.PreferencesManager
+import com.salmanlaghari.pkai.data.repository.ChatHistoryRecorder
 import kotlinx.coroutines.flow.first
 import com.salmanlaghari.pkai.util.PkAiAssistant
 import com.salmanlaghari.pkai.util.Mood
@@ -30,7 +31,8 @@ import javax.inject.Inject
 @HiltViewModel
 class SuperChatViewModel @Inject constructor(
     private val providerFactory: AiProviderFactory,
-    private val preferencesManager: PreferencesManager
+    private val preferencesManager: PreferencesManager,
+    private val chatHistoryRecorder: ChatHistoryRecorder
 ) : ViewModel() {
 
     companion object {
@@ -57,6 +59,10 @@ class SuperChatViewModel @Inject constructor(
     /** Sticker shown beside each message, keyed by message id. */
     private val _messageStickers = MutableStateFlow<Map<String, Int>>(emptyMap())
     val messageStickers: StateFlow<Map<String, Int>> = _messageStickers.asStateFlow()
+
+    /** Session-level history tracking (History screen). Null until the first AI reply. */
+    private var historySessionId: String? = null
+    private var historySessionTitle: String? = null
 
     private val _livePoseEnabled = MutableStateFlow(true)
     val livePoseEnabled: StateFlow<Boolean> = _livePoseEnabled.asStateFlow()
@@ -307,6 +313,15 @@ class SuperChatViewModel @Inject constructor(
             _messageStickers.value = _messageStickers.value +
                 (replyMessage.id to replySticker)
             _messages.value = _messages.value + replyMessage
+            // Record/refresh this Super Chat session in the History screen.
+            if (historySessionTitle == null) {
+                historySessionTitle = prompt.trim().take(60)
+            }
+            historySessionId = chatHistoryRecorder.recordSession(
+                sessionId = historySessionId,
+                title = historySessionTitle ?: prompt.trim().take(60),
+                preview = reply.take(120)
+            )
             _isGenerating.value = false
         }
     }

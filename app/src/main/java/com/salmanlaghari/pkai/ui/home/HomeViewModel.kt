@@ -12,6 +12,7 @@ import com.salmanlaghari.pkai.data.remote.provider.AiProviderFactory
 import com.salmanlaghari.pkai.data.remote.provider.AiResponse
 import com.salmanlaghari.pkai.data.repository.AppRepository
 import com.salmanlaghari.pkai.data.repository.AuthRepository
+import com.salmanlaghari.pkai.data.repository.ChatHistoryRecorder
 import com.salmanlaghari.pkai.data.repository.CodeExecutionResult
 import com.salmanlaghari.pkai.data.repository.CodeRunnerRepository
 import com.salmanlaghari.pkai.data.repository.ImageGenerationResult
@@ -44,7 +45,8 @@ class HomeViewModel @Inject constructor(
     private val aiProviderFactory: AiProviderFactory,
     private val preferencesManager: PreferencesManager,
     private val codeRunnerRepository: CodeRunnerRepository,
-    private val pollinationsImageRepository: PollinationsImageRepository
+    private val pollinationsImageRepository: PollinationsImageRepository,
+    private val chatHistoryRecorder: ChatHistoryRecorder
 ) : ViewModel() {
 
     /** Hugging Face text-to-image model used by the dedicated Image Generation tab. */
@@ -56,6 +58,9 @@ class HomeViewModel @Inject constructor(
     private val _isFreeMode = MutableStateFlow(false)
     val isFreeMode: StateFlow<Boolean> = _isFreeMode.asStateFlow()
 
+    /** Session-level history tracking (History screen). Null until the first AI reply. */
+    private var historySessionId: String? = null
+    private var historySessionTitle: String? = null
     private val _isImageMode = MutableStateFlow(false)
     val isImageMode: StateFlow<Boolean> = _isImageMode.asStateFlow()
 
@@ -409,6 +414,16 @@ class HomeViewModel @Inject constructor(
                             isUser = false,
                             modelUsed = finalLabel
                         )
+                    )
+                    // Record/refresh this chat in the History screen (Room REPLACE
+                    // keeps a single row per session; no duplicates).
+                    if (historySessionTitle == null) {
+                        historySessionTitle = content.trim().take(60)
+                    }
+                    historySessionId = chatHistoryRecorder.recordSession(
+                        sessionId = historySessionId,
+                        title = historySessionTitle ?: content.trim().take(60),
+                        preview = builder.toString().take(120)
                     )
                 }
             } catch (e: Exception) {

@@ -126,6 +126,12 @@ class SuperChatFragment : Fragment() {
         (binding.superChatRoot.background as? android.graphics.drawable.AnimationDrawable)?.start()
 
         setupChat()
+        val appContext = context?.applicationContext
+        if (appContext != null) {
+            viewLifecycleOwner.lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                pruneVoiceNotes(appContext)
+            }
+        }
         setupHeader()
         setupMediaButtons()
         setupBannerAd()
@@ -362,10 +368,11 @@ class SuperChatFragment : Fragment() {
                         val lastVisible = lm?.findLastVisibleItemPosition() ?: RecyclerView.NO_POSITION
                         val wasNearBottom = oldCount == 0 ||
                             (lastVisible != RecyclerView.NO_POSITION && lastVisible >= oldCount - 2)
+                        val firstSubmission = lastAutoScrollMessageCount == -1
                         val userJustSent = messages.lastOrNull()?.isUser == true &&
                             messages.size != lastAutoScrollMessageCount
                         val shouldAutoScroll = items.isNotEmpty() &&
-                            (oldCount == 0 || wasNearBottom || userJustSent)
+                            (firstSubmission || wasNearBottom || userJustSent)
                         lastAutoScrollMessageCount = messages.size
                         adapter.submitList(items) {
                             if (shouldAutoScroll) {
@@ -401,22 +408,12 @@ class SuperChatFragment : Fragment() {
         }
     }
 
-    /** True when the list is scrolled within ~3 items of the bottom. */
-    private fun isNearBottom(): Boolean {
-        val lm = binding.rvSuperChat.layoutManager as? LinearLayoutManager ?: return true
-        val lastVisible = lm.findLastVisibleItemPosition()
-        val total = adapter.itemCount
-        return total == 0 || lastVisible >= total - 3
-    }
-
     /* ── Voice recording ────────────────────────────────────────────── */
 
     private fun startVoiceRecording() {
         if (isRecording) return
         try {
             val dir = File(requireContext().filesDir, "voice_notes").apply { mkdirs() }
-            val retentionCutoff = System.currentTimeMillis() - 7L * 24 * 60 * 60 * 1000
-            dir.listFiles()?.filter { it.lastModified() < retentionCutoff }?.forEach { it.delete() }
             recordingFile = File(dir, "voice_${System.currentTimeMillis()}.m4a")
             recorder = (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
                 MediaRecorder(requireContext()) else MediaRecorder()).apply {
@@ -443,6 +440,20 @@ class SuperChatFragment : Fragment() {
         }
     }
 
+    private fun pruneVoiceNotes(appContext: Context) {
+        val dir = File(appContext.filesDir, "voice_notes")
+        val files = dir.listFiles()?.filter { it.isFile }.orEmpty()
+        val cutoff = System.currentTimeMillis() - 7L * 24 * 60 * 60 * 1000
+        files.filter { it.lastModified() < cutoff }.forEach { it.delete() }
+        var total = files.filter { it.exists() }.sumOf { it.length() }
+        val maxBytes = 10L * 1024 * 1024
+        files.filter { it.exists() }.sortedBy { it.lastModified() }.forEach { file ->
+            if (recordingFile?.absolutePath == file.absolutePath) return@forEach
+            val size = file.length()
+            if (total > maxBytes && file.delete()) total -= size
+        }
+    }
+
     private fun stopVoiceRecording(send: Boolean) {
         if (!isRecording) return
         recordingJob?.cancel()
@@ -463,6 +474,7 @@ class SuperChatFragment : Fragment() {
         } else {
             recordingFile?.delete()
         }
+        recordingFile = null
     }
 
     private fun vibrateShort() {

@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.salmanlaghari.pkai.data.model.ChatMessage
 import com.salmanlaghari.pkai.data.remote.provider.AiProviderFactory
 import com.salmanlaghari.pkai.data.remote.provider.AiResponse
+import com.salmanlaghari.pkai.data.local.datastore.PreferencesManager
+import kotlinx.coroutines.flow.first
 import com.salmanlaghari.pkai.util.PkAiAssistant
 import com.salmanlaghari.pkai.util.Mood
 import com.salmanlaghari.pkai.util.MoodDetector
@@ -27,7 +29,8 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class SuperChatViewModel @Inject constructor(
-    private val providerFactory: AiProviderFactory
+    private val providerFactory: AiProviderFactory,
+    private val preferencesManager: PreferencesManager
 ) : ViewModel() {
 
     companion object {
@@ -64,6 +67,8 @@ class SuperChatViewModel @Inject constructor(
 
     /** When true, use the /18+ special sticker pool instead of mood stickers. */
     private var specialMode = false
+    private var lastLanguageInstruction: String =
+        com.salmanlaghari.pkai.util.LanguageDetector.Lang.ENGLISH.instruction
 
     /** Per-mood rotation counters so every message shows a different pose. */
     private val moodRotations = mutableMapOf<Mood, Int>()
@@ -123,6 +128,10 @@ class SuperChatViewModel @Inject constructor(
             return
         }
 
+        // Keep the language from the last real user text for attachment replies.
+        lastLanguageInstruction =
+            com.salmanlaghari.pkai.util.LanguageDetector.detect(trimmed).instruction
+
         // Song search intent → visual song card via PagalWorld.
         // Guarded by _isGenerating so rapid taps can't stack searches.
         val songQuery = com.salmanlaghari.pkai.util.SongSearchHelper.extractSongQuery(trimmed)
@@ -143,7 +152,7 @@ class SuperChatViewModel @Inject constructor(
         )
         _messageStickers.value = _messageStickers.value + (userMessage.id to pose)
         _messages.value = _messages.value + userMessage
-        fetchReply(trimmed, specialMode)
+        fetchReply(trimmed, specialMode, languageInstruction = lastLanguageInstruction)
     }
 
     /** Sends an image attachment as a user message, then fetches an AI reply. */
@@ -171,7 +180,12 @@ class SuperChatViewModel @Inject constructor(
         _currentSticker.value = pose
         _messageStickers.value = _messageStickers.value + (userMessage.id to pose)
         _messages.value = _messages.value + userMessage
-        fetchReply("The user shared an image with me. Describe only what you can actually see.", specialMode, imageDataUri, detectLanguage = false)
+        fetchReply(
+            "The user shared an image with me. Describe only what you can actually see.",
+            specialMode,
+            imageDataUri,
+            languageInstruction = lastLanguageInstruction
+        )
     }
 
     /** Sends a voice note as a user message, then fetches an AI reply. */
@@ -191,7 +205,11 @@ class SuperChatViewModel @Inject constructor(
         _currentSticker.value = pose
         _messageStickers.value = _messageStickers.value + (userMessage.id to pose)
         _messages.value = _messages.value + userMessage
-        fetchReply("The user sent a voice note, but its audio has not been transcribed. Do not pretend to hear it; ask the user to type the request if needed.", specialMode, detectLanguage = false)
+        fetchReply(
+            "The user sent a voice note, but its audio has not been transcribed. Do not pretend to hear it; ask the user to type the request if needed.",
+            specialMode,
+            languageInstruction = lastLanguageInstruction
+        )
     }
 
     /**
@@ -268,11 +286,14 @@ class SuperChatViewModel @Inject constructor(
         prompt: String,
         useSpecial: Boolean = false,
         imageDataUri: String? = null,
-        detectLanguage: Boolean = true
+        languageInstruction: String? = null
     ) {
         _isGenerating.value = true
         viewModelScope.launch {
-            val reply = tryRequest(prompt, imageDataUri, detectLanguage) ?: offlineReply()
+            val reply = tryRequest(prompt, imageDataUri, languageInstruction)
+                ?: if (!imageDataUri.isNullOrBlank()) {
+                    "⚠️ Is image ko analyse nahi kiya ja saka — configured vision provider unavailable hai."
+                } else offlineReply()
             val replyMessage = ChatMessage(
                 content = reply,
                 isUser = false,
@@ -293,21 +314,24 @@ class SuperChatViewModel @Inject constructor(
     private suspend fun tryRequest(
         prompt: String,
         imageDataUri: String? = null,
-        detectLanguage: Boolean = true
+        languageInstruction: String? = null
     ): String? {
-        // Attachment prompts contain no user words, so do not infer English from them.
-        val lang = if (detectLanguage) com.salmanlaghari.pkai.util.LanguageDetector.detect(prompt) else null
+        val instruction = languageInstruction
+            ?: com.salmanlaghari.pkai.util.LanguageDetector.detect(prompt).instruction
         val finalPrompt = if (_isPkAiMode.value) {
-            PkAiAssistant.buildPkAiPrompt(prompt, lang?.instruction)
-        } else if (lang != null) {
-            "$prompt\n[Reply in ${lang.instruction} and be precise; if unsure, say so.]"
+            PkAiAssistant.buildPkAiPrompt(prompt, instruction)
         } else {
-            prompt
+            "$prompt\n[Reply in $instruction and be precise; if unsure, say so.]"
         }
-        // 1. Try default provider
+        val selectedProviderId = preferencesManager.selectedProviderId.first()
+        val activeProviderMeta = providerFactory.defaultProviderId(selectedProviderId)
+            ?.let { id -> com.salmanlaghari.pkai.data.model.LlmProvider.fromId(id) }
+        // A vision request must use the exact provider resolved for the request.
+        if (!imageDataUri.isNullOrBlank() && activeProviderMeta?.supportsVision != true) return null
+        val activeProvider = providerFactory.getDefaultProvider(selectedProviderId)
         try {
             var text: String? = null
-            providerFactory.getDefaultProvider()
+            activeProvider
                 .sendMessage(finalPrompt, emptyList(), imageDataUri)
                 .collect { response ->
                     if (response is AiResponse.Success) text = response.text

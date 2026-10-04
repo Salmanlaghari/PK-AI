@@ -123,7 +123,8 @@ data class LlmProvider(
             )
         )
 
-        val DEFAULT: LlmProvider = ALL.first()
+        /** Groq is the safe default when optional Gemini credentials are absent. */
+        val DEFAULT: LlmProvider = ALL.firstOrNull { it.id == "groq" } ?: ALL.first()
 
         fun fromId(id: String): LlmProvider = ALL.firstOrNull { it.id == id } ?: DEFAULT
     }

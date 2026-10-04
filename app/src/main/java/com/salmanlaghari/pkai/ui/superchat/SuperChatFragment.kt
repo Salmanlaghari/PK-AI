@@ -78,7 +78,7 @@ class SuperChatFragment : Fragment() {
     private var isRecording = false
 
     private val pickImageLauncher =
-        registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
             if (uri != null) {
                 try {
                     requireContext().contentResolver.takePersistableUriPermission(
@@ -86,7 +86,7 @@ class SuperChatFragment : Fragment() {
                         android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
                     )
                 } catch (_: Exception) { }
-                viewModel.sendImageMessage(uri.toString())
+                viewModel.sendImageMessage(uri.toString(), uriToImageDataUri(uri))
             }
         }
 
@@ -290,7 +290,7 @@ class SuperChatFragment : Fragment() {
     private fun setupMediaButtons() {
         binding.btnAttach.setOnClickListener {
             it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-            pickImageLauncher.launch("image/*")
+            pickImageLauncher.launch(arrayOf("image/*"))
         }
         binding.btnVoice.setOnClickListener {
             if (isRecording) stopVoiceRecording(send = true)
@@ -340,42 +340,23 @@ class SuperChatFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
-                    viewModel.messages.collect { messages ->
-                        val items = messages.map { SuperChatAdapter.Item.Message(it) } +
-                            (if (viewModel.isGenerating.value) listOf(SuperChatAdapter.Item.Typing) else emptyList())
-                        // Sample scroll state BEFORE submitList, against the OLD count.
-                        // Capture the RecyclerView NOW: the submitList commit callback
-                        // runs later on the main thread and must not touch _binding!!
-                        // (view may be destroyed by then).
-                        val rv = binding.rvSuperChat
-                        val layoutManager = rv.layoutManager as? LinearLayoutManager
-                        val oldCount = adapter.itemCount
-                        val lastVisibleBefore = layoutManager?.findLastVisibleItemPosition()
-                            ?: RecyclerView.NO_POSITION
-                        // Treat unknown position (first layout) as near-bottom so a
-                        // restored conversation opens on the latest message.
-                        val wasNearBottom = lastVisibleBefore == RecyclerView.NO_POSITION ||
-                            lastVisibleBefore >= oldCount - 2
-                        adapter.submitList(items) {
-                            if (items.isEmpty()) return@submitList
-                            // Smart scroll: only auto-scroll when the user was already
-                            // near the bottom, or when THEY just sent a message.
-                            val userJustSent = messages.lastOrNull()?.isUser == true
-                            if (wasNearBottom || userJustSent) {
-                                rv.scrollToPosition(items.size - 1)
-                            }
-                        }
-                    }
-                }
-                launch {
-                    viewModel.isGenerating.collect { generating ->
+                    kotlinx.coroutines.flow.combine(viewModel.messages, viewModel.isGenerating) { messages, generating ->
+                        messages to generating
+                    }.collect { (messages, generating) ->
                         binding.btnSuperSend.isEnabled = !generating
-                        // Rebuild list to show/hide the typing indicator.
-                        val messages = viewModel.messages.value
                         val items = messages.map { SuperChatAdapter.Item.Message(it) } +
                             (if (generating) listOf(SuperChatAdapter.Item.Typing) else emptyList())
+                        val rv = binding.rvSuperChat
+                        val lm = rv.layoutManager as? LinearLayoutManager
+                        val oldCount = adapter.itemCount
+                        val lastVisible = lm?.findLastVisibleItemPosition() ?: RecyclerView.NO_POSITION
+                        val wasNearBottom = oldCount == 0 ||
+                            (lastVisible != RecyclerView.NO_POSITION && lastVisible >= oldCount - 2)
+                        val userJustSent = messages.lastOrNull()?.isUser == true
                         adapter.submitList(items) {
-                            if (generating) binding.rvSuperChat.smoothScrollToPosition(items.size - 1)
+                            if (items.isNotEmpty() && (wasNearBottom || userJustSent)) {
+                                rv.smoothScrollToPosition(items.size - 1)
+                            }
                         }
                     }
                 }
@@ -480,6 +461,27 @@ class SuperChatFragment : Fragment() {
             }
         } catch (_: Exception) { }
     }
+
+    /** Reads a bounded image into a vision-compatible data URI. */
+    private fun uriToImageDataUri(uri: android.net.Uri): String? = runCatching {
+        val resolver = requireContext().contentResolver
+        val mime = resolver.getType(uri)?.takeIf { it.startsWith("image/") }
+            ?: return@runCatching null
+        val bytes = resolver.openInputStream(uri)?.use { input ->
+            val out = java.io.ByteArrayOutputStream()
+            val buffer = ByteArray(32 * 1024)
+            var total = 0
+            while (true) {
+                val read = input.read(buffer)
+                if (read < 0) break
+                total += read
+                if (total > 4 * 1024 * 1024) return@runCatching null
+                out.write(buffer, 0, read)
+            }
+            out.toByteArray()
+        } ?: return@runCatching null
+        "data:$mime;base64,${android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)}"
+    }.getOrNull()
 
     /* ── Fullscreen image ───────────────────────────────────────────── */
 

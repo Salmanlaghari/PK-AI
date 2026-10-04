@@ -29,7 +29,7 @@ import javax.inject.Singleton
  * This is a single editable constant so the order can be tweaked in one place.
  */
 val FALLBACK_ORDER: List<String> = listOf(
-    "gemini", "groq", "llm7", "mistral", "cohere", "puter"
+    "groq", "gemini", "llm7", "mistral", "cohere", "puter"
 )
 
 @Singleton
@@ -99,7 +99,7 @@ class AiProviderFactory @Inject constructor(
             else -> PublicFreeAiProvider(publicFreeApiService)
         }
 
-    /** Returns the user's default provider (Gemini). */
+    /** Returns the user's safe default provider (Groq unless the catalogue changes). */
     fun getDefaultProvider(): AiProvider = getProvider(LlmProvider.DEFAULT.id)
 
     /**

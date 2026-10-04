@@ -300,14 +300,20 @@ val syncWebAssets by tasks.registering(Exec::class) {
             logger.warn("syncWebAssets: web build failed (exit=$exit) or dist/index.html missing - keeping existing assets.")
             return@doLast
         }
-        // Copy to a temp dir and verify BEFORE touching the shipped assets,
-        // so a partial copy can never leave the APK with a dead web UI.
+        // Copy to a temp dir and verify BEFORE touching the shipped assets. Preserve
+        // tracked runtime audio that Vite cannot emit.
         val tmp = layout.buildDirectory.dir("tmp/web-assets-sync").get().asFile
         tmp.deleteRecursively()
         webDistDir.copyRecursively(tmp, overwrite = true)
+        val audioDir = webAssetsDir.resolve("assets")
+        val audioFiles = listOf("flowmusic_track.wav", "flowmusic_track.mp3")
+            .map { it to audioDir.resolve(it) }
+            .filter { it.second.isFile }
         if (tmp.resolve("index.html").isFile) {
             webAssetsDir.deleteRecursively()
             tmp.copyRecursively(webAssetsDir, overwrite = true)
+            val restoredAudioDir = webAssetsDir.resolve("assets").apply { mkdirs() }
+            audioFiles.forEach { (name, file) -> file.copyTo(restoredAudioDir.resolve(name), overwrite = true) }
             logger.lifecycle("syncWebAssets: web UI synced into Android assets.")
         } else {
             logger.warn("syncWebAssets: copy verification failed - keeping existing assets.")

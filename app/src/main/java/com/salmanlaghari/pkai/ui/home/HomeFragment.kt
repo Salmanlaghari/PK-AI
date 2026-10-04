@@ -69,7 +69,7 @@ class HomeFragment : Fragment() {
     }
 
     private val pickMedia =
-        registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
             uri ?: return@registerForActivityResult
             handlePicked(uri)
         }
@@ -379,7 +379,7 @@ class HomeFragment : Fragment() {
         options.forEach { (label, mime) ->
             layout.addView(menuButton(label) {
                 dialog.dismiss()
-                pickMedia.launch(mime)
+                pickMedia.launch(arrayOf(mime))
             })
         }
 

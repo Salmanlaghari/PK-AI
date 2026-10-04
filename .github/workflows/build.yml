@@ -61,15 +61,7 @@ jobs:
           cd ultra-ai-chat-space
           npm ci
           npm run build
-          # Preserve tracked audio assets that vite build cannot regenerate
-          mkdir -p /tmp/ultra-assets-backup
-          cp -f ../app/src/main/assets/ultra-ai-chat-space/assets/flowmusic_track.wav /tmp/ultra-assets-backup/ 2>/dev/null || true
-          cp -f ../app/src/main/assets/ultra-ai-chat-space/assets/flowmusic_track.mp3 /tmp/ultra-assets-backup/ 2>/dev/null || true
-          rm -rf ../app/src/main/assets/ultra-ai-chat-space
-          mkdir -p ../app/src/main/assets/ultra-ai-chat-space/assets
-          cp -r dist/* ../app/src/main/assets/ultra-ai-chat-space/
-          cp -f /tmp/ultra-assets-backup/flowmusic_track.wav ../app/src/main/assets/ultra-ai-chat-space/assets/ 2>/dev/null || true
-          cp -f /tmp/ultra-assets-backup/flowmusic_track.mp3 ../app/src/main/assets/ultra-ai-chat-space/assets/ 2>/dev/null || true
+          # Gradle syncWebAssets performs the authoritative asset merge and preserves tracked audio.
 
 
       - name: Run Unit Tests
@@ -137,29 +129,33 @@ jobs:
         run: ./gradlew bundleDebug --stacktrace
 
       - name: Upload Debug APK
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
-          retention-days: 7
+          retention-days: 3
           name: PK-AI-Debug-APK
           path: app/build/outputs/apk/debug/*.apk
 
       - name: Upload Release APK
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
-          retention-days: 7
+          retention-days: 30
           name: PK-AI-Release-APK
           path: app/build/outputs/apk/release/*.apk
 
       - name: Upload Debug AAB
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
-          retention-days: 7
+          retention-days: 3
           name: PK-AI-Debug-AAB
           path: app/build/outputs/bundle/debug/*.aab
 
       - name: Upload Release AAB
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
-          retention-days: 7
+          retention-days: 30
           name: PK-AI-Release-AAB
           path: app/build/outputs/bundle/release/*.aab

@@ -309,11 +309,17 @@ val syncWebAssets by tasks.registering(Exec::class) {
         val audioFiles = listOf("flowmusic_track.wav", "flowmusic_track.mp3")
             .map { it to audioDir.resolve(it) }
             .filter { it.second.isFile }
+        val audioBackupDir = layout.buildDirectory.dir("tmp/web-assets-audio-backup").get().asFile
+        audioBackupDir.deleteRecursively()
+        audioBackupDir.mkdirs()
+        audioFiles.forEach { (name, file) -> file.copyTo(audioBackupDir.resolve(name), overwrite = true) }
         if (tmp.resolve("index.html").isFile) {
             webAssetsDir.deleteRecursively()
             tmp.copyRecursively(webAssetsDir, overwrite = true)
             val restoredAudioDir = webAssetsDir.resolve("assets").apply { mkdirs() }
-            audioFiles.forEach { (name, file) -> file.copyTo(restoredAudioDir.resolve(name), overwrite = true) }
+            audioFiles.forEach { (name, _) ->
+                audioBackupDir.resolve(name).copyTo(restoredAudioDir.resolve(name), overwrite = true)
+            }
             logger.lifecycle("syncWebAssets: web UI synced into Android assets.")
         } else {
             logger.warn("syncWebAssets: copy verification failed - keeping existing assets.")

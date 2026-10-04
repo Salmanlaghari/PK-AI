@@ -164,16 +164,22 @@ class SuperChatFragment : Fragment() {
             songPlayer?.release()
             songPlayer = null
             isSongPaused = false
+            adapter.isSongPaused = false
             Toast.makeText(requireContext(), "🎵 Loading song…", Toast.LENGTH_SHORT).show()
-            songPlayer = MediaPlayer().apply {
-                setAudioAttributes(
+            // Build in a local first: if setDataSource throws, the instance is
+            // still reachable here and gets released (no native leak).
+            val newPlayer = MediaPlayer()
+            try {
+                newPlayer.setAudioAttributes(
                     android.media.AudioAttributes.Builder()
                         .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC)
                         .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
                         .build()
                 )
-                setDataSource(audioUrl)
-                setOnPreparedListener {
+                newPlayer.setDataSource(audioUrl)
+                // Assign BEFORE prepareAsync so callbacks always see the field
+                songPlayer = newPlayer
+                newPlayer.setOnPreparedListener {
                     it.start()
                     playingSongId = message.id
                     isSongPaused = false
@@ -181,21 +187,28 @@ class SuperChatFragment : Fragment() {
                     adapter.isSongPaused = false
                     adapter.notifyDataSetChanged()
                 }
-                setOnCompletionListener {
+                newPlayer.setOnCompletionListener {
                     playingSongId = null
                     isSongPaused = false
                     adapter.playingSongId = null
+                    adapter.isSongPaused = false
                     adapter.notifyDataSetChanged()
                 }
-                setOnErrorListener { _, _, _ ->
+                newPlayer.setOnErrorListener { _, _, _ ->
                     Toast.makeText(requireContext(), "😔 Song play nahi ho saka", Toast.LENGTH_SHORT).show()
                     playingSongId = null
                     isSongPaused = false
                     adapter.playingSongId = null
+                    adapter.isSongPaused = false
                     adapter.notifyDataSetChanged()
                     true
                 }
-                prepareAsync()
+                newPlayer.prepareAsync()
+            } catch (e: Exception) {
+                android.util.Log.w("SuperChat", "Song setDataSource failed: ${e.message}")
+                try { newPlayer.release() } catch (_: Exception) { }
+                if (songPlayer === newPlayer) songPlayer = null
+                throw e
             }
         } catch (e: Exception) {
             android.util.Log.w("SuperChat", "Song playback failed: ${e.message}")
@@ -203,7 +216,9 @@ class SuperChatFragment : Fragment() {
             try { songPlayer?.release() } catch (_: Exception) { }
             songPlayer = null
             playingSongId = null
+            isSongPaused = false
             adapter.playingSongId = null
+            adapter.isSongPaused = false
             adapter.notifyDataSetChanged()
         }
     }
@@ -212,8 +227,16 @@ class SuperChatFragment : Fragment() {
         super.onPause()
         // Stop voice recording if the user leaves mid-recording
         if (isRecording) stopVoiceRecording(send = false)
-        // Pause song playback when leaving the screen
-        try { songPlayer?.takeIf { it.isPlaying }?.pause() } catch (_: Exception) { }
+        // Pause song playback when leaving the screen — mirror the paused
+        // state so the card icon doesn't lie
+        try {
+            songPlayer?.takeIf { it.isPlaying }?.let {
+                it.pause()
+                isSongPaused = true
+                adapter.isSongPaused = true
+                adapter.notifyDataSetChanged()
+            }
+        } catch (_: Exception) { }
         // Stop wallpaper animation off-screen (battery)
         (view?.findViewById<View>(R.id.superChatRoot)?.background as? android.graphics.drawable.AnimationDrawable)?.stop()
     }
@@ -320,17 +343,19 @@ class SuperChatFragment : Fragment() {
                     viewModel.messages.collect { messages ->
                         val items = messages.map { SuperChatAdapter.Item.Message(it) } +
                             (if (viewModel.isGenerating.value) listOf(SuperChatAdapter.Item.Typing) else emptyList())
-                        val nearBottom = isNearBottom()
-                        val lastVisibleBefore = (binding.rvSuperChat.layoutManager as? LinearLayoutManager)
-                            ?.findLastVisibleItemPosition() ?: -1
+                        // Sample scroll state BEFORE submitList, against the OLD count
+                        val layoutManager = binding.rvSuperChat.layoutManager as? LinearLayoutManager
+                        val oldCount = adapter.itemCount
+                        val lastVisibleBefore = layoutManager?.findLastVisibleItemPosition()
+                            ?: RecyclerView.NO_POSITION
+                        val wasNearBottom = lastVisibleBefore != RecyclerView.NO_POSITION &&
+                            lastVisibleBefore >= oldCount - 2
                         adapter.submitList(items) {
                             if (items.isEmpty()) return@submitList
                             // Smart scroll: only auto-scroll when the user was already
-                            // near the bottom, or when THEY just sent a message
-                            // (last item is theirs).
-                            val userJustSent = messages.lastOrNull()?.isUser == true &&
-                                lastVisibleBefore >= items.size - 3
-                            if (nearBottom || userJustSent) {
+                            // near the bottom, or when THEY just sent a message.
+                            val userJustSent = messages.lastOrNull()?.isUser == true
+                            if (wasNearBottom || userJustSent) {
                                 binding.rvSuperChat.smoothScrollToPosition(items.size - 1)
                             }
                         }

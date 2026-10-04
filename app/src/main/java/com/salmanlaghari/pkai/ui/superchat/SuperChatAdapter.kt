@@ -63,19 +63,32 @@ class SuperChatAdapter(
     /** True when the current song is paused (shows ▶ to resume). */
     var isSongPaused: Boolean = false
 
-    /** Thread-safe in-memory artwork cache for song cards (bounded). */
-    private val artworkCache =
-        java.util.concurrent.ConcurrentHashMap<String, android.graphics.Bitmap>()
+    /**
+     * LRU in-memory artwork cache (max 20 entries) — evicts oldest, never
+     * wholesale-wipes.
+     */
+    private val artworkCache = object : LinkedHashMap<String, android.graphics.Bitmap>(20, 0.75f, true) {
+        override fun removeEldestEntry(
+            eldest: MutableMap.MutableEntry<String, android.graphics.Bitmap>
+        ): Boolean = size > 20
+    }
 
-    /** Shared background executor for artwork downloads (no raw Thread per bind). */
+    /** Shared background executor for remote artwork downloads. */
     private val artworkExecutor: java.util.concurrent.ExecutorService =
-        java.util.concurrent.Executors.newFixedThreadPool(3)
+        java.util.concurrent.Executors.newFixedThreadPool(2)
 
-    /** Loads a remote artwork URL into an ImageView (background thread + cache). */
+    /** Separate executor for local thumbnails so they never queue behind downloads. */
+    private val thumbnailExecutor: java.util.concurrent.ExecutorService =
+        java.util.concurrent.Executors.newSingleThreadExecutor()
+
+    /** Loads a remote artwork URL into an ImageView (background thread + LRU cache). */
     private fun loadArtwork(url: String, target: ImageView) {
         if (url.isBlank()) return
-        artworkCache[url]?.let { target.setImageBitmap(it); return }
+        // Tag FIRST so any in-flight download for a previous bind can't win
         target.tag = url
+        synchronized(artworkCache) {
+            artworkCache[url]?.let { target.setImageBitmap(it); return }
+        }
         artworkExecutor.execute {
             var conn: java.net.HttpURLConnection? = null
             try {
@@ -83,20 +96,32 @@ class SuperChatAdapter(
                 conn.connectTimeout = 6000
                 conn.readTimeout = 6000
                 conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14)")
-                if (conn.responseCode in 200..299) {
-                    // Downsample: song art is shown at 56dp, no need for full-size
-                    val opts = BitmapFactory.Options().apply { inSampleSize = 4 }
-                    val bmp = BitmapFactory.decodeStream(conn.inputStream, null, opts)
-                    if (bmp != null) {
-                        // Bound the cache to ~20 entries
-                        if (artworkCache.size >= 20) artworkCache.clear()
-                        artworkCache[url] = bmp
-                        target.post { if (target.tag == url) target.setImageBitmap(bmp) }
-                    }
+                if (conn.responseCode !in 200..299) return@execute
+                // Read bytes first: decodeStream can't honour inSampleSize on a
+                // non-markable network stream (would silently return null).
+                val bytes = conn.inputStream.use { it.readBytes() }
+                if (bytes.size > 2 * 1024 * 1024) return@execute // 2MB cap
+                // Downsample: song art is shown at ~56dp
+                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+                val sample = coerceSampleSize(bounds.outWidth, bounds.outHeight, 112, 112)
+                val opts = BitmapFactory.Options().apply { inSampleSize = sample }
+                val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts)
+                if (bmp != null) {
+                    synchronized(artworkCache) { artworkCache[url] = bmp }
+                    target.post { if (target.tag == url) target.setImageBitmap(bmp) }
                 }
             } catch (_: Exception) { /* keep placeholder */ }
             finally { conn?.disconnect() }
         }
+    }
+
+    /** Computes an inSampleSize that keeps the bitmap near target dimensions. */
+    private fun coerceSampleSize(w: Int, h: Int, targetW: Int, targetH: Int): Int {
+        if (w <= 0 || h <= 0) return 1
+        var sample = 1
+        while (w / (sample * 2) >= targetW && h / (sample * 2) >= targetH) sample *= 2
+        return sample.coerceAtLeast(1)
     }
 
     fun setStickers(map: Map<String, Int>) {
@@ -108,6 +133,9 @@ class SuperChatAdapter(
         voicePlayer?.release()
         voicePlayer = null
         playingMessageId = null
+        // Shut down background executors so no threads leak per adapter instance
+        try { artworkExecutor.shutdownNow() } catch (_: Exception) { }
+        try { thumbnailExecutor.shutdownNow() } catch (_: Exception) { }
     }
 
     // ── ViewHolders ──────────────────────────────────────────────────
@@ -221,24 +249,39 @@ class SuperChatAdapter(
 
         private fun loadThumbnail(uri: String?, target: ImageView) {
             if (uri == null) return
-            // Decode off the main thread to avoid jank on scroll
-            artworkExecutor.execute {
+            // Tag guard: recycled rows must not show another message's image
+            target.tag = uri
+            // Decode off the main thread on its own executor (never queued
+            // behind network artwork downloads).
+            thumbnailExecutor.execute {
                 try {
-                    val opts = BitmapFactory.Options().apply { inSampleSize = 4 }
-                    val bmp = try {
+                    // Sample to ~512px: crisp in the list, full image kept for
+                    // the fullscreen viewer (loaded separately on tap).
+                    val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                    try {
                         target.context.contentResolver
                             .openInputStream(android.net.Uri.parse(uri))?.use { ins ->
                                 BitmapFactory.decodeStream(ins, null, opts)
+                            }
+                    } catch (_: Exception) { }
+                    val sample = coerceSampleSize(opts.outWidth, opts.outHeight, 512, 512)
+                    val decodeOpts = BitmapFactory.Options().apply { inSampleSize = sample }
+                    val bmp = try {
+                        target.context.contentResolver
+                            .openInputStream(android.net.Uri.parse(uri))?.use { ins ->
+                                BitmapFactory.decodeStream(ins, null, decodeOpts)
                             }
                     } catch (_: Exception) {
                         // Try as plain file path fallback
                         try {
                             val f = File(uri)
-                            if (f.exists()) BitmapFactory.decodeFile(f.absolutePath, opts)
+                            if (f.exists()) BitmapFactory.decodeFile(f.absolutePath, decodeOpts)
                             else null
                         } catch (_: Exception) { null }
                     }
-                    if (bmp != null) target.post { target.setImageBitmap(bmp) }
+                    if (bmp != null) target.post {
+                        if (target.tag == uri) target.setImageBitmap(bmp)
+                    }
                 } catch (_: Exception) { /* keep placeholder */ }
             }
         }

@@ -51,15 +51,15 @@ data class LlmProvider(
             LlmProvider(
                 id = "gemini",
                 displayName = "Gemini",
-                tagline = "Google's latest flagship models",
+                tagline = "Google's Gemini models",
                 logoEmoji = "✨",
                 format = ProviderFormat.OPENAI,
                 // Gemini's OpenAI-compatible endpoint — reuses OpenAiCompatibleProvider
                 baseUrl = "https://generativelanguage.googleapis.com/v1beta/openai/",
-                defaultModel = "gemini-2.0-flash",
+                defaultModel = BuildConfig.GEMINI_MODEL,
                 apiKeyBuildConfig = "GEMINI_API_KEY",
                 supportsVision = true,
-                visionModel = "gemini-2.0-flash"
+                visionModel = BuildConfig.GEMINI_MODEL
             ),
             LlmProvider(
                 id = "groq",

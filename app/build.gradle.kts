@@ -47,6 +47,7 @@ android {
         val pollinationsApiKey = System.getenv("POLLINATIONS_API_KEY") ?: localProperties.getProperty("POLLINATIONS_API_KEY") ?: ""
         val puterAuthToken = System.getenv("PUTER_AUTH_TOKEN") ?: localProperties.getProperty("PUTER_AUTH_TOKEN") ?: ""
         val geminiApiKey = System.getenv("GEMINI_API_KEY") ?: localProperties.getProperty("GEMINI_API_KEY") ?: ""
+        val geminiModel = System.getenv("GEMINI_MODEL") ?: localProperties.getProperty("GEMINI_MODEL") ?: "gemini-2.0-flash"
 
         buildConfigField("String", "GROQ_API_KEY", "\"$groqApiKey\"")
         buildConfigField("String", "GROQ_MODEL", "\"$groqModel\"")
@@ -64,6 +65,7 @@ android {
         buildConfigField("String", "POLLINATIONS_API_KEY", "\"$pollinationsApiKey\"")
         buildConfigField("String", "PUTER_AUTH_TOKEN", "\"$puterAuthToken\"")
         buildConfigField("String", "GEMINI_API_KEY", "\"$geminiApiKey\"")
+        buildConfigField("String", "GEMINI_MODEL", "\"$geminiModel\"")
     }
 
     signingConfigs {

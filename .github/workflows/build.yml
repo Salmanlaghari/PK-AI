@@ -49,6 +49,23 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ultra-ai-chat-space/package-lock.json
+
+      - name: Build Ultra AI web assets
+        run: |
+          cd ultra-ai-chat-space
+          npm ci
+          npm run build
+          rm -rf ../app/src/main/assets/ultra-ai-chat-space
+          mkdir -p ../app/src/main/assets/ultra-ai-chat-space
+          cp -r dist/* ../app/src/main/assets/ultra-ai-chat-space/
+
+
       - name: Run Unit Tests
         run: ./gradlew testDebugUnitTest --stacktrace
         env:
@@ -62,6 +79,8 @@ jobs:
           HUGGINGFACE_API_KEY: ${{ secrets.HUGGINGFACE_API_KEY }}
           POLLINATIONS_API_KEY: ${{ secrets.POLLINATIONS_API_KEY }}
           PUTER_AUTH_TOKEN: ${{ secrets.PUTER_AUTH_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ secrets.GEMINI_MODEL }}
 
       # Use the decoded keystore (available from earlier step via GITHUB_ENV)
 
@@ -85,6 +104,8 @@ jobs:
           HUGGINGFACE_API_KEY: ${{ secrets.HUGGINGFACE_API_KEY }}
           POLLINATIONS_API_KEY: ${{ secrets.POLLINATIONS_API_KEY }}
           PUTER_AUTH_TOKEN: ${{ secrets.PUTER_AUTH_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ secrets.GEMINI_MODEL }}
 
       - name: Verify Release AAB Signature Fingerprint
         run: |

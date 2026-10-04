@@ -86,7 +86,7 @@ class HomeViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
-    /** The provider id the user selected in Settings (defaults to Groq). */
+    /** The provider id the user selected in Settings (defaults to [LlmProvider.DEFAULT]). */
     private val _selectedProviderId = MutableStateFlow(LlmProvider.DEFAULT.id)
     val selectedProvider: StateFlow<LlmProvider> = _selectedProviderId
         .map { LlmProvider.fromId(it) }

@@ -452,7 +452,7 @@
                 android:inputType="textMultiLine|textCapSentences"
                 android:maxLines="4"
                 android:textColor="#1A1A2E"
-                android:textColorHint="#9D8DF1" />
+                android:textColorHint="#6B5BD6" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <!-- Voice input button (compact, inline beside the input) -->

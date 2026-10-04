@@ -71,11 +71,15 @@ class HomeFragment : Fragment() {
     private val pickMedia =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
             uri ?: return@registerForActivityResult
+            val previousUri = pendingAttachment?.uri
+            if (previousUri != null && previousUri != uri.toString()) {
+                releasePersistedUri(previousUri)
+            }
             runCatching {
                 requireContext().contentResolver.takePersistableUriPermission(
                     uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
                 )
-            }
+            }.onFailure { android.util.Log.w("HomeFragment", "Could not persist attachment grant", it) }
             handlePicked(uri)
         }
 
@@ -481,7 +485,16 @@ class HomeFragment : Fragment() {
         binding.layoutAttachmentPreview.visibility = View.VISIBLE
     }
 
+    private fun releasePersistedUri(uriString: String) {
+        runCatching {
+            requireContext().contentResolver.releasePersistableUriPermission(
+                android.net.Uri.parse(uriString), android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+        }.onFailure { android.util.Log.w("HomeFragment", "Could not release attachment grant", it) }
+    }
+
     private fun clearAttachment() {
+        pendingAttachment?.uri?.let(::releasePersistedUri)
         pendingAttachment = null
         binding.containerAttachmentPreview.removeAllViews()
         binding.layoutAttachmentPreview.visibility = View.GONE
@@ -562,6 +575,8 @@ class HomeFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        pendingAttachment?.uri?.let(::releasePersistedUri)
+        pendingAttachment = null
         voiceHelper?.destroy()
         voiceHelper = null
         (view?.background as? android.graphics.drawable.AnimationDrawable)?.stop()

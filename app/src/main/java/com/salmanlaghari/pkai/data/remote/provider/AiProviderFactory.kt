@@ -15,7 +15,7 @@ import javax.inject.Singleton
 /**
  * Builds the correct [AiProvider] implementation for the user's selected provider.
  *
- * OpenAI-compatible providers (Groq, LLM7.io, Mistral) share [OpenAiCompatibleProvider];
+ * OpenAI-compatible providers (Gemini, Groq, LLM7.io, Mistral and Puter AI) share [OpenAiCompatibleProvider];
  * Cohere gets its own adapter.
  *
  * API keys are read from BuildConfig (injected at build time from local.properties /
@@ -99,8 +99,11 @@ class AiProviderFactory @Inject constructor(
             else -> PublicFreeAiProvider(publicFreeApiService)
         }
 
-    /** Returns the user's safe default provider (Groq unless the catalogue changes). */
-    fun getDefaultProvider(): AiProvider = getProvider(LlmProvider.DEFAULT.id)
+    /** Returns the first configured BYOK provider, preferring the configured catalogue order. */
+    fun getDefaultProvider(): AiProvider {
+        val configured = fallbackChain(LlmProvider.DEFAULT.id).firstOrNull()
+        return configured?.let { getProvider(it.id) } ?: getFreeProvider(FreeAiModel.FREE_LLM.id)
+    }
 
     /**
      * True when the provider can actually be called right now — i.e. its API key (and, for

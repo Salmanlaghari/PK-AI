@@ -325,7 +325,10 @@ val syncWebAssets by tasks.registering(Exec::class) {
             tmp.copyRecursively(webAssetsDir, overwrite = true)
             preservedFiles.forEach { (relative, _) ->
                 val backup = preservedBackupDir.resolve(relative.path)
-                if (backup.isFile) backup.copyTo(webAssetsDir.resolve(relative.path), overwrite = true)
+                val destination = webAssetsDir.resolve(relative.path)
+                if (backup.isFile && !destination.exists()) {
+                    backup.copyTo(destination, overwrite = false)
+                }
             }
             logger.lifecycle("syncWebAssets: web UI synced into Android assets.")
         } else {

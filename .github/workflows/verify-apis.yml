@@ -41,7 +41,6 @@ jobs:
       - name: Upload verification report
         if: always()
         uses: actions/upload-artifact@v4
-        continue-on-error: true
         with:
           retention-days: 3
           name: api-verification-report
@@ -50,7 +49,6 @@ jobs:
       - name: Upload JUnit test results
         if: always()
         uses: actions/upload-artifact@v4
-        continue-on-error: true
         with:
           retention-days: 3
           name: api-verification-junit

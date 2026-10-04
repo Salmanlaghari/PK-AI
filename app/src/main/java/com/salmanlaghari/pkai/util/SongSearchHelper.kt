@@ -26,6 +26,9 @@ object SongSearchHelper {
     private val SONG_ACTION = Regex("(?i)^(.+?)\\s+(song|gana|gaana)\\s+(sunao|suna|play|chalao|lagao)\\s*$")
     private val SONG_PREFIX = Regex("(?i)^(song|gana|gaana)\\s*:\\s*(.+)$")
     private val SUNAO = Regex("(?i)^([^\\s]+)\\s+sunao\\s*$")
+    private val NON_MUSIC_QUERY = Regex(
+        "(?i)^(app|video|reel|reels|cricket|pubg|offline)\\b|\\b(store\\s+se|link\\s+(bhejo|send)|download|send\\s+me)\\b"
+    )
 
     data class SongResult(
         val title: String,
@@ -54,30 +57,28 @@ object SongSearchHelper {
         // "X play karo/kar" — explicit
         PLAY_SUFFIX.find(t)?.let {
             val q = it.groupValues[1].trim()
-            if (q.length >= 2) return q
+            if (q.length >= 2 && isLikelySongQuery(q)) return q
         }
         // "X song/gana sunao|play|chalao|lagao" — action verb REQUIRED
         SONG_ACTION.find(t)?.let {
                 val q = it.groupValues[1].trim()
-                if (q.length >= 2) return q
+                if (q.length >= 2 && isLikelySongQuery(q)) return q
             }
         // "song: X" / "gana: X" — explicit prefix
         SONG_PREFIX.find(t)?.let {
             val q = it.groupValues[2].trim()
-            if (q.length >= 2) return q
+            if (q.length >= 2 && isLikelySongQuery(q)) return q
         }
         // "X sunao" — single-word title only (avoids hijacking sentences)
         SUNAO.find(t)?.let {
             val q = it.groupValues[1].trim()
-            if (q.length >= 2) return q
+            if (q.length >= 2 && isLikelySongQuery(q)) return q
         }
         return null
     }
 
-    private fun isLikelySongQuery(query: String): Boolean {
-        val nonMusicWords = setOf("store", "link", "bhejo", "send", "app", "video", "game", "download")
-        return query.lowercase().split(Regex("\\s+")).none { it in nonMusicWords }
-    }
+    private fun isLikelySongQuery(query: String): Boolean =
+        !NON_MUSIC_QUERY.containsMatchIn(query.trim())
 
     /** Searches PagalWorld and returns the best streamable match, or null. */
     suspend fun searchSong(query: String): SongResult? = withContext(Dispatchers.IO) {

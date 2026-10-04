@@ -26,6 +26,21 @@
         android:textSize="10sp"
         android:layout_marginBottom="8dp" />
 
+    <!-- SUPER pack header — visible only when unlocked via Tips 18+ code -->
+    <TextView
+        android:id="@+id/tvSuperHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_ai_3d_card"
+        android:gravity="center"
+        android:paddingVertical="8dp"
+        android:layout_marginBottom="8dp"
+        android:text="⚡ SUPER STICKERS ⚡"
+        android:textColor="#FFD166"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvStickerGrid"
         android:layout_width="match_parent"

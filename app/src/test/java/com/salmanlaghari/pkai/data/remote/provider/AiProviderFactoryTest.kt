@@ -29,12 +29,13 @@ class AiProviderFactoryTest {
     }
 
     @Test
-    fun `getDefaultProvider returns the default provider (Groq) as openai-compatible`() = runTest {
+    fun `getDefaultProvider returns the default provider (Gemini) as openai-compatible`() = runTest {
         assertTrue(factory.getDefaultProvider() is OpenAiCompatibleProvider)
     }
 
     @Test
     fun `openai-compatible providers share OpenAiCompatibleProvider`() = runTest {
+        assertTrue(factory.getProvider("gemini") is OpenAiCompatibleProvider)
         assertTrue(factory.getProvider("groq") is OpenAiCompatibleProvider)
         assertTrue(factory.getProvider("llm7") is OpenAiCompatibleProvider)
         assertTrue(factory.getProvider("mistral") is OpenAiCompatibleProvider)

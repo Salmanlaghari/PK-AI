@@ -69,8 +69,13 @@ class HomeFragment : Fragment() {
     }
 
     private val pickMedia =
-        registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
             uri ?: return@registerForActivityResult
+            runCatching {
+                requireContext().contentResolver.takePersistableUriPermission(
+                    uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }
             handlePicked(uri)
         }
 
@@ -84,6 +89,9 @@ class HomeFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        // Start the Gemini-style light live wallpaper animation 🌅
+        (view.background as? android.graphics.drawable.AnimationDrawable)?.start()
 
         val chatAdapter = ChatAdapter { code, lang, onResult ->
             viewModel.runCode(code, lang, onResult)
@@ -376,7 +384,7 @@ class HomeFragment : Fragment() {
         options.forEach { (label, mime) ->
             layout.addView(menuButton(label) {
                 dialog.dismiss()
-                pickMedia.launch(mime)
+                pickMedia.launch(arrayOf(mime))
             })
         }
 
@@ -542,9 +550,21 @@ class HomeFragment : Fragment() {
             .show()
     }
 
+    override fun onPause() {
+        super.onPause()
+        // Stop the wallpaper animation when the screen isn't visible (battery)
+        (view?.background as? android.graphics.drawable.AnimationDrawable)?.stop()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        (view?.background as? android.graphics.drawable.AnimationDrawable)?.start()
+    }
+
     override fun onDestroyView() {
         voiceHelper?.destroy()
         voiceHelper = null
+        (view?.background as? android.graphics.drawable.AnimationDrawable)?.stop()
         super.onDestroyView()
         _binding = null
     }

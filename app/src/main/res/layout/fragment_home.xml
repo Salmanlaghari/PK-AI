@@ -4,24 +4,25 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/premium_black">
+    android:background="@drawable/anim_live_wallpaper">
 
-    <!-- Aurora Animated Background -->
+    <!-- Aurora Animated Background (hidden — light live wallpaper is the background now) -->
     <com.salmanlaghari.pkai.ui.custom.AuroraBackgroundView
         android:id="@+id/aurora_bg"
         android:layout_width="0dp"
         android:layout_height="0dp"
+        android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- ═══ Header ═══ -->
+    <!-- ═══ Header (light glass) ═══ -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/layout_header"
         android:layout_width="0dp"
         android:layout_height="56dp"
-        android:background="@color/glass_surface"
+        android:background="@drawable/bg_header_light_glass"
         android:paddingHorizontal="12dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -71,7 +72,7 @@
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/poppins"
                     android:text="PK AI"
-                    android:textColor="@color/white"
+                    android:textColor="#1A1A2E"
                     android:textSize="17sp"
                     android:textStyle="bold" />
             </LinearLayout>
@@ -124,7 +125,7 @@
         android:id="@+id/layout_chat_mode_tab"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:background="@color/premium_black"
+        android:background="@android:color/transparent"
         android:orientation="horizontal"
         android:paddingHorizontal="16dp"
         android:paddingVertical="6dp"
@@ -288,12 +289,12 @@
             android:textSize="12sp" />
     </LinearLayout>
 
-    <!-- ═══ Input Area ═══ -->
+    <!-- ═══ Input Area (light glass) ═══ -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/layout_input"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:background="@color/premium_black"
+        android:background="@drawable/bg_header_light_glass"
         android:paddingHorizontal="12dp"
         android:paddingTop="8dp"
         android:paddingBottom="12dp"
@@ -450,8 +451,8 @@
                 android:hint="Ask anything…"
                 android:inputType="textMultiLine|textCapSentences"
                 android:maxLines="4"
-                android:textColor="@color/white"
-                android:textColorHint="@color/outline" />
+                android:textColor="#1A1A2E"
+                android:textColorHint="#6B5BD6" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <!-- Voice input button (compact, inline beside the input) -->

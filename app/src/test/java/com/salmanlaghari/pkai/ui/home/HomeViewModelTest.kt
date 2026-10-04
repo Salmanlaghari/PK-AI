@@ -146,7 +146,7 @@ class HomeViewModelTest {
     @Test
     fun `initial states are correctly setup`() {
         testDispatcher.scheduler.advanceUntilIdle()
-        assertEquals(LlmProvider.DEFAULT.id, viewModel.selectedProvider.value.id)
+        assertEquals("groq", viewModel.selectedProvider.value.id)
         assertEquals(false, viewModel.isGenerating.value)
         assertTrue(viewModel.chatMessages.value.isEmpty())
     }
@@ -230,7 +230,7 @@ class HomeViewModelTest {
         // The UI subscribes to effectiveProvider; mirror that so the StateFlow is active.
         val sub = CoroutineScope(testDispatcher).launch { viewModel.effectiveProvider.collect {} }
 
-        // Given the default is Groq
+        // Given the default is the catalogue safe default
         testDispatcher.scheduler.advanceUntilIdle()
         assertEquals("groq", viewModel.selectedProvider.value.id)
         assertEquals("groq", viewModel.effectiveProvider.value.id)
@@ -249,14 +249,14 @@ class HomeViewModelTest {
 
     @Test
     fun `rate-limited provider falls back to the next provider and notes the switch`() {
-        // Given the selected provider (Groq) returns HTTP 429 and Mistral succeeds.
-        val groqRateLimited = object : AiProvider {
+        // Given the selected default provider returns HTTP 429 and Mistral succeeds.
+        val geminiRateLimited = object : AiProvider {
             override fun sendMessage(
                 prompt: String,
                 history: List<ChatMessage>,
                 imageDataUri: String?
             ): Flow<AiResponse> = flow {
-                emit(AiResponse.Error("Groq: Rate limit exceeded (HTTP 429). Please wait and try again."))
+                emit(AiResponse.Error("${LlmProvider.DEFAULT.displayName}: Rate limit exceeded (HTTP 429). Please wait and try again."))
             }
         }
         val mistralOk = object : AiProvider {
@@ -269,8 +269,8 @@ class HomeViewModelTest {
             }
         }
         whenever(mockAiProviderFactory.fallbackChain(anyString()))
-            .thenReturn(listOf(LlmProvider.fromId("groq"), LlmProvider.fromId("mistral")))
-        whenever(mockAiProviderFactory.getProvider("groq")).thenReturn(groqRateLimited)
+            .thenReturn(listOf(LlmProvider.DEFAULT, LlmProvider.fromId("mistral")))
+        whenever(mockAiProviderFactory.getProvider(LlmProvider.DEFAULT.id)).thenReturn(geminiRateLimited)
         whenever(mockAiProviderFactory.getProvider("mistral")).thenReturn(mistralOk)
 
         // When
@@ -287,6 +287,6 @@ class HomeViewModelTest {
         val switchNote = messages.find { it.content.startsWith("↪ Switched to") }
         assertTrue(switchNote != null)
         assertTrue(switchNote!!.content.contains("Mistral"))
-        assertTrue(switchNote.content.contains("Groq"))
+        assertTrue(switchNote.content.contains(LlmProvider.DEFAULT.displayName))
     }
 }

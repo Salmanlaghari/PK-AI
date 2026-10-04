@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Drop shadow (3D depth) -->
+    <item android:top="3dp" android:left="1dp" android:right="1dp">
+        <shape android:shape="oval">
+            <solid android:color="#40000000" />
+        </shape>
+    </item>
+    <!-- Main 3D body -->
+    <item android:bottom="3dp">
+        <shape android:shape="oval">
+            <gradient
+                android:startColor="#B388FF"
+                android:centerColor="#7B2FFD"
+                android:endColor="#4A1D96"
+                android:angle="270" />
+        </shape>
+    </item>
+    <!-- Top gloss highlight (3D shine) -->
+    <item android:bottom="3dp" android:left="6dp" android:right="6dp" android:top="4dp">
+        <shape android:shape="oval">
+            <gradient
+                android:startColor="#BFFFFFFF"
+                android:centerColor="#40FFFFFF"
+                android:endColor="#00FFFFFF"
+                android:angle="270" />
+        </shape>
+    </item>
+    <!-- Inner rim light -->
+    <item android:bottom="3dp">
+        <shape android:shape="oval">
+            <stroke android:width="1dp" android:color="#80FFFFFF" />
+        </shape>
+    </item>
+</layer-list>

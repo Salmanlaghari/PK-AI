@@ -30,4 +30,10 @@
     <string name="superchat_speak">Speak</string>
     <string name="superchat_copy">Copy</string>
     <string name="superchat_share">Share</string>
+    <string name="superchat_attach">Attach image</string>
+    <string name="superchat_voice">Voice note</string>
+    <string name="superchat_image">Shared image</string>
+    <!-- Tips -->
+    <string name="tips_title">💡 Tips</string>
+    <string name="tips_subtitle">Get the most out of PK AI</string>
 </resources>

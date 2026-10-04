@@ -101,6 +101,9 @@ class SuperChatViewModel @Inject constructor(
     /**
      * Sends a user message: appends it, switches the avatar pose to match the
      * detected mood, then streams an AI reply.
+     *
+     * Song requests ("play kesariya") are routed to PagalWorld search and come
+     * back as a visual song card.
      */
     fun sendMessage(text: String) {
         val trimmed = text.trim()
@@ -120,6 +123,14 @@ class SuperChatViewModel @Inject constructor(
             return
         }
 
+        // Song search intent → visual song card via PagalWorld.
+        // Guarded by _isGenerating so rapid taps can't stack searches.
+        val songQuery = com.salmanlaghari.pkai.util.SongSearchHelper.extractSongQuery(trimmed)
+        if (songQuery != null && !_isGenerating.value) {
+            searchAndSendSong(trimmed, songQuery)
+            return
+        }
+
         val mood = MoodDetector.detect(trimmed)
         _currentMood.value = mood
         val pose = if (specialMode) PoseRegistry.randomSpecialSticker() else nextPoseFor(mood)
@@ -133,6 +144,102 @@ class SuperChatViewModel @Inject constructor(
         _messageStickers.value = _messageStickers.value + (userMessage.id to pose)
         _messages.value = _messages.value + userMessage
         fetchReply(trimmed, specialMode)
+    }
+
+    /** Sends an image attachment as a user message, then fetches an AI reply. */
+    fun sendImageMessage(uri: String, imageDataUri: String? = null, displayName: String? = null) {
+        if (_isGenerating.value) return
+        if (imageDataUri.isNullOrBlank()) {
+            _messages.value = _messages.value + ChatMessage(
+                content = "⚠️ Image read nahi ho saki (unsupported format ya 4 MB se bari). Image analyse nahi hui.",
+                isUser = false,
+                timestamp = System.currentTimeMillis()
+            )
+            return
+        }
+        val userMessage = ChatMessage(
+            content = "📷 Image",
+            isUser = true,
+            timestamp = System.currentTimeMillis(),
+            attachmentType = "image",
+            attachmentUri = uri,
+            attachmentName = displayName
+        )
+        _currentMood.value = Mood.NEUTRAL
+        val pose = if (specialMode) PoseRegistry.randomSpecialSticker()
+            else nextPoseFor(Mood.NEUTRAL)
+        _currentSticker.value = pose
+        _messageStickers.value = _messageStickers.value + (userMessage.id to pose)
+        _messages.value = _messages.value + userMessage
+        fetchReply("The user shared an image with me. Describe only what you can actually see.", specialMode, imageDataUri, detectLanguage = false)
+    }
+
+    /** Sends a voice note as a user message, then fetches an AI reply. */
+    fun sendVoiceMessage(uri: String, durationLabel: String) {
+        if (_isGenerating.value) return
+        val userMessage = ChatMessage(
+            content = "🎤 Voice note",
+            isUser = true,
+            timestamp = System.currentTimeMillis(),
+            attachmentType = "audio",
+            attachmentUri = uri,
+            attachmentName = durationLabel
+        )
+        _currentMood.value = Mood.NEUTRAL
+        val pose = if (specialMode) PoseRegistry.randomSpecialSticker()
+            else nextPoseFor(Mood.NEUTRAL)
+        _currentSticker.value = pose
+        _messageStickers.value = _messageStickers.value + (userMessage.id to pose)
+        _messages.value = _messages.value + userMessage
+        fetchReply("The user sent a voice note, but its audio has not been transcribed. Do not pretend to hear it; ask the user to type the request if needed.", specialMode, detectLanguage = false)
+    }
+
+    /**
+     * Song search: appends the user message, searches PagalWorld, and posts a
+     * visual song card (artwork + title + artist + streamable audio).
+     * Song data is packed into the attachment fields as:
+     * attachmentType="song", attachmentUri=audioUrl,
+     * attachmentName="title|||artist|||artworkUrl".
+     */
+    fun searchAndSendSong(originalText: String, query: String) {
+        if (_isGenerating.value) return
+        val userMessage = ChatMessage(
+            content = originalText,
+            isUser = true,
+            timestamp = System.currentTimeMillis()
+        )
+        val pose = if (specialMode) PoseRegistry.randomSpecialSticker()
+            else nextPoseFor(MoodDetector.detect(originalText))
+        _currentSticker.value = pose
+        _messageStickers.value = _messageStickers.value + (userMessage.id to pose)
+        _messages.value = _messages.value + userMessage
+
+        _isGenerating.value = true
+        viewModelScope.launch {
+            val song = com.salmanlaghari.pkai.util.SongSearchHelper.searchSong(query)
+            val replyMessage = if (song != null) {
+                ChatMessage(
+                    content = "🎵 Ye raha aapka song:",
+                    isUser = false,
+                    modelUsed = "Song Search",
+                    timestamp = System.currentTimeMillis(),
+                    attachmentType = "song",
+                    attachmentUri = song.audioUrl,
+                    attachmentName = "${song.title}|||${song.artist}|||${song.artworkUrl}"
+                )
+            } else {
+                ChatMessage(
+                    content = "😔 \"$query\" nahi mila. Koi aur song try karein!",
+                    isUser = false,
+                    timestamp = System.currentTimeMillis()
+                )
+            }
+            val sticker = if (specialMode) PoseRegistry.randomSpecialSticker()
+                else nextPoseFor(Mood.HAPPY)
+            _messageStickers.value = _messageStickers.value + (replyMessage.id to sticker)
+            _messages.value = _messages.value + replyMessage
+            _isGenerating.value = false
+        }
     }
 
     /**
@@ -157,10 +264,15 @@ class SuperChatViewModel @Inject constructor(
         return pose
     }
 
-    private fun fetchReply(prompt: String, useSpecial: Boolean = false) {
+    private fun fetchReply(
+        prompt: String,
+        useSpecial: Boolean = false,
+        imageDataUri: String? = null,
+        detectLanguage: Boolean = true
+    ) {
         _isGenerating.value = true
         viewModelScope.launch {
-            val reply = tryRequest(prompt) ?: offlineReply()
+            val reply = tryRequest(prompt, imageDataUri, detectLanguage) ?: offlineReply()
             val replyMessage = ChatMessage(
                 content = reply,
                 isUser = false,
@@ -178,19 +290,34 @@ class SuperChatViewModel @Inject constructor(
         }
     }
 
-    private suspend fun tryRequest(prompt: String): String? {
-        val finalPrompt = if (_isPkAiMode.value) PkAiAssistant.buildPkAiPrompt(prompt) else prompt
+    private suspend fun tryRequest(
+        prompt: String,
+        imageDataUri: String? = null,
+        detectLanguage: Boolean = true
+    ): String? {
+        // Attachment prompts contain no user words, so do not infer English from them.
+        val lang = if (detectLanguage) com.salmanlaghari.pkai.util.LanguageDetector.detect(prompt) else null
+        val finalPrompt = if (_isPkAiMode.value) {
+            PkAiAssistant.buildPkAiPrompt(prompt, lang?.instruction)
+        } else if (lang != null) {
+            "$prompt\n[Reply in ${lang.instruction} and be precise; if unsure, say so.]"
+        } else {
+            prompt
+        }
         // 1. Try default provider
         try {
             var text: String? = null
             providerFactory.getDefaultProvider()
-                .sendMessage(finalPrompt, emptyList())
+                .sendMessage(finalPrompt, emptyList(), imageDataUri)
                 .collect { response ->
                     if (response is AiResponse.Success) text = response.text
                 }
             if (!text.isNullOrBlank()) return text
         } catch (_: Exception) {
         }
+
+        // A keyless/text-only fallback must never fabricate an image description.
+        if (!imageDataUri.isNullOrBlank()) return null
 
         // 2. Try free provider fallback
         try {

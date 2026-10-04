@@ -75,7 +75,20 @@
         android:id="@+id/superChatFragment"
         android:name="com.salmanlaghari.pkai.ui.superchat.SuperChatFragment"
         android:label="SuperChatFragment"
-        tools:layout="@layout/fragment_super_chat" />
+        tools:layout="@layout/fragment_super_chat">
+        <action
+            android:id="@+id/action_superChatFragment_to_tipsFragment"
+            app:destination="@id/tipsFragment" />
+        <action
+            android:id="@+id/action_superChatFragment_to_historyFragment"
+            app:destination="@id/historyFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/tipsFragment"
+        android:name="com.salmanlaghari.pkai.ui.tips.TipsFragment"
+        android:label="TipsFragment"
+        tools:layout="@layout/fragment_tips" />
 
     <fragment
         android:id="@+id/chatsFragment"

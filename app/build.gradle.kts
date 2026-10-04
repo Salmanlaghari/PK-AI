@@ -40,6 +40,7 @@ android {
         val cerebrasApiKey = System.getenv("CEREBRAS_API_KEY") ?: localProperties.getProperty("CEREBRAS_API_KEY") ?: ""
         val huggingfaceApiKey = System.getenv("HUGGINGFACE_API_KEY") ?: localProperties.getProperty("HUGGINGFACE_API_KEY") ?: ""
         val groqModel = System.getenv("GROQ_MODEL") ?: localProperties.getProperty("GROQ_MODEL") ?: "openai/gpt-oss-20b"
+        val groqVisionModel = System.getenv("GROQ_VISION_MODEL") ?: localProperties.getProperty("GROQ_VISION_MODEL") ?: "meta-llama/llama-4-scout-17b-16e-instruct"
         val openRouterApiKey = System.getenv("OPENROUTER_API_KEY") ?: localProperties.getProperty("OPENROUTER_API_KEY") ?: ""
         val hackerEarthClientId = System.getenv("HACKEREARTH_CLIENT_ID") ?: localProperties.getProperty("HACKEREARTH_CLIENT_ID") ?: ""
         val hackerEarthClientSecret = System.getenv("HACKEREARTH_CLIENT_SECRET") ?: localProperties.getProperty("HACKEREARTH_CLIENT_SECRET") ?: ""
@@ -51,6 +52,7 @@ android {
 
         buildConfigField("String", "GROQ_API_KEY", "\"$groqApiKey\"")
         buildConfigField("String", "GROQ_MODEL", "\"$groqModel\"")
+        buildConfigField("String", "GROQ_VISION_MODEL", "\"$groqVisionModel\"")
         buildConfigField("String", "CLOUDFLARE_API_TOKEN", "\"$cloudflareApiToken\"")
         buildConfigField("String", "CLOUDFLARE_ACCOUNT_ID", "\"$cloudflareAccountId\"")
         buildConfigField("String", "LLM7_API_KEY", "\"$llm7ApiKey\"")
@@ -305,20 +307,25 @@ val syncWebAssets by tasks.registering(Exec::class) {
         val tmp = layout.buildDirectory.dir("tmp/web-assets-sync").get().asFile
         tmp.deleteRecursively()
         webDistDir.copyRecursively(tmp, overwrite = true)
-        val audioDir = webAssetsDir.resolve("assets")
-        val audioFiles = listOf("flowmusic_track.wav", "flowmusic_track.mp3")
-            .map { it to audioDir.resolve(it) }
-            .filter { it.second.isFile }
-        val audioBackupDir = layout.buildDirectory.dir("tmp/web-assets-audio-backup").get().asFile
-        audioBackupDir.deleteRecursively()
-        audioBackupDir.mkdirs()
-        audioFiles.forEach { (name, file) -> file.copyTo(audioBackupDir.resolve(name), overwrite = true) }
+        // Preserve every existing runtime asset, not only today's audio allowlist. This
+        // prevents a future tracked font/locale/clip from disappearing during a Vite sync.
+        val preservedFiles = webAssetsDir.walkTopDown()
+            .filter { it.isFile }
+            .map { it.relativeTo(webAssetsDir) to it }
+            .toList()
+        val preservedBackupDir = layout.buildDirectory.dir("tmp/web-assets-preserved").get().asFile
+        preservedBackupDir.deleteRecursively()
+        preservedFiles.forEach { (relative, file) ->
+            val backup = preservedBackupDir.resolve(relative.path)
+            backup.parentFile.mkdirs()
+            file.copyTo(backup, overwrite = true)
+        }
         if (tmp.resolve("index.html").isFile) {
             webAssetsDir.deleteRecursively()
             tmp.copyRecursively(webAssetsDir, overwrite = true)
-            val restoredAudioDir = webAssetsDir.resolve("assets").apply { mkdirs() }
-            audioFiles.forEach { (name, _) ->
-                audioBackupDir.resolve(name).copyTo(restoredAudioDir.resolve(name), overwrite = true)
+            preservedFiles.forEach { (relative, _) ->
+                val backup = preservedBackupDir.resolve(relative.path)
+                if (backup.isFile) backup.copyTo(webAssetsDir.resolve(relative.path), overwrite = true)
             }
             logger.lifecycle("syncWebAssets: web UI synced into Android assets.")
         } else {

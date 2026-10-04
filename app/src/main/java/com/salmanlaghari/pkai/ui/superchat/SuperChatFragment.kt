@@ -76,6 +76,7 @@ class SuperChatFragment : Fragment() {
     private var isSongPaused = false
     private var recordingJob: Job? = null
     private var isRecording = false
+    private var lastAutoScrollMessageCount = -1
 
     private val pickImageLauncher =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -86,7 +87,16 @@ class SuperChatFragment : Fragment() {
                         android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
                     )
                 } catch (_: Exception) { }
-                viewModel.sendImageMessage(uri.toString(), uriToImageDataUri(uri))
+                viewLifecycleOwner.lifecycleScope.launch {
+                    val imageDataUri = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        uriToImageDataUri(uri)
+                    }
+                    if (imageDataUri == null) {
+                        toast("Image read nahi hui — 4 MB se chhoti image select karein")
+                    } else {
+                        viewModel.sendImageMessage(uri.toString(), imageDataUri)
+                    }
+                }
             }
         }
 
@@ -352,9 +362,13 @@ class SuperChatFragment : Fragment() {
                         val lastVisible = lm?.findLastVisibleItemPosition() ?: RecyclerView.NO_POSITION
                         val wasNearBottom = oldCount == 0 ||
                             (lastVisible != RecyclerView.NO_POSITION && lastVisible >= oldCount - 2)
-                        val userJustSent = messages.lastOrNull()?.isUser == true
+                        val userJustSent = messages.lastOrNull()?.isUser == true &&
+                            messages.size != lastAutoScrollMessageCount
+                        val shouldAutoScroll = items.isNotEmpty() &&
+                            (oldCount == 0 || wasNearBottom || userJustSent)
+                        lastAutoScrollMessageCount = messages.size
                         adapter.submitList(items) {
-                            if (items.isNotEmpty() && (wasNearBottom || userJustSent)) {
+                            if (shouldAutoScroll) {
                                 rv.smoothScrollToPosition(items.size - 1)
                             }
                         }
@@ -400,7 +414,9 @@ class SuperChatFragment : Fragment() {
     private fun startVoiceRecording() {
         if (isRecording) return
         try {
-            val dir = File(requireContext().cacheDir, "voice_notes").apply { mkdirs() }
+            val dir = File(requireContext().filesDir, "voice_notes").apply { mkdirs() }
+            val retentionCutoff = System.currentTimeMillis() - 7L * 24 * 60 * 60 * 1000
+            dir.listFiles()?.filter { it.lastModified() < retentionCutoff }?.forEach { it.delete() }
             recordingFile = File(dir, "voice_${System.currentTimeMillis()}.m4a")
             recorder = (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
                 MediaRecorder(requireContext()) else MediaRecorder()).apply {

@@ -146,7 +146,7 @@ class HomeViewModelTest {
     @Test
     fun `initial states are correctly setup`() {
         testDispatcher.scheduler.advanceUntilIdle()
-        assertEquals(LlmProvider.DEFAULT.id, viewModel.selectedProvider.value.id)
+        assertEquals("groq", viewModel.selectedProvider.value.id)
         assertEquals(false, viewModel.isGenerating.value)
         assertTrue(viewModel.chatMessages.value.isEmpty())
     }
@@ -174,7 +174,7 @@ class HomeViewModelTest {
         val secondMsg = currentMessages[1]
         assertEquals("Response for prompt: Hello PK AI", secondMsg.content)
         assertEquals(false, secondMsg.isUser)
-        assertEquals(LlmProvider.DEFAULT.displayName, secondMsg.modelUsed)
+        assertEquals("Groq", secondMsg.modelUsed)
     }
 
     @Test
@@ -232,8 +232,8 @@ class HomeViewModelTest {
 
         // Given the default is the catalogue safe default
         testDispatcher.scheduler.advanceUntilIdle()
-        assertEquals(LlmProvider.DEFAULT.id, viewModel.selectedProvider.value.id)
-        assertEquals(LlmProvider.DEFAULT.id, viewModel.effectiveProvider.value.id)
+        assertEquals("groq", viewModel.selectedProvider.value.id)
+        assertEquals("groq", viewModel.effectiveProvider.value.id)
 
         // When the user picks Mistral in Settings
         selectedProviderFlow.value = "mistral"

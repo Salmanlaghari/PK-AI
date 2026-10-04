@@ -308,10 +308,14 @@ class SuperChatAdapter(
 
         private fun toggleVoice(message: ChatMessage) {
             val uri = message.attachmentUri ?: return
-            if (playingMessageId == message.id) {
-                voicePlayer?.pause()
-                playingMessageId = null
-                btnUserVoicePlay.text = "▶"
+            if (playingMessageId == message.id && voicePlayer != null) {
+                if (voicePlayer?.isPlaying == true) {
+                    voicePlayer?.pause()
+                    btnUserVoicePlay.text = "▶"
+                } else {
+                    voicePlayer?.start()
+                    btnUserVoicePlay.text = "⏸"
+                }
                 return
             }
             try {

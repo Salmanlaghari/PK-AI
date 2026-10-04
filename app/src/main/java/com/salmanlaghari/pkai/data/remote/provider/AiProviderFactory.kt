@@ -99,11 +99,13 @@ class AiProviderFactory @Inject constructor(
             else -> PublicFreeAiProvider(publicFreeApiService)
         }
 
-    /** Returns the first configured BYOK provider, preferring the configured catalogue order. */
-    fun getDefaultProvider(): AiProvider {
-        val configured = fallbackChain(LlmProvider.DEFAULT.id).firstOrNull()
-        return configured?.let { getProvider(it.id) } ?: getFreeProvider(FreeAiModel.FREE_LLM.id)
-    }
+    /** Returns the selected configured provider, then the configured fallback order. */
+    fun defaultProviderId(selectedId: String = LlmProvider.DEFAULT.id): String? =
+        fallbackChain(selectedId).firstOrNull()?.id
+
+    fun getDefaultProvider(selectedId: String = LlmProvider.DEFAULT.id): AiProvider =
+        defaultProviderId(selectedId)?.let { getProvider(it) }
+            ?: getFreeProvider(FreeAiModel.FREE_LLM.id)
 
     /**
      * True when the provider can actually be called right now — i.e. its API key (and, for

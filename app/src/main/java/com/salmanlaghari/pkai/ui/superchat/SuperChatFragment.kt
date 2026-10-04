@@ -126,8 +126,11 @@ class SuperChatFragment : Fragment() {
         (binding.superChatRoot.background as? android.graphics.drawable.AnimationDrawable)?.start()
 
         setupChat()
-        viewLifecycleOwner.lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-            pruneVoiceNotes()
+        val appContext = context?.applicationContext
+        if (appContext != null) {
+            viewLifecycleOwner.lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                pruneVoiceNotes(appContext)
+            }
         }
         setupHeader()
         setupMediaButtons()
@@ -411,9 +414,6 @@ class SuperChatFragment : Fragment() {
         if (isRecording) return
         try {
             val dir = File(requireContext().filesDir, "voice_notes").apply { mkdirs() }
-            viewLifecycleOwner.lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                pruneVoiceNotes()
-            }
             recordingFile = File(dir, "voice_${System.currentTimeMillis()}.m4a")
             recorder = (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
                 MediaRecorder(requireContext()) else MediaRecorder()).apply {
@@ -440,14 +440,15 @@ class SuperChatFragment : Fragment() {
         }
     }
 
-    private fun pruneVoiceNotes() {
-        val dir = File(requireContext().filesDir, "voice_notes")
+    private fun pruneVoiceNotes(appContext: Context) {
+        val dir = File(appContext.filesDir, "voice_notes")
         val files = dir.listFiles()?.filter { it.isFile }.orEmpty()
         val cutoff = System.currentTimeMillis() - 7L * 24 * 60 * 60 * 1000
         files.filter { it.lastModified() < cutoff }.forEach { it.delete() }
         var total = files.filter { it.exists() }.sumOf { it.length() }
         val maxBytes = 10L * 1024 * 1024
         files.filter { it.exists() }.sortedBy { it.lastModified() }.forEach { file ->
+            if (recordingFile?.absolutePath == file.absolutePath) return@forEach
             val size = file.length()
             if (total > maxBytes && file.delete()) total -= size
         }

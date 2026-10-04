@@ -328,6 +328,9 @@ val syncWebAssets by tasks.registering(Exec::class) {
                 val destination = webAssetsDir.resolve(relative.path)
                 if (backup.isFile && !destination.exists()) {
                     backup.copyTo(destination, overwrite = false)
+                    logger.lifecycle("syncWebAssets: restored preserved asset ${relative.path}")
+                } else if (backup.isFile) {
+                    logger.lifecycle("syncWebAssets: generated asset wins for ${relative.path}")
                 }
             }
             logger.lifecycle("syncWebAssets: web UI synced into Android assets.")

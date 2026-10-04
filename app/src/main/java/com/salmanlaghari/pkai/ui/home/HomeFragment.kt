@@ -72,15 +72,15 @@ class HomeFragment : Fragment() {
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
             uri ?: return@registerForActivityResult
             val previousUri = pendingAttachment?.uri
-            if (previousUri != null && previousUri != uri.toString()) {
-                releasePersistedUri(previousUri)
-            }
             runCatching {
                 requireContext().contentResolver.takePersistableUriPermission(
                     uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
                 )
             }.onFailure { android.util.Log.w("HomeFragment", "Could not persist attachment grant", it) }
             handlePicked(uri)
+            if (previousUri != null && previousUri != uri.toString()) {
+                releasePersistedUri(previousUri)
+            }
         }
 
     override fun onCreateView(
@@ -299,7 +299,7 @@ class HomeFragment : Fragment() {
         }
 
         binding.etMessageInput.text?.clear()
-        clearAttachment()
+        clearAttachment(releaseGrant = false)
     }
 
     /* ─────────────────────────────────────────────────────────────────────────
@@ -493,8 +493,8 @@ class HomeFragment : Fragment() {
         }.onFailure { android.util.Log.w("HomeFragment", "Could not release attachment grant", it) }
     }
 
-    private fun clearAttachment() {
-        pendingAttachment?.uri?.let(::releasePersistedUri)
+    private fun clearAttachment(releaseGrant: Boolean = true) {
+        if (releaseGrant) pendingAttachment?.uri?.let(::releasePersistedUri)
         pendingAttachment = null
         binding.containerAttachmentPreview.removeAllViews()
         binding.layoutAttachmentPreview.visibility = View.GONE
@@ -563,6 +563,12 @@ class HomeFragment : Fragment() {
             .show()
     }
 
+    override fun onDestroy() {
+        pendingAttachment?.uri?.let(::releasePersistedUri)
+        pendingAttachment = null
+        super.onDestroy()
+    }
+
     override fun onPause() {
         super.onPause()
         // Stop the wallpaper animation when the screen isn't visible (battery)
@@ -575,8 +581,7 @@ class HomeFragment : Fragment() {
     }
 
     override fun onDestroyView() {
-        pendingAttachment?.uri?.let(::releasePersistedUri)
-        pendingAttachment = null
+        // Keep a pending attachment/grant across view recreation; the next view can render it.
         voiceHelper?.destroy()
         voiceHelper = null
         (view?.background as? android.graphics.drawable.AnimationDrawable)?.stop()

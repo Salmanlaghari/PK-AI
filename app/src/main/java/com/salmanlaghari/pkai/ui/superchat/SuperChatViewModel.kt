@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.salmanlaghari.pkai.data.model.ChatMessage
 import com.salmanlaghari.pkai.data.remote.provider.AiProviderFactory
 import com.salmanlaghari.pkai.data.remote.provider.AiResponse
+import com.salmanlaghari.pkai.data.local.datastore.PreferencesManager
+import kotlinx.coroutines.flow.first
 import com.salmanlaghari.pkai.util.PkAiAssistant
 import com.salmanlaghari.pkai.util.Mood
 import com.salmanlaghari.pkai.util.MoodDetector
@@ -27,7 +29,8 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class SuperChatViewModel @Inject constructor(
-    private val providerFactory: AiProviderFactory
+    private val providerFactory: AiProviderFactory,
+    private val preferencesManager: PreferencesManager
 ) : ViewModel() {
 
     companion object {
@@ -320,16 +323,15 @@ class SuperChatViewModel @Inject constructor(
         } else {
             "$prompt\n[Reply in $instruction and be precise; if unsure, say so.]"
         }
-        // 1. Try the first configured provider only when it supports vision.
-        if (!imageDataUri.isNullOrBlank()) {
-            val visionProvider = providerFactory
-                .fallbackChain(com.salmanlaghari.pkai.data.model.LlmProvider.DEFAULT.id)
-                .firstOrNull()
-            if (visionProvider?.supportsVision != true) return null
-        }
+        val selectedProviderId = preferencesManager.selectedProviderId.first()
+        val activeProviderMeta = providerFactory.defaultProviderId(selectedProviderId)
+            ?.let { id -> com.salmanlaghari.pkai.data.model.LlmProvider.fromId(id) }
+        // A vision request must use the exact provider resolved for the request.
+        if (!imageDataUri.isNullOrBlank() && activeProviderMeta?.supportsVision != true) return null
+        val activeProvider = providerFactory.getDefaultProvider(selectedProviderId)
         try {
             var text: String? = null
-            providerFactory.getDefaultProvider()
+            activeProvider
                 .sendMessage(finalPrompt, emptyList(), imageDataUri)
                 .collect { response ->
                     if (response is AiResponse.Success) text = response.text

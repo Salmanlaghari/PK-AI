@@ -25,13 +25,8 @@ jobs:
             fi
           fi
           if [ ! -f "app/upload-key.jks" ]; then
-            echo "Generating fallback upload keystore for CI build validation..."
-            keytool -genkeypair -alias "${KEY_ALIAS:-pk_ai_upload}" -keyalg RSA -keysize 2048 -validity 10000 \
-              -keystore app/upload-key.jks \
-              -storepass "${KEYSTORE_PASSWORD:-PkAiUploadKey99#@!}" \
-              -keypass "${KEY_PASSWORD:-PkAiUploadKey99#@!}" \
-              -dname "CN=PK AI Upload, OU=Mobile, O=PK AI, L=PK, ST=PK, C=US"
-            echo "KEYSTORE_PATH=${{ github.workspace }}/app/upload-key.jks" >> "$GITHUB_ENV"
+            echo "::error::KEYSTORE_BASE64 did not produce app/upload-key.jks; refusing to generate a public fallback signing key."
+            exit 1
           fi
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -81,9 +76,9 @@ jobs:
         run: ./gradlew assembleRelease bundleRelease --stacktrace
         env:
           KEYSTORE_PATH: ${{ github.workspace }}/app/upload-key.jks
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'PkAiUploadKey99#@!' }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'pk_ai_upload' }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'PkAiUploadKey99#@!' }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

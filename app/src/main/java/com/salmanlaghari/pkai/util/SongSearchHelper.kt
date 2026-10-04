@@ -49,7 +49,7 @@ object SongSearchHelper {
         // "play X" — explicit
         PLAY_PREFIX.find(t)?.let {
             val q = it.groupValues[1].trim()
-            if (q.length >= 2) return q
+            if (q.length >= 2 && isLikelySongQuery(q)) return q
         }
         // "X play karo/kar" — explicit
         PLAY_SUFFIX.find(t)?.let {
@@ -72,6 +72,11 @@ object SongSearchHelper {
             if (q.length >= 2) return q
         }
         return null
+    }
+
+    private fun isLikelySongQuery(query: String): Boolean {
+        val nonMusicWords = setOf("store", "link", "bhejo", "send", "app", "video", "game", "download")
+        return query.lowercase().split(Regex("\\s+")).none { it in nonMusicWords }
     }
 
     /** Searches PagalWorld and returns the best streamable match, or null. */

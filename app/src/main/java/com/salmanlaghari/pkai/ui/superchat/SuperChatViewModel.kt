@@ -149,6 +149,14 @@ class SuperChatViewModel @Inject constructor(
     /** Sends an image attachment as a user message, then fetches an AI reply. */
     fun sendImageMessage(uri: String, imageDataUri: String? = null, displayName: String? = null) {
         if (_isGenerating.value) return
+        if (imageDataUri.isNullOrBlank()) {
+            _messages.value = _messages.value + ChatMessage(
+                content = "⚠️ Image read nahi ho saki (unsupported format ya 4 MB se bari). Image analyse nahi hui.",
+                isUser = false,
+                timestamp = System.currentTimeMillis()
+            )
+            return
+        }
         val userMessage = ChatMessage(
             content = "📷 Image",
             isUser = true,
@@ -163,7 +171,7 @@ class SuperChatViewModel @Inject constructor(
         _currentSticker.value = pose
         _messageStickers.value = _messageStickers.value + (userMessage.id to pose)
         _messages.value = _messages.value + userMessage
-        fetchReply("The user shared an image with me. Describe only what you can actually see.", specialMode, imageDataUri)
+        fetchReply("The user shared an image with me. Describe only what you can actually see.", specialMode, imageDataUri, detectLanguage = false)
     }
 
     /** Sends a voice note as a user message, then fetches an AI reply. */
@@ -183,7 +191,7 @@ class SuperChatViewModel @Inject constructor(
         _currentSticker.value = pose
         _messageStickers.value = _messageStickers.value + (userMessage.id to pose)
         _messages.value = _messages.value + userMessage
-        fetchReply("The user sent a voice note, but its audio has not been transcribed. Do not pretend to hear it; ask the user to type the request if needed.", specialMode)
+        fetchReply("The user sent a voice note, but its audio has not been transcribed. Do not pretend to hear it; ask the user to type the request if needed.", specialMode, detectLanguage = false)
     }
 
     /**
@@ -259,11 +267,12 @@ class SuperChatViewModel @Inject constructor(
     private fun fetchReply(
         prompt: String,
         useSpecial: Boolean = false,
-        imageDataUri: String? = null
+        imageDataUri: String? = null,
+        detectLanguage: Boolean = true
     ) {
         _isGenerating.value = true
         viewModelScope.launch {
-            val reply = tryRequest(prompt, imageDataUri) ?: offlineReply()
+            val reply = tryRequest(prompt, imageDataUri, detectLanguage) ?: offlineReply()
             val replyMessage = ChatMessage(
                 content = reply,
                 isUser = false,
@@ -281,13 +290,19 @@ class SuperChatViewModel @Inject constructor(
         }
     }
 
-    private suspend fun tryRequest(prompt: String, imageDataUri: String? = null): String? {
-        // 🌐 Language matching: reply in the SAME language the user wrote in
-        val lang = com.salmanlaghari.pkai.util.LanguageDetector.detect(prompt)
+    private suspend fun tryRequest(
+        prompt: String,
+        imageDataUri: String? = null,
+        detectLanguage: Boolean = true
+    ): String? {
+        // Attachment prompts contain no user words, so do not infer English from them.
+        val lang = if (detectLanguage) com.salmanlaghari.pkai.util.LanguageDetector.detect(prompt) else null
         val finalPrompt = if (_isPkAiMode.value) {
-            PkAiAssistant.buildPkAiPrompt(prompt, lang.instruction)
-        } else {
+            PkAiAssistant.buildPkAiPrompt(prompt, lang?.instruction)
+        } else if (lang != null) {
             "$prompt\n[Reply in ${lang.instruction} and be precise; if unsure, say so.]"
+        } else {
+            prompt
         }
         // 1. Try default provider
         try {
@@ -300,6 +315,9 @@ class SuperChatViewModel @Inject constructor(
             if (!text.isNullOrBlank()) return text
         } catch (_: Exception) {
         }
+
+        // A keyless/text-only fallback must never fabricate an image description.
+        if (!imageDataUri.isNullOrBlank()) return null
 
         // 2. Try free provider fallback
         try {

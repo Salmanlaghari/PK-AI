@@ -57,10 +57,7 @@ jobs:
 
       - name: Build Ultra AI web assets
         run: |
-          cd ultra-ai-chat-space
-          npm ci
-          npm run build
-          # Gradle syncWebAssets performs the authoritative asset merge and preserves tracked audio.
+          # Gradle syncWebAssets owns the web build and preserves committed runtime assets.
 
 
       - name: Build Release APK & AAB

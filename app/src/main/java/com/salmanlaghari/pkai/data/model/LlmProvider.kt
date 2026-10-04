@@ -12,6 +12,7 @@ import com.salmanlaghari.pkai.BuildConfig
  *  - [defaultModel] the model id sent on every request
  *  - [apiKeyBuildConfig] the [com.salmanlaghari.pkai.BuildConfig] field that holds the API key
  *
+ * OpenAI-compatible providers include Gemini, Groq, LLM7.io, Mistral and Puter AI.
  * API keys are NEVER hardcoded here — they are injected at build time into BuildConfig from
  * local.properties / CI secrets and read by the factory. See SECURITY notes in the PR.
  */
@@ -72,7 +73,7 @@ data class LlmProvider(
                 defaultModel = BuildConfig.GROQ_MODEL,
                 apiKeyBuildConfig = "GROQ_API_KEY",
                 supportsVision = true,
-                visionModel = "llama-3.2-11b-vision-preview"
+                visionModel = BuildConfig.GROQ_VISION_MODEL
             ),
             LlmProvider(
                 id = "llm7",

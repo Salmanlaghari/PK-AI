@@ -71,6 +71,11 @@ class HomeFragment : Fragment() {
     private val pickMedia =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
             uri ?: return@registerForActivityResult
+            runCatching {
+                requireContext().contentResolver.takePersistableUriPermission(
+                    uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }
             handlePicked(uri)
         }
 

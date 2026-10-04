@@ -147,7 +147,7 @@ class SuperChatViewModel @Inject constructor(
     }
 
     /** Sends an image attachment as a user message, then fetches an AI reply. */
-    fun sendImageMessage(uri: String, displayName: String? = null) {
+    fun sendImageMessage(uri: String, imageDataUri: String? = null, displayName: String? = null) {
         if (_isGenerating.value) return
         val userMessage = ChatMessage(
             content = "📷 Image",
@@ -163,7 +163,7 @@ class SuperChatViewModel @Inject constructor(
         _currentSticker.value = pose
         _messageStickers.value = _messageStickers.value + (userMessage.id to pose)
         _messages.value = _messages.value + userMessage
-        fetchReply("The user shared an image with me.", specialMode)
+        fetchReply("The user shared an image with me. Describe only what you can actually see.", specialMode, imageDataUri)
     }
 
     /** Sends a voice note as a user message, then fetches an AI reply. */
@@ -183,7 +183,7 @@ class SuperChatViewModel @Inject constructor(
         _currentSticker.value = pose
         _messageStickers.value = _messageStickers.value + (userMessage.id to pose)
         _messages.value = _messages.value + userMessage
-        fetchReply("The user sent me a voice note.", specialMode)
+        fetchReply("The user sent a voice note, but its audio has not been transcribed. Do not pretend to hear it; ask the user to type the request if needed.", specialMode)
     }
 
     /**
@@ -194,6 +194,7 @@ class SuperChatViewModel @Inject constructor(
      * attachmentName="title|||artist|||artworkUrl".
      */
     fun searchAndSendSong(originalText: String, query: String) {
+        if (_isGenerating.value) return
         val userMessage = ChatMessage(
             content = originalText,
             isUser = true,
@@ -255,10 +256,14 @@ class SuperChatViewModel @Inject constructor(
         return pose
     }
 
-    private fun fetchReply(prompt: String, useSpecial: Boolean = false) {
+    private fun fetchReply(
+        prompt: String,
+        useSpecial: Boolean = false,
+        imageDataUri: String? = null
+    ) {
         _isGenerating.value = true
         viewModelScope.launch {
-            val reply = tryRequest(prompt) ?: offlineReply()
+            val reply = tryRequest(prompt, imageDataUri) ?: offlineReply()
             val replyMessage = ChatMessage(
                 content = reply,
                 isUser = false,
@@ -276,19 +281,19 @@ class SuperChatViewModel @Inject constructor(
         }
     }
 
-    private suspend fun tryRequest(prompt: String): String? {
+    private suspend fun tryRequest(prompt: String, imageDataUri: String? = null): String? {
         // 🌐 Language matching: reply in the SAME language the user wrote in
         val lang = com.salmanlaghari.pkai.util.LanguageDetector.detect(prompt)
-        val langInstruction = "\n\n[Language instruction: ${lang.instruction}]"
-        // 🎯 Accuracy: ask for precise, honest answers
-        val accuracyNote = "\n[Accuracy: be precise and factual. If unsure, say so — never invent facts.]"
-        val finalPrompt = (if (_isPkAiMode.value) PkAiAssistant.buildPkAiPrompt(prompt) else prompt) +
-                langInstruction + accuracyNote
+        val finalPrompt = if (_isPkAiMode.value) {
+            PkAiAssistant.buildPkAiPrompt(prompt, lang.instruction)
+        } else {
+            "$prompt\n[Reply in ${lang.instruction} and be precise; if unsure, say so.]"
+        }
         // 1. Try default provider
         try {
             var text: String? = null
             providerFactory.getDefaultProvider()
-                .sendMessage(finalPrompt, emptyList())
+                .sendMessage(finalPrompt, emptyList(), imageDataUri)
                 .collect { response ->
                     if (response is AiResponse.Success) text = response.text
                 }

@@ -21,6 +21,11 @@ object SongSearchHelper {
     private const val TIMEOUT = 8000
     /** Max chars read from any HTTP response (OOM guard). */
     private const val MAX_RESPONSE_CHARS = 512 * 1024
+    private val PLAY_PREFIX = Regex("(?i)^play\\s+(.+)$")
+    private val PLAY_SUFFIX = Regex("(?i)^(.+?)\\s+play\\s+(karo|kar)\\s*$")
+    private val SONG_ACTION = Regex("(?i)^(.+?)\\s+(song|gana|gaana)\\s+(sunao|suna|play|chalao|lagao)\\s*$")
+    private val SONG_PREFIX = Regex("(?i)^(song|gana|gaana)\\s*:\\s*(.+)$")
+    private val SUNAO = Regex("(?i)^([^\\s]+)\\s+sunao\\s*$")
 
     data class SongResult(
         val title: String,
@@ -42,28 +47,27 @@ object SongSearchHelper {
     fun extractSongQuery(text: String): String? {
         val t = text.trim()
         // "play X" — explicit
-        Regex("(?i)^play\\s+(.+)$").find(t)?.let {
+        PLAY_PREFIX.find(t)?.let {
             val q = it.groupValues[1].trim()
             if (q.length >= 2) return q
         }
         // "X play karo/kar" — explicit
-        Regex("(?i)^(.+?)\\s+play\\s+(karo|kar)\\s*$").find(t)?.let {
+        PLAY_SUFFIX.find(t)?.let {
             val q = it.groupValues[1].trim()
             if (q.length >= 2) return q
         }
         // "X song/gana sunao|play|chalao|lagao" — action verb REQUIRED
-        Regex("(?i)^(.+?)\\s+(song|gana|gaana)\\s+(sunao|suna|play|chalao|lagao)\\s*$")
-            .find(t)?.let {
+        SONG_ACTION.find(t)?.let {
                 val q = it.groupValues[1].trim()
                 if (q.length >= 2) return q
             }
         // "song: X" / "gana: X" — explicit prefix
-        Regex("(?i)^(song|gana|gaana)\\s*:\\s*(.+)$").find(t)?.let {
+        SONG_PREFIX.find(t)?.let {
             val q = it.groupValues[2].trim()
             if (q.length >= 2) return q
         }
         // "X sunao" — single-word title only (avoids hijacking sentences)
-        Regex("(?i)^([^\\s]+)\\s+sunao\\s*$").find(t)?.let {
+        SUNAO.find(t)?.let {
             val q = it.groupValues[1].trim()
             if (q.length >= 2) return q
         }

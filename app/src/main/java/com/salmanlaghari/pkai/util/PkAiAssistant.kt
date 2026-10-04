@@ -35,8 +35,9 @@ object PkAiAssistant {
     /**
      * Prepares an enriched prompt for the LLM that maintains the PK AI persona.
      */
-    fun buildPkAiPrompt(userMessage: String): String {
-        return "$SYSTEM_INSTRUCTION\n\nUser request: $userMessage"
+    fun buildPkAiPrompt(userMessage: String, languageInstruction: String? = null): String {
+        val language = languageInstruction?.let { " Reply in $it." } ?: ""
+        return "$SYSTEM_INSTRUCTION$language\n\nUser request: $userMessage"
     }
 
     /**

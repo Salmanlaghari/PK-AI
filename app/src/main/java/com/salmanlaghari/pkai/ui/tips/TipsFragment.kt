@@ -93,13 +93,11 @@ class TipsFragment : Fragment() {
         }
         AlertDialog.Builder(requireContext())
             .setTitle("⚡ Super Stickers Unlock")
-            // NOTE: showing the code here is INTENTIONAL — it's an 18+ easter-egg
-            // unlock mechanic, not a security boundary. The age gate comes first.
-            .setMessage("🔞 Khufiya 18+ code:\n\n👉 $SUPER_CODE 👈\n\n(neeche darj karke Unlock dabayein)")
+            .setMessage("🔞 Is 18+ section ka access code enter karein.\n\nHint: $SUPER_CODE_HINT")
             .setView(input)
             .setPositiveButton("Unlock") { _, _ ->
                 val code = input.text.toString().trim()
-                if (code.equals(SUPER_CODE, ignoreCase = true)) {
+                if (sha256(code) == SUPER_CODE_SHA256) {
                     prefs.edit().putBoolean(KEY_SUPER_UNLOCKED, true).apply()
                     Toast.makeText(
                         requireContext(),
@@ -159,6 +157,10 @@ class TipsFragment : Fragment() {
 
     companion object {
         const val KEY_SUPER_UNLOCKED = "super_stickers_unlocked"
-        const val SUPER_CODE = "PKAI-SUPER-18"
+        private const val SUPER_CODE_HINT = "PKAI-•••••-18"
+        private const val SUPER_CODE_SHA256 = "c3f10ca04036997bb2fabce7227a59129fc58ba49c51ba21df3183d1b69d67a7"
+        private fun sha256(value: String): String = java.security.MessageDigest.getInstance("SHA-256")
+            .digest(value.trim().uppercase().toByteArray())
+            .joinToString("") { "%02x".format(it) }
     }
 }

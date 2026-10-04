@@ -78,6 +78,42 @@ class CodeRunnerRepositoryTest {
     }
 
     @Test
+    fun testLanguageNormalization() = runTest {
+        // Markdown fence labels the UI actually passes -> HackerEarth v4 codes
+        assertEquals("PYTHON3", CodeRunnerRepository.resolveLanguageArgument("python"))
+        assertEquals("PYTHON3", CodeRunnerRepository.resolveLanguageArgument("py"))
+        assertEquals("PYTHON3", CodeRunnerRepository.resolveLanguageArgument("Python3"))
+        assertEquals("PYTHON3_8", CodeRunnerRepository.resolveLanguageArgument("python3.8"))
+        assertEquals("CPP17", CodeRunnerRepository.resolveLanguageArgument("c++"))
+        assertEquals("CPP17", CodeRunnerRepository.resolveLanguageArgument("cpp"))
+        assertEquals("JAVASCRIPT_NODE", CodeRunnerRepository.resolveLanguageArgument("js"))
+        assertEquals("TYPESCRIPT", CodeRunnerRepository.resolveLanguageArgument("ts"))
+        assertEquals("CSHARP", CodeRunnerRepository.resolveLanguageArgument("c#"))
+        assertEquals("KOTLIN", CodeRunnerRepository.resolveLanguageArgument("kt"))
+        // Already-valid v4 codes pass through untouched
+        assertEquals("PYTHON3_8", CodeRunnerRepository.resolveLanguageArgument("PYTHON3_8"))
+        assertEquals("CPP17", CodeRunnerRepository.resolveLanguageArgument("CPP17"))
+        assertEquals("JAVA17", CodeRunnerRepository.resolveLanguageArgument("JAVA17"))
+        assertEquals("PYTHON3", CodeRunnerRepository.resolveLanguageArgument(""))
+    }
+
+    @Test
+    fun testSurfacesRealApiErrorOnFailure() = runTest {
+        `when`(mockPreferencesManager.getCodeRunCount()).thenReturn(5)
+
+        val serverError = "{\"errors\": {\"lang\": [\"Unsupported language\"]}}"
+        `when`(mockApiService.submitCode(anyString() ?: "", any(HackerEarthSubmissionRequest::class.java) ?: HackerEarthSubmissionRequest("", "")))
+            .thenReturn(Response.error(400, serverError.toResponseBody(null)))
+
+        val result = repository.executeCode("print('x')", "python")
+        assertTrue(result is CodeExecutionResult.Error)
+
+        val err = result as CodeExecutionResult.Error
+        // The real backend message must reach the user — not just "HTTP code 400".
+        assertTrue("Error was: ${err.message}", err.message.contains("Unsupported language"))
+    }
+
+    @Test
     fun testExecuteCodeCompileError() = runTest {
         `when`(mockPreferencesManager.getCodeRunCount()).thenReturn(10)
 

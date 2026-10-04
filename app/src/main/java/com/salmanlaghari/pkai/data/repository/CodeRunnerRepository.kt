@@ -49,7 +49,7 @@ class CodeRunnerRepository @Inject constructor(
         private val HACKEREARTH_LANGS = setOf(
             "C", "CPP14", "CPP17", "CLOJURE", "CSHARP", "GO", "HASKELL",
             "JAVA8", "JAVA14", "JAVASCRIPT_NODE", "KOTLIN", "OBJECTIVEC",
-            "PASCAL", "PERL", "PHP", "PYTHON", "PYTHON3", "PYTHON3_8",
+            "PASCAL", "PERL", "PHP", "PYTHON3", "PYTHON3_8",
             "R", "RUBY", "RUST", "SCALA", "SWIFT", "TYPESCRIPT"
         )
 

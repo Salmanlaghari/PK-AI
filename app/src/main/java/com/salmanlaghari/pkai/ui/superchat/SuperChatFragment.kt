@@ -474,6 +474,7 @@ class SuperChatFragment : Fragment() {
         } else {
             recordingFile?.delete()
         }
+        recordingFile = null
     }
 
     private fun vibrateShort() {

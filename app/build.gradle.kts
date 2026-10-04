@@ -109,6 +109,9 @@ android {
                 if (isReleaseScheduled && (validStoreFile == null || !validStoreFile.exists())) {
                     throw GradleException("🚨 ERROR: Missing required release keystore file for release signing. Please set KEYSTORE_BASE64 or KEYSTORE_PATH.")
                 }
+                if (isReleaseScheduled && (storePassword.isBlank() || keyPassword.isBlank())) {
+                    throw GradleException("🚨 ERROR: Missing KEYSTORE_PASSWORD / KEY_PASSWORD for release signing. Refusing to sign with empty/default password.")
+                }
             }
         }
     }

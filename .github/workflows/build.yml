@@ -14,6 +14,27 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Validate signing secrets (fail on missing, never default)
+        if: github.event_name != 'pull_request'
+        run: |
+          missing=""
+          [ -z "$KEYSTORE_BASE64" ] && missing="$missing KEYSTORE_BASE64"
+          [ -z "$KEYSTORE_PASSWORD" ] && missing="$missing KEYSTORE_PASSWORD"
+          [ -z "$KEY_ALIAS" ] && missing="$missing KEY_ALIAS"
+          [ -z "$KEY_PASSWORD" ] && missing="$missing KEY_PASSWORD"
+          if [ -n "$missing" ]; then
+            echo "🚨 ERROR: Missing required signing secrets:$missing"
+            echo "Set them in GitHub repo Settings → Secrets and variables → Actions."
+            echo "Refusing to sign with any default/fallback password."
+            exit 1
+          fi
+          echo "✅ All signing secrets present."
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
       - name: Decode keystore from KEYSTORE_BASE64 secret
         run: |
           if [ -n "$KEYSTORE_BASE64" ]; then
@@ -21,12 +42,28 @@ jobs:
               echo "KEYSTORE_PATH=${{ github.workspace }}/app/upload-key.jks" >> "$GITHUB_ENV"
               echo "Successfully decoded KEYSTORE_BASE64 secret."
             else
-              echo "Warning: KEYSTORE_BASE64 secret is not a valid base64 encoded string."
+              echo "🚨 ERROR: KEYSTORE_BASE64 secret is not valid base64."
+              exit 1
             fi
-          fi
-          if [ ! -f "app/upload-key.jks" ]; then
-            echo "::error::KEYSTORE_BASE64 did not produce app/upload-key.jks; refusing to generate a public fallback signing key."
-            exit 1
+            # Propagate the real secrets for the signing steps below (values stay masked).
+            echo "KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+            echo "KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"
+            echo "KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
+          else
+            # No keystore secret (e.g. pull_request validation builds): generate a
+            # THROWAWAY keystore with a RANDOM password, for compile validation only.
+            # It never signs published artifacts and never uses a default password.
+            echo "No KEYSTORE_BASE64 secret — generating throwaway keystore for build validation only..."
+            RANDOM_PASS="$(openssl rand -base64 24)"
+            keytool -genkeypair -alias "pk_ai_upload" -keyalg RSA -keysize 2048 -validity 10000 \
+              -keystore app/upload-key.jks \
+              -storepass "$RANDOM_PASS" \
+              -keypass "$RANDOM_PASS" \
+              -dname "CN=PK AI Upload, OU=Mobile, O=PK AI, L=PK, ST=PK, C=US"
+            echo "KEYSTORE_PATH=${{ github.workspace }}/app/upload-key.jks" >> "$GITHUB_ENV"
+            echo "KEYSTORE_PASSWORD=$RANDOM_PASS" >> "$GITHUB_ENV"
+            echo "KEY_PASSWORD=$RANDOM_PASS" >> "$GITHUB_ENV"
+            echo "KEY_ALIAS=pk_ai_upload" >> "$GITHUB_ENV"
           fi
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -76,9 +113,7 @@ jobs:
         run: ./gradlew assembleRelease bundleRelease --stacktrace
         env:
           KEYSTORE_PATH: ${{ github.workspace }}/app/upload-key.jks
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'pk_ai_upload' }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

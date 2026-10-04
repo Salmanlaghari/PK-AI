@@ -127,6 +127,7 @@ jobs:
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           retention-days: 3
           name: PK-AI-Debug-APK
@@ -134,6 +135,7 @@ jobs:
 
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           retention-days: 30
           name: PK-AI-Release-APK
@@ -141,6 +143,7 @@ jobs:
 
       - name: Upload Debug AAB
         uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           retention-days: 3
           name: PK-AI-Debug-AAB
@@ -148,6 +151,7 @@ jobs:
 
       - name: Upload Release AAB
         uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           retention-days: 30
           name: PK-AI-Release-AAB

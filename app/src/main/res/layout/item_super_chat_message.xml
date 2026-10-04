@@ -12,31 +12,25 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="start">
-
-        <TextView
-            android:id="@+id/avUser"
-            android:layout_width="26dp"
-            android:layout_height="26dp"
-            android:background="@drawable/bg_superchat_side_button"
-            android:gravity="center"
-            android:text="👤"
-            android:textSize="12sp" />
+        android:gravity="end">
 
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:orientation="vertical">
+            android:layout_marginEnd="8dp"
+            android:orientation="vertical"
+            android:gravity="end">
 
             <TextView
                 android:id="@+id/tvUserName"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/superchat_user_label"
-                android:textColor="#C4B5FD"
+                android:textColor="#5E35B1"
+                android:textStyle="bold"
                 android:textSize="10sp" />
 
+            <!-- Text bubble -->
             <TextView
                 android:id="@+id/tvUserMessage"
                 android:layout_width="wrap_content"
@@ -48,10 +42,62 @@
                 android:textColor="#FFFFFF"
                 android:textSize="13sp"
                 tools:text="Hello" />
+
+            <!-- Image attachment -->
+            <ImageView
+                android:id="@+id/ivUserImage"
+                android:layout_width="180dp"
+                android:layout_height="180dp"
+                android:layout_marginTop="4dp"
+                android:scaleType="centerCrop"
+                android:background="@drawable/bg_superchat_user_bubble"
+                android:visibility="gone"
+                android:contentDescription="@string/superchat_image" />
+
+            <!-- Voice note bubble -->
+            <LinearLayout
+                android:id="@+id/voiceUserRow"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/bg_superchat_user_bubble"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="8dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/btnUserVoicePlay"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:gravity="center"
+                    android:text="▶"
+                    android:textColor="#FFFFFF"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/tvUserVoiceDuration"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:textColor="#FFFFFF"
+                    android:textSize="12sp"
+                    tools:text="0:07" />
+            </LinearLayout>
         </LinearLayout>
+
+        <TextView
+            android:id="@+id/avUser"
+            android:layout_width="26dp"
+            android:layout_height="26dp"
+            android:background="@drawable/bg_superchat_side_button"
+            android:gravity="center"
+            android:text="👤"
+            android:textSize="12sp" />
     </LinearLayout>
 
-    <!-- ── AI row ─────────────────────────────────────────────────────── -->
+    <!-- ── AI row — premium 3D card ───────────────────────────────────── -->
     <LinearLayout
         android:id="@+id/aiRow"
         android:layout_width="match_parent"
@@ -59,7 +105,7 @@
         android:layout_marginTop="4dp"
         android:orientation="horizontal">
 
-        <!-- Mood sticker shown beside every AI reply — stays visible in history -->
+        <!-- Mood sticker beside every AI reply -->
         <ImageView
             android:id="@+id/ivAiSticker"
             android:layout_width="76dp"
@@ -71,8 +117,9 @@
             tools:src="@drawable/bg_superchat_ring" />
 
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
             android:layout_marginStart="8dp"
             android:orientation="vertical">
 
@@ -81,69 +128,193 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/superchat_ai_label"
-                android:textColor="#9D4EDD"
+                android:textColor="#6D28D9"
                 android:textSize="10sp"
                 android:textStyle="bold" />
 
-            <LinearLayout
-                android:layout_width="wrap_content"
+            <!-- 3D animated card -->
+            <FrameLayout
+                android:id="@+id/aiCard"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="3dp"
-                android:background="@drawable/bg_superchat_ai_bubble"
-                android:orientation="vertical"
-                android:paddingHorizontal="12dp"
-                android:paddingVertical="9dp">
-
-                <TextView
-                    android:id="@+id/tvAiMessage"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="#FFFFFF"
-                    android:textSize="13sp"
-                    tools:text="Hello! 👋 How are you?" />
+                android:background="@drawable/bg_ai_3d_card"
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="11dp">
 
                 <LinearLayout
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:orientation="horizontal">
+                    android:orientation="vertical">
+
+                    <!-- PK-AI visual result header — shown for PK-AI mode replies -->
+                    <LinearLayout
+                        android:id="@+id/pkAiVisualHeader"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:background="@drawable/bg_pkai_badge_active"
+                        android:paddingHorizontal="10dp"
+                        android:paddingVertical="6dp"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="✨"
+                            android:textSize="14sp" />
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="6dp"
+                            android:text="PK-AI Visual Result"
+                            android:textColor="#FFFFFF"
+                            android:textSize="11sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="8K"
+                            android:textColor="#FFD166"
+                            android:textSize="10sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
 
                     <TextView
-                        android:id="@+id/btnSpeak"
+                        android:id="@+id/tvAiMessage"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:paddingEnd="12dp"
-                        android:text="🔊"
-                        android:textSize="12sp"
-                        android:contentDescription="@string/superchat_speak" />
+                        android:textColor="#FFFFFF"
+                        android:textSize="13sp"
+                        android:lineSpacingExtra="2dp"
+                        tools:text="Hello! 👋 How are you?" />
 
-                    <TextView
-                        android:id="@+id/btnCopy"
-                        android:layout_width="wrap_content"
+                    <!-- 🎵 Song visual card — shown for song search results -->
+                    <LinearLayout
+                        android:id="@+id/songCard"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:paddingEnd="12dp"
-                        android:text="📋"
-                        android:textSize="12sp"
-                        android:contentDescription="@string/superchat_copy" />
+                        android:layout_marginTop="8dp"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:background="@drawable/bg_superchat_user_bubble"
+                        android:padding="10dp"
+                        android:visibility="gone">
 
-                    <TextView
-                        android:id="@+id/btnFav"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:paddingEnd="12dp"
-                        android:text="💜"
-                        android:textSize="12sp"
-                        android:contentDescription="@string/superchat_favorite" />
+                        <ImageView
+                            android:id="@+id/ivSongArt"
+                            android:layout_width="56dp"
+                            android:layout_height="56dp"
+                            android:scaleType="centerCrop"
+                            android:background="@drawable/bg_superchat_side_button"
+                            android:contentDescription="@string/superchat_image" />
 
-                    <TextView
-                        android:id="@+id/btnShare"
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="10dp"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/tvSongTitle"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:textColor="#FFFFFF"
+                                android:textSize="13sp"
+                                android:textStyle="bold"
+                                android:maxLines="1"
+                                android:ellipsize="end"
+                                tools:text="Kesariya" />
+
+                            <TextView
+                                android:id="@+id/tvSongArtist"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:textColor="#C4B5FD"
+                                android:textSize="11sp"
+                                android:maxLines="1"
+                                android:ellipsize="end"
+                                tools:text="Arijit Singh" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/btnSongPlay"
+                            android:layout_width="44dp"
+                            android:layout_height="44dp"
+                            android:background="@drawable/bg_action_button"
+                            android:gravity="center"
+                            android:text="▶"
+                            android:textColor="#FFFFFF"
+                            android:textSize="16sp" />
+                    </LinearLayout>
+
+                    <!-- Shimmer sweep overlay (animated once per new reply) -->
+                    <View
+                        android:id="@+id/shimmerView"
+                        android:layout_width="60dp"
+                        android:layout_height="match_parent"
+                        android:background="@drawable/bg_shimmer_sweep"
+                        android:visibility="invisible" />
+
+                    <LinearLayout
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="↗️"
-                        android:textSize="12sp"
-                        android:contentDescription="@string/superchat_share" />
+                        android:layout_marginTop="8dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/btnSpeak"
+                            android:layout_width="34dp"
+                            android:layout_height="34dp"
+                            android:layout_marginEnd="10dp"
+                            android:background="@drawable/bg_action_button"
+                            android:gravity="center"
+                            android:text="🔊"
+                            android:textSize="14sp"
+                            android:contentDescription="@string/superchat_speak" />
+
+                        <TextView
+                            android:id="@+id/btnCopy"
+                            android:layout_width="34dp"
+                            android:layout_height="34dp"
+                            android:layout_marginEnd="10dp"
+                            android:background="@drawable/bg_action_button"
+                            android:gravity="center"
+                            android:text="📋"
+                            android:textSize="14sp"
+                            android:contentDescription="@string/superchat_copy" />
+
+                        <TextView
+                            android:id="@+id/btnFav"
+                            android:layout_width="34dp"
+                            android:layout_height="34dp"
+                            android:layout_marginEnd="10dp"
+                            android:background="@drawable/bg_action_button"
+                            android:gravity="center"
+                            android:text="💜"
+                            android:textSize="14sp"
+                            android:contentDescription="@string/superchat_favorite" />
+
+                        <TextView
+                            android:id="@+id/btnShare"
+                            android:layout_width="34dp"
+                            android:layout_height="34dp"
+                            android:background="@drawable/bg_action_button"
+                            android:gravity="center"
+                            android:text="↗️"
+                            android:textSize="14sp"
+                            android:contentDescription="@string/superchat_share" />
+                    </LinearLayout>
                 </LinearLayout>
-            </LinearLayout>
+            </FrameLayout>
         </LinearLayout>
     </LinearLayout>
 </LinearLayout>

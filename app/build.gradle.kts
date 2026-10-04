@@ -40,15 +40,19 @@ android {
         val cerebrasApiKey = System.getenv("CEREBRAS_API_KEY") ?: localProperties.getProperty("CEREBRAS_API_KEY") ?: ""
         val huggingfaceApiKey = System.getenv("HUGGINGFACE_API_KEY") ?: localProperties.getProperty("HUGGINGFACE_API_KEY") ?: ""
         val groqModel = System.getenv("GROQ_MODEL") ?: localProperties.getProperty("GROQ_MODEL") ?: "openai/gpt-oss-20b"
+        val groqVisionModel = System.getenv("GROQ_VISION_MODEL") ?: localProperties.getProperty("GROQ_VISION_MODEL") ?: "meta-llama/llama-4-scout-17b-16e-instruct"
         val openRouterApiKey = System.getenv("OPENROUTER_API_KEY") ?: localProperties.getProperty("OPENROUTER_API_KEY") ?: ""
         val hackerEarthClientId = System.getenv("HACKEREARTH_CLIENT_ID") ?: localProperties.getProperty("HACKEREARTH_CLIENT_ID") ?: ""
         val hackerEarthClientSecret = System.getenv("HACKEREARTH_CLIENT_SECRET") ?: localProperties.getProperty("HACKEREARTH_CLIENT_SECRET") ?: ""
         val codeRunnerProxyUrl = System.getenv("CODE_RUNNER_PROXY_URL") ?: localProperties.getProperty("CODE_RUNNER_PROXY_URL") ?: ""
         val pollinationsApiKey = System.getenv("POLLINATIONS_API_KEY") ?: localProperties.getProperty("POLLINATIONS_API_KEY") ?: ""
         val puterAuthToken = System.getenv("PUTER_AUTH_TOKEN") ?: localProperties.getProperty("PUTER_AUTH_TOKEN") ?: ""
+        val geminiApiKey = System.getenv("GEMINI_API_KEY") ?: localProperties.getProperty("GEMINI_API_KEY") ?: ""
+        val geminiModel = (System.getenv("GEMINI_MODEL") ?: localProperties.getProperty("GEMINI_MODEL") ?: "").ifBlank { "gemini-2.0-flash" }
 
         buildConfigField("String", "GROQ_API_KEY", "\"$groqApiKey\"")
         buildConfigField("String", "GROQ_MODEL", "\"$groqModel\"")
+        buildConfigField("String", "GROQ_VISION_MODEL", "\"$groqVisionModel\"")
         buildConfigField("String", "CLOUDFLARE_API_TOKEN", "\"$cloudflareApiToken\"")
         buildConfigField("String", "CLOUDFLARE_ACCOUNT_ID", "\"$cloudflareAccountId\"")
         buildConfigField("String", "LLM7_API_KEY", "\"$llm7ApiKey\"")
@@ -62,6 +66,8 @@ android {
         buildConfigField("String", "CODE_RUNNER_PROXY_URL", "\"$codeRunnerProxyUrl\"")
         buildConfigField("String", "POLLINATIONS_API_KEY", "\"$pollinationsApiKey\"")
         buildConfigField("String", "PUTER_AUTH_TOKEN", "\"$puterAuthToken\"")
+        buildConfigField("String", "GEMINI_API_KEY", "\"$geminiApiKey\"")
+        buildConfigField("String", "GEMINI_MODEL", "\"$geminiModel\"")
     }
 
     signingConfigs {
@@ -296,14 +302,31 @@ val syncWebAssets by tasks.registering(Exec::class) {
             logger.warn("syncWebAssets: web build failed (exit=$exit) or dist/index.html missing - keeping existing assets.")
             return@doLast
         }
-        // Copy to a temp dir and verify BEFORE touching the shipped assets,
-        // so a partial copy can never leave the APK with a dead web UI.
+        // Copy to a temp dir and verify BEFORE touching the shipped assets. Preserve
+        // tracked runtime audio that Vite cannot emit.
         val tmp = layout.buildDirectory.dir("tmp/web-assets-sync").get().asFile
         tmp.deleteRecursively()
         webDistDir.copyRecursively(tmp, overwrite = true)
+        // Preserve every existing runtime asset, not only today's audio allowlist. This
+        // prevents a future tracked font/locale/clip from disappearing during a Vite sync.
+        val preservedFiles = webAssetsDir.walkTopDown()
+            .filter { it.isFile }
+            .map { it.relativeTo(webAssetsDir) to it }
+            .toList()
+        val preservedBackupDir = layout.buildDirectory.dir("tmp/web-assets-preserved").get().asFile
+        preservedBackupDir.deleteRecursively()
+        preservedFiles.forEach { (relative, file) ->
+            val backup = preservedBackupDir.resolve(relative.path)
+            backup.parentFile.mkdirs()
+            file.copyTo(backup, overwrite = true)
+        }
         if (tmp.resolve("index.html").isFile) {
             webAssetsDir.deleteRecursively()
             tmp.copyRecursively(webAssetsDir, overwrite = true)
+            preservedFiles.forEach { (relative, _) ->
+                val backup = preservedBackupDir.resolve(relative.path)
+                if (backup.isFile) backup.copyTo(webAssetsDir.resolve(relative.path), overwrite = true)
+            }
             logger.lifecycle("syncWebAssets: web UI synced into Android assets.")
         } else {
             logger.warn("syncWebAssets: copy verification failed - keeping existing assets.")

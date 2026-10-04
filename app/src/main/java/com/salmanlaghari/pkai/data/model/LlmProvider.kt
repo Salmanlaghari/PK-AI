@@ -12,6 +12,7 @@ import com.salmanlaghari.pkai.BuildConfig
  *  - [defaultModel] the model id sent on every request
  *  - [apiKeyBuildConfig] the [com.salmanlaghari.pkai.BuildConfig] field that holds the API key
  *
+ * OpenAI-compatible providers include Gemini, Groq, LLM7.io, Mistral and Puter AI.
  * API keys are NEVER hardcoded here — they are injected at build time into BuildConfig from
  * local.properties / CI secrets and read by the factory. See SECURITY notes in the PR.
  */
@@ -49,6 +50,19 @@ data class LlmProvider(
     companion object {
         val ALL: List<LlmProvider> = listOf(
             LlmProvider(
+                id = "gemini",
+                displayName = "Gemini",
+                tagline = "Google's Gemini models",
+                logoEmoji = "✨",
+                format = ProviderFormat.OPENAI,
+                // Gemini's OpenAI-compatible endpoint — reuses OpenAiCompatibleProvider
+                baseUrl = "https://generativelanguage.googleapis.com/v1beta/openai/",
+                defaultModel = BuildConfig.GEMINI_MODEL,
+                apiKeyBuildConfig = "GEMINI_API_KEY",
+                supportsVision = true,
+                visionModel = BuildConfig.GEMINI_MODEL
+            ),
+            LlmProvider(
                 id = "groq",
                 displayName = "Groq",
                 tagline = "Fastest inference on earth",
@@ -59,7 +73,7 @@ data class LlmProvider(
                 defaultModel = BuildConfig.GROQ_MODEL,
                 apiKeyBuildConfig = "GROQ_API_KEY",
                 supportsVision = true,
-                visionModel = "llama-3.2-11b-vision-preview"
+                visionModel = BuildConfig.GROQ_VISION_MODEL
             ),
             LlmProvider(
                 id = "llm7",
@@ -110,7 +124,8 @@ data class LlmProvider(
             )
         )
 
-        val DEFAULT: LlmProvider = ALL.first()
+        /** Groq is the safe default when optional Gemini credentials are absent. */
+        val DEFAULT: LlmProvider = ALL.firstOrNull { it.id == "groq" } ?: ALL.first()
 
         fun fromId(id: String): LlmProvider = ALL.firstOrNull { it.id == id } ?: DEFAULT
     }

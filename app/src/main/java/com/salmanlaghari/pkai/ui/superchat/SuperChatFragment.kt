@@ -1,11 +1,7 @@
 package com.salmanlaghari.pkai.ui.superchat
 
-import android.app.Dialog
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
 import android.content.SharedPreferences
-import android.graphics.BitmapFactory
 import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.os.Build
@@ -13,13 +9,10 @@ import android.os.Bundle
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
-import android.speech.tts.TextToSpeech
 import android.view.HapticFeedbackConstants
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
-import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
@@ -29,17 +22,18 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import com.salmanlaghari.pkai.R
-import com.salmanlaghari.pkai.data.model.ChatMessage
+import com.salmanlaghari.pkai.data.local.datastore.PreferencesManager
 import com.salmanlaghari.pkai.databinding.FragmentSuperChatBinding
+import com.salmanlaghari.pkai.ui.chat.ChatAutoScroller
+import com.salmanlaghari.pkai.ui.tips.TipsAutoPopup
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.File
-import java.util.Locale
+import javax.inject.Inject
 
 /**
  * Super Chat — a mood-reactive avatar companion session with a professional,
@@ -60,10 +54,13 @@ class SuperChatFragment : Fragment() {
     private lateinit var adapter: SuperChatAdapter
     private lateinit var prefs: SharedPreferences
 
-    private var tts: TextToSpeech? = null
-    private var ttsReady = false
-    /** Contents of AI messages the user hearted, for the 💖 badge. */
-    private val favoritedContents = mutableSetOf<String>()
+    @Inject
+    lateinit var preferencesManager: PreferencesManager
+
+    /** Shared per-message actions (speak/copy/favorite/share/fullscreen) — also used by Home. */
+    private lateinit var messageActions: ChatMessageActions
+    /** Shared smart auto-scroll — also used by Home. */
+    private val chatAutoScroller = ChatAutoScroller()
 
     // ── Voice recording ──────────────────────────────────────────────
     private var recorder: MediaRecorder? = null
@@ -76,7 +73,6 @@ class SuperChatFragment : Fragment() {
     private var isSongPaused = false
     private var recordingJob: Job? = null
     private var isRecording = false
-    private var lastAutoScrollMessageCount = -1
 
     private val pickImageLauncher =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -121,6 +117,7 @@ class SuperChatFragment : Fragment() {
         prefs = requireContext()
             .getSharedPreferences("super_chat_prefs", Context.MODE_PRIVATE)
         viewModel.setFavorites(loadFavorites())
+        messageActions = ChatMessageActions(requireContext())
 
         // Start the live water background animation 🌊
         (binding.superChatRoot.background as? android.graphics.drawable.AnimationDrawable)?.start()
@@ -135,17 +132,23 @@ class SuperChatFragment : Fragment() {
         setupHeader()
         setupMediaButtons()
         setupBannerAd()
-        initTts()
         observeViewModel()
+
+        // Tips auto-popup on first chat entry (skipped when opted out).
+        TipsAutoPopup.maybeShow(this, preferencesManager, "superchat")
     }
 
     private fun setupChat() {
         adapter = SuperChatAdapter(
-            onSpeak = { speak(it) },
-            onCopy = { copy(it) },
-            onFavorite = { toggleMessageFavorite(it) },
-            onShare = { share(it) },
-            onImageClick = { showFullscreenImage(it) }
+            onSpeak = { messageActions.speak(it) },
+            onCopy = { messageActions.copy(it) },
+            onFavorite = {
+                messageActions.toggleFavorite(it)
+                adapter.favoriteContents = messageActions.favoriteContents
+                adapter.notifyDataSetChanged()
+            },
+            onShare = { messageActions.share(it) },
+            onImageClick = { messageActions.showFullscreenImage(it) }
         )
         adapter.onSongPlayClicked = { toggleSongPlayback(it) }
         binding.rvSuperChat.layoutManager = LinearLayoutManager(requireContext())
@@ -363,19 +366,15 @@ class SuperChatFragment : Fragment() {
                         val items = messages.map { SuperChatAdapter.Item.Message(it) } +
                             (if (generating) listOf(SuperChatAdapter.Item.Typing) else emptyList())
                         val rv = binding.rvSuperChat
-                        val lm = rv.layoutManager as? LinearLayoutManager
-                        val oldCount = adapter.itemCount
-                        val lastVisible = lm?.findLastVisibleItemPosition() ?: RecyclerView.NO_POSITION
-                        val wasNearBottom = oldCount == 0 ||
-                            (lastVisible != RecyclerView.NO_POSITION && lastVisible >= oldCount - 2)
-                        val firstSubmission = lastAutoScrollMessageCount == -1
-                        val userJustSent = messages.lastOrNull()?.isUser == true &&
-                            messages.size != lastAutoScrollMessageCount
-                        val shouldAutoScroll = items.isNotEmpty() &&
-                            (firstSubmission || wasNearBottom || userJustSent)
-                        lastAutoScrollMessageCount = messages.size
+                        val shouldScroll = chatAutoScroller.shouldScrollToBottom(
+                            rv,
+                            adapter.itemCount,
+                            items.size,
+                            messages.size,
+                            messages.lastOrNull()?.isUser == true
+                        )
                         adapter.submitList(items) {
-                            if (shouldAutoScroll) {
+                            if (shouldScroll) {
                                 rv.smoothScrollToPosition(items.size - 1)
                             }
                         }
@@ -511,60 +510,7 @@ class SuperChatFragment : Fragment() {
         "data:$mime;base64,${android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)}"
     }.getOrNull()
 
-    /* ── Fullscreen image ───────────────────────────────────────────── */
-
-    private fun showFullscreenImage(uri: String) {
-        val dialog = Dialog(requireContext(), android.R.style.Theme_Black_NoTitleBar_Fullscreen)
-        val imageView = ImageView(requireContext()).apply {
-            layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
-            )
-            scaleType = ImageView.ScaleType.FIT_CENTER
-        }
-        try {
-            requireContext().contentResolver
-                .openInputStream(android.net.Uri.parse(uri))?.use { ins ->
-                    imageView.setImageBitmap(BitmapFactory.decodeStream(ins))
-                }
-        } catch (_: Exception) { }
-        imageView.setOnClickListener { dialog.dismiss() }
-        dialog.setContentView(imageView)
-        dialog.show()
-    }
-
-    /* ── Message actions ────────────────────────────────────────────── */
-
-    private fun speak(message: ChatMessage) {
-        if (!ttsReady) {
-            toast("Text-to-speech is not ready yet")
-            return
-        }
-        tts?.speak(message.content, TextToSpeech.QUEUE_FLUSH, null, message.id)
-    }
-
-    private fun copy(message: ChatMessage) {
-        val clipboard = requireContext()
-            .getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        clipboard.setPrimaryClip(ClipData.newPlainText("PK AI", message.content))
-        toast("Copied to clipboard")
-    }
-
-    private fun toggleMessageFavorite(message: ChatMessage) {
-        if (!favoritedContents.add(message.content)) {
-            favoritedContents.remove(message.content)
-        }
-        adapter.favoriteContents = favoritedContents
-        adapter.notifyDataSetChanged()
-    }
-
-    private fun share(message: ChatMessage) {
-        val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-            type = "text/plain"
-            putExtra(android.content.Intent.EXTRA_TEXT, message.content)
-        }
-        startActivity(android.content.Intent.createChooser(intent, getString(R.string.superchat_share)))
-    }
+    /* ── Favorites persistence (sticker indices) ──────────────────── */
 
     private fun loadFavorites(): Set<Int> =
         prefs.getStringSet(KEY_FAVORITES, emptySet())
@@ -574,15 +520,6 @@ class SuperChatFragment : Fragment() {
         prefs.edit()
             .putStringSet(KEY_FAVORITES, favorites.map { it.toString() }.toSet())
             .apply()
-    }
-
-    private fun initTts() {
-        tts = TextToSpeech(requireContext()) { status ->
-            if (status == TextToSpeech.SUCCESS) {
-                tts?.language = Locale.US
-                ttsReady = true
-            }
-        }
     }
 
     private fun toast(message: String) {
@@ -597,9 +534,6 @@ class SuperChatFragment : Fragment() {
         try { songPlayer?.release() } catch (_: Exception) { }
         songPlayer = null
         playingSongId = null
-        tts?.stop()
-        tts?.shutdown()
-        tts = null
         _binding = null
         super.onDestroyView()
     }

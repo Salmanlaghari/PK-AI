@@ -240,4 +240,18 @@ class PreferencesManager @Inject constructor(
     suspend fun getCodeRunCount(): Int {
         return context.dataStore.data.first()[codeRunCountKey] ?: 0
     }
+
+    // ------------------------------------------------------------------
+    // Tips auto-popup opt-out ("Don't show automatically again" checkbox)
+    private val tipsDontShowAgainKey = booleanPreferencesKey("tips_dont_show_again")
+
+    val tipsDontShowAgain: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[tipsDontShowAgainKey] ?: false
+    }
+
+    suspend fun setTipsDontShowAgain(dontShow: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[tipsDontShowAgainKey] = dontShow
+        }
+    }
 }

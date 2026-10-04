@@ -194,6 +194,34 @@
                         android:lineSpacingExtra="2dp"
                         tools:text="Hello! 👋 How are you?" />
 
+                    <!-- Inline markdown images (e.g. generated pictures) -->
+                    <LinearLayout
+                        android:id="@+id/layoutAiImages"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:orientation="vertical"
+                        android:visibility="gone" />
+
+                    <TextView
+                        android:id="@+id/tvAiImageError"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="⚠️ Couldn't load image"
+                        android:textColor="#FFB4A2"
+                        android:textSize="11sp"
+                        android:visibility="gone" />
+
+                    <!-- Runnable ```code``` blocks -->
+                    <LinearLayout
+                        android:id="@+id/layoutCodeBlocks"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:orientation="vertical"
+                        android:visibility="gone" />
+
                     <!-- 🎵 Song visual card — shown for song search results -->
                     <LinearLayout
                         android:id="@+id/songCard"

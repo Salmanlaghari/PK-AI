@@ -58,4 +58,15 @@
         android:layout_weight="1"
         android:clipToPadding="false"
         android:padding="12dp" />
+
+    <CheckBox
+        android:id="@+id/cb_tips_dont_show_again"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="16dp"
+        android:text="Don\'t show automatically again"
+        android:textColor="#1A1A2E"
+        android:textSize="12sp" />
 </LinearLayout>

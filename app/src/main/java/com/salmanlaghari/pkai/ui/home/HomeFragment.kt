@@ -28,8 +28,13 @@ import com.salmanlaghari.pkai.MainActivity
 import com.salmanlaghari.pkai.R
 import com.salmanlaghari.pkai.data.local.datastore.PreferencesManager
 import com.salmanlaghari.pkai.databinding.FragmentHomeBinding
+import com.salmanlaghari.pkai.ui.chat.ChatAutoScroller
+import com.salmanlaghari.pkai.ui.superchat.ChatMessageActions
+import com.salmanlaghari.pkai.ui.superchat.SuperChatAdapter
+import com.salmanlaghari.pkai.ui.tips.TipsAutoPopup
 import com.salmanlaghari.pkai.ui.voice.VoiceRecognitionHelper
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -43,6 +48,13 @@ class HomeFragment : Fragment() {
 
     @Inject
     lateinit var preferencesManager: PreferencesManager
+
+    /** Super Chat message list — the same pro adapter the Super Chat screen uses. */
+    private lateinit var chatAdapter: SuperChatAdapter
+    /** Shared per-message actions (speak/copy/favorite/share/fullscreen). */
+    private lateinit var messageActions: ChatMessageActions
+    /** Shared smart auto-scroll. */
+    private val chatAutoScroller = ChatAutoScroller()
 
     private var isGuest = false
     private var guestMessageCount = 0
@@ -97,9 +109,21 @@ class HomeFragment : Fragment() {
         // Start the Gemini-style light live wallpaper animation 🌅
         (view.background as? android.graphics.drawable.AnimationDrawable)?.start()
 
-        val chatAdapter = ChatAdapter { code, lang, onResult ->
-            viewModel.runCode(code, lang, onResult)
-        }
+        // Home hosts the Super Chat experience: same pro adapter (3D animated
+        // cards, typing indicator, message actions) backed by the Home chat.
+        messageActions = ChatMessageActions(requireContext())
+        chatAdapter = SuperChatAdapter(
+            onSpeak = { messageActions.speak(it) },
+            onCopy = { messageActions.copy(it) },
+            onFavorite = {
+                messageActions.toggleFavorite(it)
+                chatAdapter.favoriteContents = messageActions.favoriteContents
+                chatAdapter.notifyDataSetChanged()
+            },
+            onShare = { messageActions.share(it) },
+            onImageClick = { messageActions.showFullscreenImage(it) },
+            onRunCode = { code, lang, onResult -> viewModel.runCode(code, lang, onResult) }
+        )
         binding.rvChatMessages.adapter = chatAdapter
 
         lifecycleScope.launch {
@@ -140,11 +164,6 @@ class HomeFragment : Fragment() {
         lifecycleScope.launch {
             viewModel.isImageMode.collect { updateImageModeToggle() }
         }
-        lifecycleScope.launch {
-            viewModel.generatingLabel.collect { label ->
-                _binding?.let { b -> b.tvTyping.text = label }
-            }
-        }
 
         binding.btnTabPremium.setOnClickListener { viewModel.setFreeMode(false) }
         binding.btnTabFree.setOnClickListener { viewModel.setFreeMode(true) }
@@ -161,10 +180,23 @@ class HomeFragment : Fragment() {
         setupFreeModelChips()
 
         lifecycleScope.launch {
-            viewModel.chatMessages.collect { messages ->
-                chatAdapter.submitList(messages) {
-                    if (messages.isNotEmpty()) {
-                        _binding?.let { b -> b.rvChatMessages.scrollToPosition(messages.size - 1) }
+            combine(viewModel.chatMessages, viewModel.isGenerating) { messages, generating ->
+                messages to generating
+            }.collect { (messages, generating) ->
+                val b = _binding ?: return@collect
+                // Super Chat item list: pro message cards + bouncing-dots typing indicator.
+                val items = messages.map { SuperChatAdapter.Item.Message(it) } +
+                    (if (generating) listOf(SuperChatAdapter.Item.Typing) else emptyList())
+                val shouldScroll = chatAutoScroller.shouldScrollToBottom(
+                    b.rvChatMessages,
+                    chatAdapter.itemCount,
+                    items.size,
+                    messages.size,
+                    messages.lastOrNull()?.isUser == true
+                )
+                chatAdapter.submitList(items) {
+                    if (shouldScroll) {
+                        b.rvChatMessages.smoothScrollToPosition(items.size - 1)
                     }
                 }
             }
@@ -173,7 +205,6 @@ class HomeFragment : Fragment() {
         lifecycleScope.launch {
             viewModel.isGenerating.collect { isGenerating ->
                 _binding?.let { b ->
-                    b.layoutTyping.visibility = if (isGenerating) View.VISIBLE else View.GONE
                     b.btnSend.isEnabled = !isGenerating
                     b.btnAttach.isEnabled = !isGenerating
                 }
@@ -197,6 +228,9 @@ class HomeFragment : Fragment() {
         binding.btnSettings.setOnClickListener {
             findNavController().navigate(R.id.settingsFragment)
         }
+
+        // Tips auto-popup on first chat entry (skipped when opted out).
+        TipsAutoPopup.maybeShow(this, preferencesManager, "home")
     }
 
     /** Reflects the active provider/model in the persistent chip + input hint. */
@@ -244,32 +278,18 @@ class HomeFragment : Fragment() {
         currentBinding.btnTabFree.setTextColor(resources.getColor(if (isFree) activeText else idleText, null))
     }
 
-    /** Updates the Chat / Image segmented control to match the current mode with stylish 8K HD styling. */
+    /** Updates the compact Chat / Image icon toggle to match the current mode. */
     private fun updateImageModeToggle() {
         val currentBinding = _binding ?: return
         val isImage = viewModel.isImageMode.value
-        currentBinding.layoutImageModeToggle.visibility = View.VISIBLE
-
-        val activeText = ContextCompat.getColor(requireContext(), R.color.white)
-        val idleText = ContextCompat.getColor(requireContext(), R.color.outline)
-
-        if (!isImage) {
-            currentBinding.btnTabChat.setBackgroundResource(R.drawable.bg_mode_button_chat_active)
-            currentBinding.tvTabChatTitle.setTextColor(activeText)
-            currentBinding.tvTabChatTitle.setTypeface(null, android.graphics.Typeface.BOLD)
-
-            currentBinding.btnTabImage.setBackgroundResource(R.drawable.bg_mode_button_inactive)
-            currentBinding.tvTabImageTitle.setTextColor(idleText)
-            currentBinding.tvTabImageTitle.setTypeface(null, android.graphics.Typeface.NORMAL)
-        } else {
-            currentBinding.btnTabChat.setBackgroundResource(R.drawable.bg_mode_button_inactive)
-            currentBinding.tvTabChatTitle.setTextColor(idleText)
-            currentBinding.tvTabChatTitle.setTypeface(null, android.graphics.Typeface.NORMAL)
-
-            currentBinding.btnTabImage.setBackgroundResource(R.drawable.bg_mode_button_image_active)
-            currentBinding.tvTabImageTitle.setTextColor(activeText)
-            currentBinding.tvTabImageTitle.setTypeface(null, android.graphics.Typeface.BOLD)
-        }
+        currentBinding.btnTabChat.setBackgroundResource(
+            if (!isImage) R.drawable.bg_mode_button_chat_active
+            else R.drawable.bg_mode_button_inactive
+        )
+        currentBinding.btnTabImage.setBackgroundResource(
+            if (isImage) R.drawable.bg_mode_button_image_active
+            else R.drawable.bg_mode_button_inactive
+        )
     }
 
     private fun onSendClicked() {
@@ -582,6 +602,7 @@ class HomeFragment : Fragment() {
 
     override fun onDestroyView() {
         // Keep a pending attachment/grant across view recreation; the next view can render it.
+        if (::chatAdapter.isInitialized) chatAdapter.releasePlayer()
         voiceHelper?.destroy()
         voiceHelper = null
         (view?.background as? android.graphics.drawable.AnimationDrawable)?.stop()

@@ -84,7 +84,7 @@
             app:destination="@id/historyFragment" />
     </fragment>
 
-    <fragment
+    <dialog
         android:id="@+id/tipsFragment"
         android:name="com.salmanlaghari.pkai.ui.tips.TipsFragment"
         android:label="TipsFragment"

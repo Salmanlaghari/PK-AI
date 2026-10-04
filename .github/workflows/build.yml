@@ -121,6 +121,7 @@ jobs:
         run: ./gradlew bundleDebug --stacktrace
 
       - name: Upload Debug APK
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           retention-days: 3
@@ -136,6 +137,7 @@ jobs:
           path: app/build/outputs/apk/release/*.apk
 
       - name: Upload Debug AAB
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           retention-days: 3

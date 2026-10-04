@@ -5,6 +5,7 @@ import {
   isPuterSignedIn,
   getCachedPuterUser,
   loadPuterSDK,
+  PUTER_ERR_POPUP_CLOSED,
   type PuterUser,
 } from "../services/puterService";
 
@@ -111,12 +112,20 @@ export default function PuterAuthModal({ isOpen, onClose, onAuthSuccess }: Puter
       const user = await signInToPuter(setStage);
       onAuthSuccess(user);
     } catch (err: any) {
+      // A closed popup is the user changing their mind — not an error, so
+      // reset silently. The service tags this with a stable code (the legacy
+      // regex covers messages from older native builds).
+      const code = String(err?.code || "");
       const msg = String(err?.msg || err?.message || "Connect nahi ho saka.");
-      // A closed popup is the user changing their mind — not an error.
-      if (/dismiss|close|cancel|denied/i.test(msg)) {
+      const userCancelled =
+        code === PUTER_ERR_POPUP_CLOSED ||
+        /dismiss|close|cancel|denied|band kar diya/i.test(msg);
+      if (userCancelled) {
         setIsSigningIn(false);
         return;
       }
+      // Real failures surface the REAL reason in-app (timeout, popup
+      // blocked, SDK errors) — never a silent spinner or generic message.
       setError(msg);
     } finally {
       setIsSigningIn(false);

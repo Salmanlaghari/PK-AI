@@ -27,7 +27,7 @@ object SongSearchHelper {
     private val SONG_PREFIX = Regex("(?i)^(song|gana|gaana)\\s*:\\s*(.+)$")
     private val SUNAO = Regex("(?i)^([^\\s]+)\\s+sunao\\s*$")
     private val NON_MUSIC_QUERY = Regex(
-        "(?i)^(app|video|reel|reels|cricket|pubg|offline)\\b|\\b(store\\s+se|link\\s+(bhejo|send)|download|send\\s+me)\\b"
+        "(?i)^(app|reel|reels|cricket|pubg|offline)\\b|\\b(video\\s+(games?|link|bhejo)|store\\s+se|link\\s+(bhejo|send)|download|send\\s+me)\\b"
     )
 
     data class SongResult(
@@ -77,8 +77,12 @@ object SongSearchHelper {
         return null
     }
 
-    private fun isLikelySongQuery(query: String): Boolean =
-        !NON_MUSIC_QUERY.containsMatchIn(query.trim())
+    private fun isLikelySongQuery(query: String): Boolean {
+        val normalized = query.trim().lowercase(java.util.Locale.ROOT)
+        if (normalized == "game of thrones") return true
+        if (Regex("\\bgame\\b").containsMatchIn(normalized)) return false
+        return !NON_MUSIC_QUERY.containsMatchIn(normalized)
+    }
 
     /** Searches PagalWorld and returns the best streamable match, or null. */
     suspend fun searchSong(query: String): SongResult? = withContext(Dispatchers.IO) {

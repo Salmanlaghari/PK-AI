@@ -30,10 +30,13 @@ class AiProviderFactoryTest {
 
     @Test
     fun `getDefaultProvider returns configured provider or keyless fallback`() = runTest {
-        assertTrue(
-            factory.getDefaultProvider() is OpenAiCompatibleProvider ||
-                factory.getDefaultProvider() is KeylessLlmAiProvider
-        )
+        val selected = factory.defaultProviderId()
+        val result = factory.getDefaultProvider()
+        if (selected == null) {
+            assertTrue(result is KeylessLlmAiProvider)
+        } else {
+            assertTrue(result !is KeylessLlmAiProvider)
+        }
     }
 
     @Test

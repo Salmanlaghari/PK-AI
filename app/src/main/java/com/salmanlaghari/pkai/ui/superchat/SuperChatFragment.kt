@@ -343,12 +343,18 @@ class SuperChatFragment : Fragment() {
                     viewModel.messages.collect { messages ->
                         val items = messages.map { SuperChatAdapter.Item.Message(it) } +
                             (if (viewModel.isGenerating.value) listOf(SuperChatAdapter.Item.Typing) else emptyList())
-                        // Sample scroll state BEFORE submitList, against the OLD count
-                        val layoutManager = binding.rvSuperChat.layoutManager as? LinearLayoutManager
+                        // Sample scroll state BEFORE submitList, against the OLD count.
+                        // Capture the RecyclerView NOW: the submitList commit callback
+                        // runs later on the main thread and must not touch _binding!!
+                        // (view may be destroyed by then).
+                        val rv = binding.rvSuperChat
+                        val layoutManager = rv.layoutManager as? LinearLayoutManager
                         val oldCount = adapter.itemCount
                         val lastVisibleBefore = layoutManager?.findLastVisibleItemPosition()
                             ?: RecyclerView.NO_POSITION
-                        val wasNearBottom = lastVisibleBefore != RecyclerView.NO_POSITION &&
+                        // Treat unknown position (first layout) as near-bottom so a
+                        // restored conversation opens on the latest message.
+                        val wasNearBottom = lastVisibleBefore == RecyclerView.NO_POSITION ||
                             lastVisibleBefore >= oldCount - 2
                         adapter.submitList(items) {
                             if (items.isEmpty()) return@submitList
@@ -356,7 +362,7 @@ class SuperChatFragment : Fragment() {
                             // near the bottom, or when THEY just sent a message.
                             val userJustSent = messages.lastOrNull()?.isUser == true
                             if (wasNearBottom || userJustSent) {
-                                binding.rvSuperChat.smoothScrollToPosition(items.size - 1)
+                                rv.scrollToPosition(items.size - 1)
                             }
                         }
                     }

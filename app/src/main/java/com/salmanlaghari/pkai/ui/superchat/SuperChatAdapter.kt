@@ -89,7 +89,10 @@ class SuperChatAdapter(
         synchronized(artworkCache) {
             artworkCache[url]?.let { target.setImageBitmap(it); return }
         }
-        artworkExecutor.execute {
+        // Guard: executor may be shut down after releasePlayer()
+        if (artworkExecutor.isShutdown) return
+        try {
+            artworkExecutor.execute {
             var conn: java.net.HttpURLConnection? = null
             try {
                 conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
@@ -97,10 +100,22 @@ class SuperChatAdapter(
                 conn.readTimeout = 6000
                 conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14)")
                 if (conn.responseCode !in 200..299) return@execute
-                // Read bytes first: decodeStream can't honour inSampleSize on a
-                // non-markable network stream (would silently return null).
-                val bytes = conn.inputStream.use { it.readBytes() }
-                if (bytes.size > 2 * 1024 * 1024) return@execute // 2MB cap
+                // Bounded read: stream into a capped buffer so a hostile URL
+                // can't allocate unbounded heap before the size check.
+                val maxBytes = 2 * 1024 * 1024 // 2MB cap
+                val buffer = java.io.ByteArrayOutputStream()
+                val tmp = ByteArray(32 * 1024)
+                var total = 0
+                conn.inputStream.use { ins ->
+                    while (true) {
+                        val n = ins.read(tmp)
+                        if (n < 0) break
+                        total += n
+                        if (total > maxBytes) return@execute // too large, skip
+                        buffer.write(tmp, 0, n)
+                    }
+                }
+                val bytes = buffer.toByteArray()
                 // Downsample: song art is shown at ~56dp
                 val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
                 BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
@@ -113,7 +128,8 @@ class SuperChatAdapter(
                 }
             } catch (_: Exception) { /* keep placeholder */ }
             finally { conn?.disconnect() }
-        }
+            }
+        } catch (_: java.util.concurrent.RejectedExecutionException) { /* shut down */ }
     }
 
     /** Computes an inSampleSize that keeps the bitmap near target dimensions. */
@@ -251,8 +267,11 @@ class SuperChatAdapter(
             if (uri == null) return
             // Tag guard: recycled rows must not show another message's image
             target.tag = uri
+            // Guard: executor may be shut down after releasePlayer()
+            if (thumbnailExecutor.isShutdown) return
             // Decode off the main thread on its own executor (never queued
             // behind network artwork downloads).
+            try {
             thumbnailExecutor.execute {
                 try {
                     // Sample to ~512px: crisp in the list, full image kept for
@@ -284,6 +303,7 @@ class SuperChatAdapter(
                     }
                 } catch (_: Exception) { /* keep placeholder */ }
             }
+            } catch (_: java.util.concurrent.RejectedExecutionException) { /* shut down */ }
         }
 
         private fun toggleVoice(message: ChatMessage) {

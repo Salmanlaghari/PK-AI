@@ -55,11 +55,6 @@ jobs:
           cache: 'npm'
           cache-dependency-path: ultra-ai-chat-space/package-lock.json
 
-      - name: Build Ultra AI web assets
-        run: |
-          # Gradle syncWebAssets owns the web build and preserves committed runtime assets.
-
-
       - name: Build Release APK & AAB
         run: ./gradlew assembleRelease bundleRelease --stacktrace
         env:

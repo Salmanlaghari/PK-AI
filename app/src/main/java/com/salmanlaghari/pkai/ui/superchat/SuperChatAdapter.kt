@@ -53,6 +53,7 @@ class SuperChatAdapter(
 
     private var voicePlayer: MediaPlayer? = null
     private var playingMessageId: String? = null
+    private var pausedMessageId: String? = null
 
     /** Callback when the song play button is tapped (handled by Fragment). */
     var onSongPlayClicked: ((ChatMessage) -> Unit)? = null
@@ -149,6 +150,7 @@ class SuperChatAdapter(
         voicePlayer?.release()
         voicePlayer = null
         playingMessageId = null
+        pausedMessageId = null
         // Shut down background executors so no threads leak per adapter instance
         try { artworkExecutor.shutdownNow() } catch (_: Exception) { }
         try { thumbnailExecutor.shutdownNow() } catch (_: Exception) { }
@@ -249,7 +251,7 @@ class SuperChatAdapter(
                     tvUserMessage.visibility = View.GONE
                     ivUserImage.visibility = View.GONE
                     voiceUserRow.visibility = View.VISIBLE
-                    val playing = playingMessageId == message.id
+                    val playing = playingMessageId == message.id && pausedMessageId != message.id
                     btnUserVoicePlay.text = if (playing) "⏸" else "▶"
                     tvUserVoiceDuration.text = message.attachmentName ?: "🎤"
                     btnUserVoicePlay.setOnClickListener { toggleVoice(message) }
@@ -267,6 +269,7 @@ class SuperChatAdapter(
             if (uri == null) return
             // Tag guard: recycled rows must not show another message's image
             target.tag = uri
+            target.setImageDrawable(null)
             // Guard: executor may be shut down after releasePlayer()
             if (thumbnailExecutor.isShutdown) return
             // Decode off the main thread on its own executor (never queued
@@ -311,25 +314,30 @@ class SuperChatAdapter(
             if (playingMessageId == message.id && voicePlayer != null) {
                 if (voicePlayer?.isPlaying == true) {
                     voicePlayer?.pause()
+                    pausedMessageId = message.id
                     btnUserVoicePlay.text = "▶"
                 } else {
                     voicePlayer?.start()
+                    pausedMessageId = null
                     btnUserVoicePlay.text = "⏸"
                 }
                 return
             }
             try {
                 voicePlayer?.release()
+                pausedMessageId = null
                 voicePlayer = MediaPlayer().apply {
                     setDataSource(itemView.context, android.net.Uri.parse(uri))
                     prepare()
                     setOnCompletionListener {
                         playingMessageId = null
+                        pausedMessageId = null
                         btnUserVoicePlay.text = "▶"
                     }
                     start()
                 }
                 playingMessageId = message.id
+                pausedMessageId = null
                 btnUserVoicePlay.text = "⏸"
             } catch (_: Exception) { }
         }

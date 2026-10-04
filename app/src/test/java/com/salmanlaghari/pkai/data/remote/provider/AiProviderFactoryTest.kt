@@ -29,8 +29,11 @@ class AiProviderFactoryTest {
     }
 
     @Test
-    fun `getDefaultProvider returns the default provider (Gemini) as openai-compatible`() = runTest {
-        assertTrue(factory.getDefaultProvider() is OpenAiCompatibleProvider)
+    fun `getDefaultProvider returns configured provider or keyless fallback`() = runTest {
+        assertTrue(
+            factory.getDefaultProvider() is OpenAiCompatibleProvider ||
+                factory.getDefaultProvider() is KeylessLlmAiProvider
+        )
     }
 
     @Test

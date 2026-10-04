@@ -415,16 +415,21 @@ class HomeViewModel @Inject constructor(
                             modelUsed = finalLabel
                         )
                     )
-                    // Record/refresh this chat in the History screen (Room REPLACE
-                    // keeps a single row per session; no duplicates).
+                    // Best-effort: isolated from the streaming try/catch above so a
+                    // Room failure here can't surface as a bogus error bubble
+                    // after a successful reply.
                     if (historySessionTitle == null) {
                         historySessionTitle = content.trim().take(60)
                     }
-                    historySessionId = chatHistoryRecorder.recordSession(
-                        sessionId = historySessionId,
-                        title = historySessionTitle ?: content.trim().take(60),
-                        preview = builder.toString().take(120)
-                    )
+                    runCatching {
+                        historySessionId = chatHistoryRecorder.recordSession(
+                            sessionId = historySessionId,
+                            title = historySessionTitle ?: content.trim().take(60),
+                            preview = builder.toString().take(120)
+                        )
+                    }.onFailure { e ->
+                        Log.w(TAG, "History recording failed (best-effort)", e)
+                    }
                 }
             } catch (e: Exception) {
                 val errorMessage = ChatMessage(

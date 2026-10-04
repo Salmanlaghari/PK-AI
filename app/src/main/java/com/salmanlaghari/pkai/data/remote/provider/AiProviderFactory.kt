@@ -137,8 +137,10 @@ class AiProviderFactory @Inject constructor(
      * Resolves the API key for a provider. The user's own Gemini key (BYOK, stored
      * in [GeminiKeyStore]) wins over the shared BuildConfig key when present, so
      * that user's requests consume their own quota. Never logs key values.
+     *
+     * Internal (not private) so unit tests can assert key-resolution precedence.
      */
-    private fun keyFor(provider: LlmProvider): String = when (provider.apiKeyBuildConfig) {
+    internal fun keyFor(provider: LlmProvider): String = when (provider.apiKeyBuildConfig) {
         "GEMINI_API_KEY" -> geminiKeyStore.getApiKey()?.takeIf { it.isNotBlank() }
             ?: BuildConfig.GEMINI_API_KEY
         "GROQ_API_KEY" -> BuildConfig.GROQ_API_KEY

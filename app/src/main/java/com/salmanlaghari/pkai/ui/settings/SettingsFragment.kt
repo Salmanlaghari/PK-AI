@@ -144,16 +144,26 @@ class SettingsFragment : Fragment() {
                 Toast.makeText(requireContext(), "Paste your Gemini API key first", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            viewModel.saveGeminiKey(key)
-            binding.etGeminiKey.text?.clear()
-            binding.etGeminiKey.clearFocus()
-            Toast.makeText(requireContext(), "Gemini API key saved securely", Toast.LENGTH_SHORT).show()
+            viewModel.saveGeminiKey(key) { saved ->
+                if (saved) {
+                    binding.etGeminiKey.text?.clear()
+                    binding.etGeminiKey.clearFocus()
+                    Toast.makeText(requireContext(), "Gemini API key saved securely", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(requireContext(), "Could not save key — please try again", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
 
         binding.btnClearGeminiKey.setOnClickListener {
-            viewModel.clearGeminiKey()
-            binding.etGeminiKey.text?.clear()
-            Toast.makeText(requireContext(), "Personal Gemini key removed", Toast.LENGTH_SHORT).show()
+            viewModel.clearGeminiKey { cleared ->
+                if (cleared) {
+                    binding.etGeminiKey.text?.clear()
+                    Toast.makeText(requireContext(), "Personal Gemini key removed", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(requireContext(), "Could not remove key — please try again", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
     }
 

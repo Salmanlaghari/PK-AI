@@ -27,6 +27,7 @@ import com.salmanlaghari.pkai.data.local.datastore.PreferencesManager
 import com.salmanlaghari.pkai.databinding.FragmentSuperChatBinding
 import com.salmanlaghari.pkai.ui.chat.ChatAutoScroller
 import com.salmanlaghari.pkai.ui.tips.TipsAutoPopup
+import com.salmanlaghari.pkai.util.TtsHelper
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -529,6 +530,8 @@ class SuperChatFragment : Fragment() {
     override fun onDestroyView() {
         if (isRecording) stopVoiceRecording(send = false)
         adapter.releasePlayer()
+        // Stop TTS speech so audio never keeps playing after leaving the screen
+        TtsHelper.stop()
         // Release the song streaming player so audio never leaks past the screen
         try { songPlayer?.stop() } catch (_: Exception) { }
         try { songPlayer?.release() } catch (_: Exception) { }

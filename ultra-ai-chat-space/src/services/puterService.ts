@@ -168,8 +168,19 @@ export const PUTER_ERR_POPUP_CLOSED = "PUTER_POPUP_CLOSED";
 export const PUTER_ERR_TIMEOUT = "PUTER_TIMEOUT";
 export const PUTER_ERR_SIGNIN_FAILED = "PUTER_SIGNIN_FAILED";
 
-/** Grace window after the popup closes for a late token postMessage. */
+/**
+ * Grace window after the popup closes for a late token postMessage.
+ * Used on the timeout/rejection upgrade path, where the token may still
+ * be in flight when the race already failed.
+ */
 const SESSION_SETTLE_MS = 4000;
+/**
+ * Short settle for the popup-closed path: a dismissed popup must feel
+ * instant, while a genuine token postMessage lands well within this.
+ */
+const POPUP_CLOSED_SETTLE_MS = 1500;
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 export type PuterSignInStage = "sdk" | "popup-wait";
 
@@ -185,13 +196,16 @@ export async function isPuterSignedIn(): Promise<boolean> {
 /**
  * One-tap sign-in via the provider's own popup. Resolves with the user.
  *
- * The SDK's signIn() promise only resolves when the popup posts its token
- * back, and it rejects the moment the popup closes — after a successful
- * sign-up Puter closes the popup itself, so the promise can lose that race
- * (or the token message never arrives) even though the session IS
- * established. Therefore the outcome is decided by the LIVE session state
- * (isPuterSignedIn), never by who won the race: after every settle the
- * session is verified, and a real session always resolves as success.
+ * The outcome is decided by the race winner, then by live session state:
+ *  - signIn() RESOLVED → the SDK only resolves it once the auth token
+ *    postMessage landed, so the session IS established: return success
+ *    directly. A resolved sign-in is never reported as a cancellation.
+ *  - popup CLOSED → after sign-up Puter closes the popup itself and the
+ *    token postMessage can still be in flight, so one short settle wait
+ *    (live session) decides before giving up as user cancellation.
+ *  - REJECTED / TIMEOUT → the token may still be landing, so the session
+ *    poll gets one chance to upgrade to success before the real error
+ *    is surfaced.
  */
 export async function signInToPuter(
   onStage?: (stage: PuterSignInStage) => void
@@ -223,9 +237,29 @@ export async function signInToPuter(
   const popupClosed = new Promise<"popup-closed">((resolve) => {
     popupClosedResolve = () => resolve("popup-closed");
   });
+  // Tag which racer won — the bare signIn() promise's own settlement was
+  // previously discarded, which let a resolved sign-in be reported as a
+  // cancellation when the session check failed to observe it in time.
+  const signInSettled = signIn.then(
+    () => "sign-in-resolved" as const,
+    (err: unknown) => {
+      throw err;
+    }
+  );
   let raceError: unknown = null;
   try {
-    await Promise.race([signIn, timeout, popupClosed]);
+    const winner = await Promise.race([signInSettled, timeout, popupClosed]);
+    if (winner === "sign-in-resolved") {
+      // The SDK promise itself resolved — the token postMessage landed, so
+      // the session is established. Trust the SDK, don't gamble it on the
+      // session poll.
+      return await readPuterUser();
+    }
+    // Popup closed with the SDK promise still pending: a genuine session
+    // may be one token message away, so the short settle wait decides.
+    if (await waitForPuterSession(POPUP_CLOSED_SETTLE_MS)) {
+      return await readPuterUser();
+    }
   } catch (e) {
     raceError = e;
   } finally {
@@ -233,9 +267,10 @@ export async function signInToPuter(
     popupClosedResolve = null;
   }
 
-  // Decide by actual session state, not by the race: a session established
-  // just as the popup closed still counts as a successful connect.
-  if (await waitForPuterSession(SESSION_SETTLE_MS)) {
+  // The race rejected (SDK failure or 90s timeout): the token may still be
+  // landing, so the session poll gets one chance to upgrade to success
+  // before the failure is surfaced to the user.
+  if (raceError && (await waitForPuterSession(SESSION_SETTLE_MS))) {
     return await readPuterUser();
   }
 
@@ -256,17 +291,44 @@ function codedError(code: string, message: string): Error {
 }
 
 /**
+ * Session probe that reads ONLY the already-loaded SDK object — it never
+ * triggers a fresh script injection (unlike isPuterSignedIn, which goes
+ * through loadPuterSDK and would pile up dead script tags and 30s timeouts
+ * if called on a tight poll loop).
+ */
+async function probePuterSession(): Promise<boolean> {
+  const puter = (window as any).puter;
+  if (!puter) return false;
+  try {
+    return !!(await puter.auth.isSignedIn());
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Poll the live SDK session briefly. The auth token postMessage can land a
  * beat after the popup closes (or after the SDK promise settles), so the
  * sign-in outcome waits for the real session state instead of the race.
+ *
+ * Hard-bounded to timeoutMs wall time: the absolute timeout promise wins
+ * every race, so even a hanging probe can never push the wait past the
+ * intended window.
  */
 async function waitForPuterSession(timeoutMs: number): Promise<boolean> {
-  const start = Date.now();
-  for (;;) {
-    if (await isPuterSignedIn()) return true;
-    if (Date.now() - start >= timeoutMs) return false;
-    await new Promise((r) => setTimeout(r, 250));
-  }
+  let done = false;
+  const expired = sleep(timeoutMs).then(() => {
+    done = true;
+    return false;
+  });
+  const probe = (async () => {
+    while (!done) {
+      if (await Promise.race([probePuterSession(), expired])) return true;
+      await Promise.race([sleep(250), expired]);
+    }
+    return false;
+  })();
+  return Promise.race([probe, expired]);
 }
 
 /** Best-effort user read + cache once a session is confirmed live. */

@@ -1,5 +1,6 @@
 package com.salmanlaghari.pkai.ui.superchat
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.salmanlaghari.pkai.data.model.ChatMessage
@@ -36,6 +37,7 @@ class SuperChatViewModel @Inject constructor(
 ) : ViewModel() {
 
     companion object {
+        private const val TAG = "SuperChatViewModel"
         private const val PERSONA =
             "You are PK AI's friendly virtual assistant in Super Chat. Reply warmly, " +
                 "briefly (1-2 sentences) and add one fitting emoji."
@@ -317,11 +319,18 @@ class SuperChatViewModel @Inject constructor(
             if (historySessionTitle == null) {
                 historySessionTitle = prompt.trim().take(60)
             }
-            historySessionId = chatHistoryRecorder.recordSession(
-                sessionId = historySessionId,
-                title = historySessionTitle ?: prompt.trim().take(60),
-                preview = reply.take(120)
-            )
+            // Best-effort: a Room failure here must never crash this coroutine
+            // or skip the _isGenerating reset below — history is secondary.
+            historySessionId = runCatching {
+                chatHistoryRecorder.recordSession(
+                    sessionId = historySessionId,
+                    title = historySessionTitle ?: prompt.trim().take(60),
+                    preview = reply.take(120)
+                )
+            }.getOrElse { e ->
+                Log.w(TAG, "History recording failed (best-effort)", e)
+                historySessionId
+            }
             _isGenerating.value = false
         }
     }

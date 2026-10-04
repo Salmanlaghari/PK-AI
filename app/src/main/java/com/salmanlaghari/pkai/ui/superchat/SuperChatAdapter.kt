@@ -16,6 +16,7 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.salmanlaghari.pkai.R
 import com.salmanlaghari.pkai.data.model.ChatMessage
+import com.salmanlaghari.pkai.data.model.FreeAiModel
 import com.salmanlaghari.pkai.data.repository.CodeExecutionResult
 import com.salmanlaghari.pkai.ui.chat.CodeBlockBinder
 import com.salmanlaghari.pkai.util.ImageLoadHelper
@@ -209,9 +210,16 @@ class SuperChatAdapter(
                 userRow.visibility = View.GONE
                 aiRow.visibility = View.VISIBLE
 
-                // Model tag (e.g. "Groq", "Super Chat") — falls back to the default label.
-                tvAiName.text = message.modelUsed?.takeIf { it.isNotBlank() }
-                    ?: itemView.context.getString(R.string.superchat_ai_label)
+                // Model tag (e.g. "Groq"). Hidden when the message has no model
+                // (e.g. Home system messages like "Switched to Gemini"); the
+                // internal "Free · " tier prefix is stripped before display.
+                val modelUsed = message.modelUsed?.takeIf { it.isNotBlank() }
+                if (modelUsed == null) {
+                    tvAiName.visibility = View.GONE
+                } else {
+                    tvAiName.visibility = View.VISIBLE
+                    tvAiName.text = modelUsed.removePrefix(FreeAiModel.LABEL_PREFIX)
+                }
 
                 // Mood sticker beside every AI reply; hidden when the message
                 // has none (e.g. on Home, which doesn't do mood poses).
@@ -315,18 +323,30 @@ class SuperChatAdapter(
         private fun bindUserContent(message: ChatMessage) {
             when (message.attachmentType) {
                 "image" -> {
-                    tvUserMessage.visibility = View.GONE
                     voiceUserRow.visibility = View.GONE
                     ivUserImage.visibility = View.VISIBLE
+                    // Keep the user's caption above the image when one was typed.
+                    if (message.content.isNotBlank()) {
+                        tvUserMessage.visibility = View.VISIBLE
+                        tvUserMessage.text = message.content
+                    } else {
+                        tvUserMessage.visibility = View.GONE
+                    }
                     loadThumbnail(message.attachmentUri, ivUserImage)
                     ivUserImage.setOnClickListener {
                         message.attachmentUri?.let { onImageClick(it) }
                     }
                 }
                 "audio" -> {
-                    tvUserMessage.visibility = View.GONE
                     ivUserImage.visibility = View.GONE
                     voiceUserRow.visibility = View.VISIBLE
+                    // Keep the user's caption above the voice note when one was typed.
+                    if (message.content.isNotBlank()) {
+                        tvUserMessage.visibility = View.VISIBLE
+                        tvUserMessage.text = message.content
+                    } else {
+                        tvUserMessage.visibility = View.GONE
+                    }
                     val playing = playingMessageId == message.id && pausedMessageId != message.id
                     btnUserVoicePlay.text = if (playing) "⏸" else "▶"
                     tvUserVoiceDuration.text = message.attachmentName ?: "🎤"

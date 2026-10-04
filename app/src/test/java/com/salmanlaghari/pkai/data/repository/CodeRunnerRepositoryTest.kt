@@ -10,6 +10,7 @@ import com.salmanlaghari.pkai.data.remote.HackerEarthSubmissionResponse
 import kotlinx.coroutines.test.runTest
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -93,12 +94,19 @@ class CodeRunnerRepositoryTest {
         // Already-valid v4 codes pass through untouched
         assertEquals("PYTHON3_8", CodeRunnerRepository.resolveLanguageArgument("PYTHON3_8"))
         assertEquals("CPP17", CodeRunnerRepository.resolveLanguageArgument("CPP17"))
-        assertEquals("JAVA17", CodeRunnerRepository.resolveLanguageArgument("JAVA17"))
+        // python2 must NOT resolve to the removed v4 "PYTHON" code (would 400)
+        assertEquals("PYTHON3", CodeRunnerRepository.resolveLanguageArgument("python2"))
+        // Unknown fence labels are never forwarded verbatim — they fall back
+        // to the default instead of 400ing on the backend
+        assertEquals("PYTHON3", CodeRunnerRepository.resolveLanguageArgument("JAVA17"))
+        assertEquals("PYTHON3", CodeRunnerRepository.resolveLanguageArgument("json"))
+        assertEquals("PYTHON3", CodeRunnerRepository.resolveLanguageArgument("bash"))
+        assertEquals("PYTHON3", CodeRunnerRepository.resolveLanguageArgument("sql"))
         assertEquals("PYTHON3", CodeRunnerRepository.resolveLanguageArgument(""))
     }
 
     @Test
-    fun testSurfacesRealApiErrorOnFailure() = runTest {
+    fun testUnsupportedLanguageMapsToFriendlyMessage() = runTest {
         `when`(mockPreferencesManager.getCodeRunCount()).thenReturn(5)
 
         val serverError = "{\"errors\": {\"lang\": [\"Unsupported language\"]}}"
@@ -109,8 +117,53 @@ class CodeRunnerRepositoryTest {
         assertTrue(result is CodeExecutionResult.Error)
 
         val err = result as CodeExecutionResult.Error
-        // The real backend message must reach the user — not just "HTTP code 400".
-        assertTrue("Error was: ${err.message}", err.message.contains("Unsupported language"))
+        // Short user-friendly message — the raw JSON body must NOT reach the user.
+        assertEquals(
+            "The selected language is not supported by the execution backend.",
+            err.message
+        )
+    }
+
+    @Test
+    fun testAuthFailureMapsToFriendlyMessage() = runTest {
+        `when`(mockPreferencesManager.getCodeRunCount()).thenReturn(5)
+
+        `when`(mockApiService.submitCode(anyString() ?: "", any(HackerEarthSubmissionRequest::class.java) ?: HackerEarthSubmissionRequest("", "")))
+            .thenReturn(Response.error(401, "{\"detail\": \"Invalid client secret\"}".toResponseBody(null)))
+
+        val result = repository.executeCode("print('x')", "python")
+        val err = result as CodeExecutionResult.Error
+        assertEquals("Authentication with the execution service failed.", err.message)
+        assertFalse("Error was: ${err.message}", err.message.contains("client secret"))
+    }
+
+    @Test
+    fun testServerErrorMapsToFriendlyMessage() = runTest {
+        `when`(mockPreferencesManager.getCodeRunCount()).thenReturn(5)
+
+        `when`(mockApiService.submitCode(anyString() ?: "", any(HackerEarthSubmissionRequest::class.java) ?: HackerEarthSubmissionRequest("", "")))
+            .thenReturn(Response.error(503, "Service Temporarily Unavailable".toResponseBody(null)))
+
+        val result = repository.executeCode("print('x')", "python")
+        val err = result as CodeExecutionResult.Error
+        assertEquals("The execution service is temporarily unavailable. Try again later.", err.message)
+    }
+
+    @Test
+    fun testHtmlErrorBodyIsStrippedAndCapped() = runTest {
+        `when`(mockPreferencesManager.getCodeRunCount()).thenReturn(5)
+
+        val htmlBody = "<html><head><title>418 I'm a teapot</title></head><body>" +
+            "x".repeat(2000) + "</body></html>"
+        `when`(mockApiService.submitCode(anyString() ?: "", any(HackerEarthSubmissionRequest::class.java) ?: HackerEarthSubmissionRequest("", "")))
+            .thenReturn(Response.error(418, htmlBody.toResponseBody(null)))
+
+        val result = repository.executeCode("print('x')", "python")
+        val err = result as CodeExecutionResult.Error
+        // No HTML tags, no 2000-char dump — a short sanitized summary only.
+        assertFalse("Error was: ${err.message}", err.message.contains("<"))
+        assertTrue("Error was: ${err.message}", err.message.length <= 160)
+        assertTrue("Error was: ${err.message}", err.message.startsWith("Submission failed (HTTP 418)"))
     }
 
     @Test

@@ -52,6 +52,24 @@ class GeminiKeyStore @Inject constructor(
     @Volatile
     private var lastInitError: Exception? = null
 
+    /**
+     * In-memory copy of the key so [getApiKey] doesn't hit EncryptedSharedPreferences
+     * (MasterKey + disk I/O) on every call — AiProviderFactory.keyFor reads this on the
+     * main thread for every message. Populated on the first successful read, refreshed on
+     * save, cleared on clear. Never logged.
+     */
+    @Volatile
+    private var cachedKey: String? = null
+
+    /** True once [cachedKey] reflects a successful store read/write. */
+    @Volatile
+    private var keyCacheLoaded: Boolean = false
+
+    private fun updateCache(value: String?) {
+        cachedKey = value
+        keyCacheLoaded = true
+    }
+
     private fun isCorruptionSignal(e: Exception): Boolean {
         var cur: Throwable? = e
         var depth = 0
@@ -106,32 +124,48 @@ class GeminiKeyStore @Inject constructor(
 
     /**
      * Returns the user's stored Gemini API key, or null when absent/blank/unreadable.
-     * The value is never logged.
+     * The value is never logged. Served from an in-memory cache after the first
+     * successful read so main-thread callers never pay the disk/keystore cost.
      */
     fun getApiKey(): String? {
-        return try {
-            prefsOrNull()?.getString(KEY_GEMINI_API_KEY, null)?.takeIf { it.isNotBlank() }
-        } catch (e: Exception) {
-            Log.w(TAG, "getApiKey failed; treating as absent", e)
-            null
+        if (keyCacheLoaded) return cachedKey
+        synchronized(lock) {
+            if (keyCacheLoaded) return cachedKey
+            return try {
+                val prefs = prefsOrNull()
+                val key = prefs?.getString(KEY_GEMINI_API_KEY, null)?.takeIf { it.isNotBlank() }
+                // Cache only on a genuinely successful read: a transient init
+                // failure must stay retryable per the failure policy above.
+                if (prefs != null) updateCache(key)
+                key
+            } catch (e: Exception) {
+                Log.w(TAG, "getApiKey failed; treating as absent", e)
+                null
+            }
         }
     }
 
     /** True when a user key is currently stored. The key itself is never exposed here. */
     fun hasApiKey(): Boolean = getApiKey() != null
 
-    /** Stores the user's Gemini API key. Trims whitespace; blank values are rejected. */
-    fun saveApiKey(apiKey: String) {
+    /**
+     * Stores the user's Gemini API key. Trims whitespace; blank values are rejected.
+     *
+     * @return true only when the key was actually persisted; false when the
+     * value was blank or the encrypted store was unavailable.
+     */
+    fun saveApiKey(apiKey: String): Boolean {
         val value = apiKey.trim()
         if (value.isBlank()) {
             Log.w(TAG, "saveApiKey skipped: blank key")
-            return
+            return false
         }
-        try {
+        return try {
             val existing = prefsOrNull()
             if (existing != null) {
                 existing.edit().putString(KEY_GEMINI_API_KEY, value).apply()
-                return
+                updateCache(value)
+                return true
             }
             val err = lastInitError
             if (err != null && isCorruptionSignal(err)) {
@@ -141,22 +175,45 @@ class GeminiKeyStore @Inject constructor(
                     prefs = null
                     lastInitError = null
                 }
-                prefsOrNull()?.edit()?.putString(KEY_GEMINI_API_KEY, value)?.apply()
-                    ?: Log.w(TAG, "saveApiKey skipped: encrypted prefs unavailable after recovery")
+                val recovered = prefsOrNull()
+                if (recovered != null) {
+                    recovered.edit().putString(KEY_GEMINI_API_KEY, value).apply()
+                    updateCache(value)
+                    true
+                } else {
+                    Log.w(TAG, "saveApiKey skipped: encrypted prefs unavailable after recovery")
+                    false
+                }
             } else {
                 Log.w(TAG, "saveApiKey skipped: encrypted prefs unavailable (transient)")
+                false
             }
         } catch (e: Exception) {
             Log.w(TAG, "saveApiKey failed", e)
+            false
         }
     }
 
-    /** Removes the stored key. */
-    fun clearApiKey() {
-        try {
-            prefsOrNull()?.edit()?.remove(KEY_GEMINI_API_KEY)?.apply()
+    /**
+     * Removes the stored key.
+     *
+     * @return true only when the key was actually removed (store reachable);
+     * false when the encrypted store was unavailable.
+     */
+    fun clearApiKey(): Boolean {
+        return try {
+            val prefs = prefsOrNull()
+            if (prefs != null) {
+                prefs.edit().remove(KEY_GEMINI_API_KEY).apply()
+                updateCache(null)
+                true
+            } else {
+                Log.w(TAG, "clearApiKey skipped: encrypted prefs unavailable (transient)")
+                false
+            }
         } catch (e: Exception) {
             Log.w(TAG, "clearApiKey failed", e)
+            false
         }
     }
 }

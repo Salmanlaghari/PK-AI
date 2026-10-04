@@ -217,6 +217,12 @@ object TtsHelper {
     fun isSpeaking(): Boolean = isPlaying
 
     /**
+     * Returns true if TTS is currently speaking the given exact text.
+     * Used by the speaker button to toggle playback for the tapped message.
+     */
+    fun isSpeaking(text: String): Boolean = isPlaying && currentText == text
+
+    /**
      * Splits text into chunks at sentence boundaries.
      */
     private fun splitText(text: String, maxLen: Int): List<String> {

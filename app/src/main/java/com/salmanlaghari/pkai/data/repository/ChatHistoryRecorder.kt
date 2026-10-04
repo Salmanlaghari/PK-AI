@@ -32,7 +32,9 @@ class ChatHistoryRecorder @Inject constructor(
      * @param title short display title, e.g. the first user message truncated.
      * @param preview last message snippet shown as the subtitle.
      * @param timestamp recency used for Today/Yesterday/Last-7-days grouping.
-     * @param isPinned whether the entry is pinned to the top.
+     * @param isPinned whether the entry is pinned to the top. A pin already
+     * stored on the row (set via HistoryViewModel.togglePinItem) is preserved:
+     * the REPLACE insert must never silently unpin an entry.
      * @return the session id used for this row.
      */
     suspend fun recordSession(
@@ -43,13 +45,18 @@ class ChatHistoryRecorder @Inject constructor(
         isPinned: Boolean = false
     ): String = withContext(Dispatchers.IO) {
         val id = sessionId ?: UUID.randomUUID().toString()
+        // REPLACE rewrites the whole row with isPinned=false by default, which
+        // would silently unpin entries pinned via HistoryViewModel.togglePinItem.
+        // Preserve the stored pin state instead (no DAO change needed).
+        val pinned = isPinned ||
+            chatHistoryDao.getAllHistory().firstOrNull { it.id == id }?.isPinned == true
         chatHistoryDao.insertItem(
             ChatHistoryItem(
                 id = id,
                 title = title,
                 lastMessage = preview,
                 timestamp = timestamp,
-                isPinned = isPinned
+                isPinned = pinned
             )
         )
         id

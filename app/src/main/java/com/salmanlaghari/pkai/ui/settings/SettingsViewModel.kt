@@ -46,19 +46,29 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    /** Saves the user's own Gemini API key (from their Google AI Studio). The value is never echoed back. */
-    fun saveGeminiKey(apiKey: String) {
+    /**
+     * Saves the user's own Gemini API key (from their Google AI Studio). The value is never echoed back.
+     *
+     * @param onResult invoked on the main thread with true only when the key was actually persisted.
+     */
+    fun saveGeminiKey(apiKey: String, onResult: (Boolean) -> Unit = {}) {
         viewModelScope.launch {
-            withContext(Dispatchers.IO) { geminiKeyStore.saveApiKey(apiKey) }
+            val saved = withContext(Dispatchers.IO) { geminiKeyStore.saveApiKey(apiKey) }
             refreshGeminiKeyState()
+            onResult(saved)
         }
     }
 
-    /** Removes the user's own Gemini API key; the app falls back to the shared build key. */
-    fun clearGeminiKey() {
+    /**
+     * Removes the user's own Gemini API key; the app falls back to the shared build key.
+     *
+     * @param onResult invoked on the main thread with true only when the key was actually removed.
+     */
+    fun clearGeminiKey(onResult: (Boolean) -> Unit = {}) {
         viewModelScope.launch {
-            withContext(Dispatchers.IO) { geminiKeyStore.clearApiKey() }
+            val cleared = withContext(Dispatchers.IO) { geminiKeyStore.clearApiKey() }
             refreshGeminiKeyState()
+            onResult(cleared)
         }
     }
 

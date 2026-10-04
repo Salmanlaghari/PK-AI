@@ -33,6 +33,7 @@ import com.salmanlaghari.pkai.ui.superchat.ChatMessageActions
 import com.salmanlaghari.pkai.ui.superchat.SuperChatAdapter
 import com.salmanlaghari.pkai.ui.tips.TipsAutoPopup
 import com.salmanlaghari.pkai.ui.voice.VoiceRecognitionHelper
+import com.salmanlaghari.pkai.util.TtsHelper
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
@@ -605,6 +606,8 @@ class HomeFragment : Fragment() {
         if (::chatAdapter.isInitialized) chatAdapter.releasePlayer()
         voiceHelper?.destroy()
         voiceHelper = null
+        // Stop TTS speech so audio never keeps playing after leaving the screen
+        TtsHelper.stop()
         (view?.background as? android.graphics.drawable.AnimationDrawable)?.stop()
         super.onDestroyView()
         _binding = null

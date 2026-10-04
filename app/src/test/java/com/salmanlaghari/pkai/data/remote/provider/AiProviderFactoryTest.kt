@@ -1,11 +1,13 @@
 package com.salmanlaghari.pkai.data.remote.provider
 
+import com.salmanlaghari.pkai.BuildConfig
 import com.salmanlaghari.pkai.data.local.secure.GeminiKeyStore
 import com.salmanlaghari.pkai.data.model.FreeAiModel
 import com.salmanlaghari.pkai.data.model.LlmProvider
 import com.salmanlaghari.pkai.data.remote.PublicFreeApiService
 import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -30,9 +32,17 @@ class AiProviderFactoryTest {
     fun `gemini prefers user BYOK key over shared build key`() = runTest {
         val userKey = "user-supplied-key"
         org.mockito.Mockito.`when`(mockGeminiKeyStore.getApiKey()).thenReturn(userKey)
-        val keyed = AiProviderFactory(mockOkHttpClient, mockPublicFreeApiService, mockGeminiKeyStore)
-        // The user key makes Gemini configured even when the shared BuildConfig key is blank.
-        assertTrue(keyed.hasConfiguredKey(LlmProvider.fromId("gemini")))
+        // The resolved key must be EXACTLY the user's BYOK key — not merely
+        // non-blank — proving the user's own quota is consumed even when the
+        // shared BuildConfig key is also set.
+        assertEquals(userKey, factory.keyFor(LlmProvider.fromId("gemini")))
+        assertTrue(factory.hasConfiguredKey(LlmProvider.fromId("gemini")))
+    }
+
+    @Test
+    fun `gemini falls back to shared build key when no user key stored`() = runTest {
+        org.mockito.Mockito.`when`(mockGeminiKeyStore.getApiKey()).thenReturn(null)
+        assertEquals(BuildConfig.GEMINI_API_KEY, factory.keyFor(LlmProvider.fromId("gemini")))
     }
 
     @Test

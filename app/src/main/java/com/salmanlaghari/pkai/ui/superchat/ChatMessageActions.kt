@@ -29,8 +29,15 @@ class ChatMessageActions(private val context: Context) {
     /** Message contents the user hearted (💖 badge); session-scoped. */
     val favoriteContents = mutableSetOf<String>()
 
-    /** Speaks the message aloud (free TTS, language auto-detected). */
+    /**
+     * Speaks the message aloud (free TTS, language auto-detected).
+     * Acts as a toggle: tapping while this message is already playing stops it.
+     */
     fun speak(message: ChatMessage) {
+        if (TtsHelper.isSpeaking(message.content)) {
+            TtsHelper.stop()
+            return
+        }
         val lang = TtsHelper.detectLanguage(message.content)
         TtsHelper.speak(
             context = context,
@@ -90,19 +97,40 @@ class ChatMessageActions(private val context: Context) {
             .setView(imageView)
             .setPositiveButton("Close") { d, _ -> d.dismiss() }
             .setNegativeButton("Share") { _, _ ->
-                runCatching {
-                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                        if (source.startsWith("http://") || source.startsWith("https://")) {
+                when {
+                    source.startsWith("http://") || source.startsWith("https://") -> {
+                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
                             type = "text/plain"
                             putExtra(Intent.EXTRA_TEXT, source)
-                        } else {
-                            type = "image/*"
-                            putExtra(Intent.EXTRA_STREAM, Uri.parse(source))
+                        }
+                        context.startActivity(Intent.createChooser(shareIntent, "Share image"))
+                    }
+                    source.startsWith("content://") -> {
+                        runCatching {
+                            val uri = Uri.parse(source)
+                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "image/*"
+                                putExtra(Intent.EXTRA_STREAM, uri)
+                                // Grant the receiving app temporary read access; the
+                                // ClipData entry is what makes the grant stick.
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                clipData = ClipData.newUri(context.contentResolver, "Image", uri)
+                            }
+                            context.startActivity(Intent.createChooser(shareIntent, "Share image"))
+                        }.onFailure {
+                            Toast.makeText(context, "Could not share image", Toast.LENGTH_SHORT).show()
                         }
                     }
-                    context.startActivity(Intent.createChooser(shareIntent, "Share image"))
-                }.onFailure {
-                    Toast.makeText(context, "Could not share image", Toast.LENGTH_SHORT).show()
+                    else -> {
+                        // file:// URIs throw FileUriExposedException on API 24+
+                        // and raw paths / data: URIs can't be shared via intent;
+                        // no FileProvider is declared, so say so instead of failing.
+                        Toast.makeText(
+                            context,
+                            "This image is stored locally and can't be shared",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
                 }
             }
             .create()

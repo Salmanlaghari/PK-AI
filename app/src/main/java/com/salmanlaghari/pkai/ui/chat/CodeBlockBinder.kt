@@ -56,6 +56,11 @@ object CodeBlockBinder {
                     blockBinding.tvCodeLang.text = rawLangUpper
                     blockBinding.tvCodeContent.text = segment.code
 
+                    // Recycling guard: tag the card with this block's identity so a
+                    // late run-code result can't mutate a card recycled for other code.
+                    val codeToken = segment.code.hashCode()
+                    blockBinding.root.tag = codeToken
+
                     // Copy code button
                     blockBinding.btnCopyCode.setOnClickListener {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -77,6 +82,10 @@ object CodeBlockBinder {
                             blockBinding.layoutRunOutputPanel.visibility = View.GONE
 
                             onRunCode.invoke(segment.code, heLang) { result ->
+                                // Drop results for a card that was recycled/rebound
+                                // since the run started (stale output would land on
+                                // the wrong card, leaving this one stuck loading).
+                                if (blockBinding.root.tag != codeToken) return@invoke
                                 blockBinding.btnRunCode.isEnabled = true
                                 blockBinding.layoutRunLoading.visibility = View.GONE
                                 blockBinding.layoutRunOutputPanel.visibility = View.VISIBLE

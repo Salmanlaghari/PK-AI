@@ -42,6 +42,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
+          retention-days: 7
           name: api-verification-report
           path: app/api_verification_report.txt
 
@@ -49,6 +50,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
+          retention-days: 7
           name: api-verification-junit
           path: |
             app/build/reports/tests/testDebugUnitTest/**

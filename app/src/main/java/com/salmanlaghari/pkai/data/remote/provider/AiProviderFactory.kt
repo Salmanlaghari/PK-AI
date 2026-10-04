@@ -1,6 +1,7 @@
 package com.salmanlaghari.pkai.data.remote.provider
 
 import com.salmanlaghari.pkai.BuildConfig
+import com.salmanlaghari.pkai.data.local.secure.GeminiKeyStore
 import com.salmanlaghari.pkai.data.model.FreeAiModel
 import com.salmanlaghari.pkai.data.model.LlmProvider
 import com.salmanlaghari.pkai.data.model.ProviderFormat
@@ -19,7 +20,9 @@ import javax.inject.Singleton
  * Cohere gets its own adapter.
  *
  * API keys are read from BuildConfig (injected at build time from local.properties /
- * CI secrets) — never hardcoded in source.
+ * CI secrets) — never hardcoded in source. The Gemini provider additionally prefers
+ * the user's own key ([GeminiKeyStore]) when present, so each user consumes their
+ * own quota. Key values are never logged anywhere.
  */
 /**
  * The free-tier fallback order used when the user's active provider is rate-limited
@@ -35,7 +38,8 @@ val FALLBACK_ORDER: List<String> = listOf(
 @Singleton
 class AiProviderFactory @Inject constructor(
     private val okHttpClient: OkHttpClient,
-    private val publicFreeApiService: PublicFreeApiService
+    private val publicFreeApiService: PublicFreeApiService,
+    private val geminiKeyStore: GeminiKeyStore
 ) {
     private val gson = Gson()
 
@@ -129,8 +133,14 @@ class AiProviderFactory @Inject constructor(
             .filter { hasConfiguredKey(it) }
     }
 
+    /**
+     * Resolves the API key for a provider. The user's own Gemini key (BYOK, stored
+     * in [GeminiKeyStore]) wins over the shared BuildConfig key when present, so
+     * that user's requests consume their own quota. Never logs key values.
+     */
     private fun keyFor(provider: LlmProvider): String = when (provider.apiKeyBuildConfig) {
-        "GEMINI_API_KEY" -> BuildConfig.GEMINI_API_KEY
+        "GEMINI_API_KEY" -> geminiKeyStore.getApiKey()?.takeIf { it.isNotBlank() }
+            ?: BuildConfig.GEMINI_API_KEY
         "GROQ_API_KEY" -> BuildConfig.GROQ_API_KEY
         "LLM7_API_KEY" -> BuildConfig.LLM7_API_KEY
         "MISTRAL_API_KEY" -> BuildConfig.MISTRAL_API_KEY

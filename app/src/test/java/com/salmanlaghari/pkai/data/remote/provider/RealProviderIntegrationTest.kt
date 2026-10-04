@@ -1,5 +1,6 @@
 package com.salmanlaghari.pkai.data.remote.provider
 
+import com.salmanlaghari.pkai.data.local.secure.GeminiKeyStore
 import com.salmanlaghari.pkai.data.model.FreeAiModel
 import com.salmanlaghari.pkai.data.model.LlmProvider
 import com.salmanlaghari.pkai.data.remote.PublicFreeApiService
@@ -52,7 +53,11 @@ class RealProviderIntegrationTest {
             System.getenv("RUN_LIVE_API_VERIFICATION") == "true"
         )
 
-        val factory = AiProviderFactory(okHttpClient, mock(PublicFreeApiService::class.java))
+        val factory = AiProviderFactory(
+            okHttpClient,
+            mock(PublicFreeApiService::class.java),
+            mock(GeminiKeyStore::class.java)
+        )
         val results = mutableListOf<ProbeResult>()
 
         // ── The 7 BYOK premium providers ─────────────────────────────────────────

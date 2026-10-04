@@ -128,6 +128,33 @@ class SettingsFragment : Fragment() {
         viewModel.selectedProviderId.observe(viewLifecycleOwner) { selectedId ->
             providerAdapter.setSelected(selectedId ?: "")
         }
+
+        // BYOK: user's own Gemini API key — never displayed back in plain text
+        viewModel.hasGeminiKey.observe(viewLifecycleOwner) { hasKey ->
+            binding.tvGeminiKeyStatus.text = if (hasKey) {
+                "✓ Personal key saved — Gemini uses your own quota"
+            } else {
+                "No personal key set — using the shared build key"
+            }
+        }
+
+        binding.btnSaveGeminiKey.setOnClickListener {
+            val key = binding.etGeminiKey.text?.toString().orEmpty()
+            if (key.isBlank()) {
+                Toast.makeText(requireContext(), "Paste your Gemini API key first", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            viewModel.saveGeminiKey(key)
+            binding.etGeminiKey.text?.clear()
+            binding.etGeminiKey.clearFocus()
+            Toast.makeText(requireContext(), "Gemini API key saved securely", Toast.LENGTH_SHORT).show()
+        }
+
+        binding.btnClearGeminiKey.setOnClickListener {
+            viewModel.clearGeminiKey()
+            binding.etGeminiKey.text?.clear()
+            Toast.makeText(requireContext(), "Personal Gemini key removed", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun showThemeDialog() {

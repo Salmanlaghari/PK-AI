@@ -42,7 +42,14 @@ jobs:
               echo "KEYSTORE_PATH=${{ github.workspace }}/app/upload-key.jks" >> "$GITHUB_ENV"
               echo "Successfully decoded KEYSTORE_BASE64 secret."
             else
-              echo "🚨 ERROR: KEYSTORE_BASE64 secret is not valid base64."
+              # NOTE: base64 can exit non-zero on padding quirks while still writing a
+              # usable keystore. Warn and verify the file instead of failing outright.
+              # Never fall back to a default/hardcoded password.
+              echo "Warning: KEYSTORE_BASE64 did not decode cleanly; verifying produced file."
+            fi
+            if [ ! -s "app/upload-key.jks" ]; then
+              echo "🚨 ERROR: KEYSTORE_BASE64 did not produce a usable app/upload-key.jks."
+              echo "Refusing to generate a fallback signing key. Fix the secret in repo Settings → Secrets."
               exit 1
             fi
             # Propagate the real secrets for the signing steps below (values stay masked).

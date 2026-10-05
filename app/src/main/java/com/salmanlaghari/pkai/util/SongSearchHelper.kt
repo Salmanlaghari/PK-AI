@@ -141,8 +141,8 @@ object SongSearchHelper {
     /**
      * Guards the bare "X song/gana" suffix pattern: only true when the
      * captured text looks like a song title (short noun phrase), not a
-     * chat sentence. Rejects question words, sentence pronouns at the
-     * start, and overly long phrases.
+     * chat sentence. Rejects question words, command verbs, sentence
+     * pronouns at the start, and overly long phrases.
      */
     private fun looksLikeSongTitle(text: String): Boolean {
         val trimmed = text.trim()
@@ -156,6 +156,12 @@ object SongSearchHelper {
             "kya", "kab", "kahan", "kaise", "kyun", "kyon", "kaun", "kis", "kitna", "kitne"
         )
         if (lower.any { it in questionWords }) return false
+        // Command verbs are not titles ("search for a song" → "search for a")
+        val commandWords = setOf(
+            "search", "find", "play", "dhundo", "dhundho", "dhundoo", "dhoondo",
+            "talash", "sunao", "suna", "chalao", "lagao", "karo", "kar", "karein"
+        )
+        if (lower.any { it in commandWords }) return false
         // Sentences starting with pronouns are chat, not titles
         val sentenceStarters = setOf(
             "i", "you", "he", "she", "we", "they", "it",

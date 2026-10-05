@@ -105,6 +105,7 @@ object TipsHighlightBanner {
         val firstTip = tips.firstOrNull() ?: ""
         banner.findViewById<TextView>(R.id.tvTipsTitle).text = "$title: $firstTip"
 
+        val density = container.resources.displayMetrics.density
         val margin = (12 * density).toInt()
         val params = FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT,

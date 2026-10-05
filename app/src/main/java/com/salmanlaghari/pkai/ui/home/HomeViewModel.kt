@@ -303,7 +303,7 @@ class HomeViewModel @Inject constructor(
                         modelUsed = providerLabel
                     )
                 )
-                return@launch
+                return
             }
 
             val visionProvider = !isFree && attachmentType == "image" &&
@@ -327,7 +327,7 @@ class HomeViewModel @Inject constructor(
                 chatMessageDao.insertMessage(
                     ChatMessage(content = notice, isUser = false, modelUsed = providerLabel)
                 )
-                return@launch
+                return
             }
 
             _isGenerating.value = true

@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Selected-pill (hero): gold/amber → deep purple diagonal gradient with a
-     soft gold glow stroke. Used by HomeFragment.updateTabSelection() for the
+<!-- Selected-pill (hero): deep amber → deep purple diagonal gradient with a
+     soft gold glow stroke. The start is a deep amber (7.3:1 vs white) rather
+     than bright #FFB300 (1.8:1) so the white label stays readable across the
+     whole gradient. Used by HomeFragment.updateTabSelection() for the
      active Premium/Free tab and by the persistent active-provider chip. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
     <gradient
         android:angle="45"
-        android:startColor="@color/premium_amber"
+        android:startColor="@color/premium_amber_dark"
         android:centerColor="@color/purple_deep"
         android:endColor="@color/premium_deep_purple"
         android:type="linear" />

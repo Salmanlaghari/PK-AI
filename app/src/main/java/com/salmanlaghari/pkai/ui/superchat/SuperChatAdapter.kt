@@ -510,7 +510,10 @@ class SuperChatAdapter(
             val artist = parts.getOrElse(1) { "Unknown Artist" }.ifBlank { "Unknown Artist" }
             val artwork = parts.getOrElse(2) { "" }
             // Reset to the music-note placeholder first — a recycled holder
-            // must never flash another song's artwork.
+            // must never flash another song's artwork. Clear the tag too:
+            // loadArtwork() returns early on a blank URL before re-tagging,
+            // so a stale tag would let an in-flight old download win.
+            ivArt.tag = null
             ivArt.setImageResource(R.drawable.ic_music_note)
             tvTitle.text = title
             tvArtist.text = artist
@@ -518,6 +521,12 @@ class SuperChatAdapter(
             btnPlay.text =
                 if (playingSongId == message.id && !isSongPaused) "⏸" else "▶"
             btnPlay.setOnClickListener { onPlayTapped(message) }
+            // Always reset animation state (and cancel any in-flight animator):
+            // a holder recycled mid-animation and rebound to an already-seen
+            // message must not replay the slide-in or stay translucent.
+            cardRoot.animate().cancel()
+            cardRoot.alpha = 1f
+            cardRoot.translationY = 0f
             if (isNew) {
                 cardRoot.alpha = 0f
                 cardRoot.translationY = 40f
@@ -548,7 +557,7 @@ class SuperChatAdapter(
             if (audioUrl.isNullOrBlank()) {
                 // No stream — fall back to opening the track page in the browser.
                 val pageUrl = (message.attachmentName ?: "").split("|||").getOrElse(3) { "" }
-                if (pageUrl.isNotBlank()) {
+                if (isSafeRemoteUrl(pageUrl)) {
                     try {
                         ctx.startActivity(
                             Intent(Intent.ACTION_VIEW, Uri.parse(pageUrl))
@@ -562,6 +571,12 @@ class SuperChatAdapter(
                 }
                 return
             }
+            // Never hand a remote-supplied URL with a non-http(s) scheme
+            // (file://, content://, …) to MediaPlayer.
+            if (!isSafeRemoteUrl(audioUrl)) {
+                Toast.makeText(ctx, "😔 Audio stream nahi mila", Toast.LENGTH_SHORT).show()
+                return
+            }
             try {
                 // Tapping the currently playing song toggles pause/resume.
                 if (playingSongId == message.id && songPlayer != null) {
@@ -573,7 +588,7 @@ class SuperChatAdapter(
                         player.start()
                         isSongPaused = false
                     }
-                    notifyDataSetChanged()
+                    safeNotifySongChanged(message.id)
                     return
                 }
                 // Stop any previous song before starting a new one.
@@ -597,18 +612,26 @@ class SuperChatAdapter(
                         it.start()
                         playingSongId = message.id
                         isSongPaused = false
-                        notifyDataSetChanged()
+                        safeNotifySongChanged(message.id)
                     }
                     player.setOnCompletionListener {
+                        // Release the native player — a completed instance
+                        // still holds codecs/buffers until released.
+                        it.release()
+                        if (songPlayer === it) songPlayer = null
                         playingSongId = null
                         isSongPaused = false
-                        notifyDataSetChanged()
+                        safeNotifySongChanged(message.id)
                     }
-                    player.setOnErrorListener { _, _, _ ->
+                    player.setOnErrorListener { mp, _, _ ->
                         Toast.makeText(ctx, "😔 Song play nahi ho saka", Toast.LENGTH_SHORT).show()
+                        // An errored MediaPlayer is stuck in the Error state —
+                        // release it so the next tap starts fresh.
+                        mp.release()
+                        if (songPlayer === mp) songPlayer = null
                         playingSongId = null
                         isSongPaused = false
-                        notifyDataSetChanged()
+                        safeNotifySongChanged(message.id)
                         true
                     }
                     player.prepareAsync()
@@ -654,6 +677,37 @@ class SuperChatAdapter(
 
     // ── Adapter ──────────────────────────────────────────────────────
 
+    /** Attached RecyclerView — set on attach so async callbacks can post safely. */
+    private var recyclerView: RecyclerView? = null
+
+    /** Only http/https URLs may be handed to external sinks (browser, player). */
+    private fun isSafeRemoteUrl(url: String?): Boolean =
+        !url.isNullOrBlank() && Uri.parse(url).scheme?.lowercase() in setOf("http", "https")
+
+    /**
+     * Notifies a single song card safely from async MediaPlayer callbacks.
+     * The update is posted to the next frame and deferred again when the
+     * RecyclerView is mid-layout, so a track ending / erroring during a
+     * layout pass can never throw IllegalStateException.
+     */
+    private fun safeNotifySongChanged(messageId: String) {
+        val update = {
+            val pos = currentList.indexOfFirst {
+                it is Item.Message && it.message.id == messageId
+            }
+            if (pos >= 0) {
+                val rv = recyclerView
+                if (rv == null || !rv.isComputingLayout) {
+                    notifyItemChanged(pos)
+                } else {
+                    // Layout is mid-computation — defer one more frame.
+                    rv.post { if (!rv.isComputingLayout) notifyItemChanged(pos) }
+                }
+            }
+        }
+        recyclerView?.post { update() } ?: update()
+    }
+
     /** True for AI song-result messages, which get the dedicated song card. */
     private fun isSongCard(message: ChatMessage): Boolean =
         !message.isUser && message.attachmentType == ATTACHMENT_SONG
@@ -689,6 +743,16 @@ class SuperChatAdapter(
     override fun onViewRecycled(holder: BaseHolder) {
         if (holder is TypingHolder) holder.stop()
         super.onViewRecycled(holder)
+    }
+
+    override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
+        super.onAttachedToRecyclerView(recyclerView)
+        this.recyclerView = recyclerView
+    }
+
+    override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
+        this.recyclerView = null
+        super.onDetachedFromRecyclerView(recyclerView)
     }
 
     companion object {

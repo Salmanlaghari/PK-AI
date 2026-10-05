@@ -226,7 +226,9 @@ class SuperChatViewModel @Inject constructor(
      * visual song card (artwork + title + artist + streamable audio).
      * Song data is packed into the attachment fields as:
      * attachmentType=[SuperChatAdapter.ATTACHMENT_SONG], attachmentUri=audioUrl,
-     * attachmentName="title|||artist|||artworkUrl|||pageUrl".
+     * attachmentName="title|||artist|||artworkUrl|||pageUrl" (via
+     * SongSearchHelper.packSongAttachment, which strips `|` from the
+     * remote-controlled title/artist so the delimiter can't be hijacked).
      * The adapter renders these as a dedicated [R.layout.item_song_card]
      * card (not plain text).
      */
@@ -250,11 +252,11 @@ class SuperChatViewModel @Inject constructor(
                 ChatMessage(
                     content = "🎵 Ye raha aapka song:",
                     isUser = false,
-                    modelUsed = "Song Search",
+                    modelUsed = com.salmanlaghari.pkai.util.SongSearchHelper.SONG_MODEL_LABEL,
                     timestamp = System.currentTimeMillis(),
                     attachmentType = SuperChatAdapter.ATTACHMENT_SONG,
                     attachmentUri = song.audioUrl,
-                    attachmentName = "${song.title}|||${song.artist}|||${song.artworkUrl}|||${song.pageUrl}"
+                    attachmentName = com.salmanlaghari.pkai.util.SongSearchHelper.packSongAttachment(song)
                 )
             } else {
                 ChatMessage(

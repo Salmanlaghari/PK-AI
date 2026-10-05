@@ -1,6 +1,5 @@
 package com.salmanlaghari.pkai.ui.home
 
-import android.app.Activity
 import android.graphics.Color
 import android.os.Handler
 import android.os.Looper
@@ -10,6 +9,9 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleObserver
 import com.salmanlaghari.pkai.R
 
 /**
@@ -20,12 +22,15 @@ import com.salmanlaghari.pkai.R
  * code question → coding tips, etc.). Slides down, auto-dismisses, and can
  * be tapped to dismiss early.
  *
- * Self-contained: no fragment changes needed. NOT wired into HomeFragment
- * yet — call from wherever the user's query is handled:
+ * The banner lives inside the caller's [ViewGroup] (typically the fragment's
+ * root view) and is tied to its [Lifecycle]: when the lifecycle is destroyed
+ * (fragment view teardown, rotation, navigation) the banner is removed and
+ * its auto-dismiss cancelled, so it can never outlive the screen or leak a
+ * destroyed Activity's view tree. Example:
  *
- *     TipsHighlightBanner.show(activity, userQuery)
+ *     TipsHighlightBanner.show(binding.root, viewLifecycleOwner.lifecycle, userQuery)
  *
- * Safe to call from any thread; no-ops if the activity is finishing.
+ * Safe to call from any thread.
  */
 object TipsHighlightBanner {
 
@@ -34,32 +39,32 @@ object TipsHighlightBanner {
     private const val ANIM_MS = 280L
 
     private val mainHandler = Handler(Looper.getMainLooper())
-    private var pendingDismiss: Runnable? = null
+    /** Auto-dismiss runnables keyed by container, so each view gets its own. */
+    private val pendingDismiss = mutableMapOf<ViewGroup, Runnable>()
+    /** Lifecycle observers keyed by banner view, so teardown removes them. */
+    private val bannerObservers = mutableMapOf<View, Pair<Lifecycle, LifecycleObserver>>()
 
     /**
-     * Shows the tips banner for [query] on top of [activity]'s content.
-     * Any banner already showing is replaced.
+     * Shows the tips banner for [query] inside [container].
+     * Any banner already showing in the container is replaced.
      */
-    fun show(activity: Activity, query: String) {
+    fun show(container: ViewGroup, lifecycle: Lifecycle, query: String) {
         if (Looper.myLooper() != Looper.getMainLooper()) {
-            mainHandler.post { show(activity, query) }
+            mainHandler.post { show(container, lifecycle, query) }
             return
         }
-        if (activity.isFinishing || activity.isDestroyed) return
-        val root = activity.findViewById<ViewGroup>(android.R.id.content) ?: return
-
-        // One banner at a time — drop the previous one without animation.
-        dismissInternal(root, animate = false)
+        // One banner at a time per container — drop the previous one without animation.
+        dismissInternal(container, animate = false)
 
         val (title, tips) = tipsFor(query)
-        val banner = LayoutInflater.from(activity)
-            .inflate(R.layout.banner_tips_highlight, root, false)
+        val banner = LayoutInflater.from(container.context)
+            .inflate(R.layout.banner_tips_highlight, container, false)
         banner.tag = TAG
         banner.findViewById<TextView>(R.id.tvTipsTitle).text = title
-        val container = banner.findViewById<LinearLayout>(R.id.llTipsContainer)
-        val density = activity.resources.displayMetrics.density
+        val tipContainer = banner.findViewById<LinearLayout>(R.id.llTipsContainer)
+        val density = container.resources.displayMetrics.density
         tips.take(3).forEach { tip ->
-            container.addView(TextView(activity).apply {
+            tipContainer.addView(TextView(container.context).apply {
                 text = "• $tip"
                 setTextColor(Color.WHITE)
                 textSize = 12f
@@ -73,7 +78,7 @@ object TipsHighlightBanner {
             FrameLayout.LayoutParams.MATCH_PARENT,
             FrameLayout.LayoutParams.WRAP_CONTENT
         ).apply { setMargins(margin, margin, margin, 0) }
-        root.addView(banner, params)
+        container.addView(banner, params)
 
         // Slide down from the top once measured.
         banner.post {
@@ -84,24 +89,38 @@ object TipsHighlightBanner {
                 .start()
         }
         // Tap to dismiss early.
-        banner.setOnClickListener { dismissInternal(root, animate = true) }
+        banner.setOnClickListener { dismissInternal(container, animate = true) }
 
-        // Auto-dismiss after 5 seconds.
-        val dismiss = Runnable {
-            if (!activity.isFinishing && !activity.isDestroyed) {
-                dismissInternal(root, animate = true)
-            }
-        }
-        pendingDismiss?.let { mainHandler.removeCallbacks(it) }
-        pendingDismiss = dismiss
+        // Auto-dismiss after 5 seconds, tracked per container.
+        val dismiss = Runnable { dismissInternal(container, animate = true) }
+        pendingDismiss[container] = dismiss
         mainHandler.postDelayed(dismiss, DISPLAY_MS)
+
+        // Tie teardown to the host lifecycle (fragment view, activity, …):
+        // ON_DESTROY removes the banner and cancels its auto-dismiss.
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_DESTROY) dismissInternal(container, animate = false)
+        }
+        bannerObservers[banner] = lifecycle to observer
+        lifecycle.addObserver(observer)
+    }
+
+    /** Removes this container's banner immediately, if present. */
+    fun dismiss(container: ViewGroup) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            mainHandler.post { dismiss(container) }
+            return
+        }
+        dismissInternal(container, animate = false)
     }
 
     /** Removes the banner if present, sliding it back up when [animate]. */
     private fun dismissInternal(root: ViewGroup, animate: Boolean) {
-        pendingDismiss?.let { mainHandler.removeCallbacks(it) }
-        pendingDismiss = null
+        pendingDismiss.remove(root)?.let { mainHandler.removeCallbacks(it) }
         val banner = root.findViewWithTag<View>(TAG) ?: return
+        bannerObservers.remove(banner)?.let { (lifecycle, observer) ->
+            lifecycle.removeObserver(observer)
+        }
         if (!animate || !banner.isLaidOut) {
             root.removeView(banner)
             return
@@ -126,7 +145,10 @@ object TipsHighlightBanner {
      */
     private fun tipsFor(query: String): Pair<String, List<String>> {
         val q = query.lowercase()
-        fun has(vararg words: String) = words.any { q.contains(it) }
+        // Word-boundary matching: "api" must not match inside "captain".
+        fun has(vararg words: String) = words.any { w ->
+            Regex("\\b${Regex.escape(w)}\\b").containsMatchIn(q)
+        }
         return when {
             has("song", "gana", "gaana", "music", "singer", "sunao", "suno") ->
                 "🎵 Music Tips" to listOf(

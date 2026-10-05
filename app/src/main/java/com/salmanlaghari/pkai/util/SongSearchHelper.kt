@@ -26,14 +26,25 @@ object SongSearchHelper {
     private val SONG_ACTION = Regex("(?i)^(.+?)\\s+(song|gana|gaana)\\s+(sunao|suna|play|chalao|lagao)\\s*$")
     private val SONG_PREFIX = Regex("(?i)^(song|gana|gaana)\\s*:\\s*(.+)$")
     private val SUNAO = Regex("(?i)^([^\\s]+)\\s+sunao\\s*$")
-    // "search X song" — explicit search request (Prince's feedback: plain
+    // "search X song [karo]" — explicit search request (Prince's feedback: plain
     // "Search Hum Dil de chuke Sanam song" must open a song card, not text).
-    private val SEARCH_PREFIX = Regex("(?i)^(search|find|dhundo|dhoondo|talash)\\s+(.+?)\\s+(song|gana|gaana)\\s*$")
-    // "X song search karo" — explicit search request, suffix form.
-    private val SEARCH_SUFFIX = Regex("(?i)^(.+?)\\s+(song|gana|gaana)\\s+(search|find|dhundo|dhoondo)\\s*(karo|kar|karein)?\\s*$")
+    private val SEARCH_PREFIX = Regex("(?i)^(search|find|dhundo|dhundho|dhundoo|dhoondo|talash)\\s+(.+?)\\s+(song|gana|gaana)\\s*(karo|kar|karein)?\\s*$")
+    // "X song search|find|…|talash [karo]" — explicit search request, suffix form.
+    private val SEARCH_SUFFIX = Regex("(?i)^(.+?)\\s+(song|gana|gaana)\\s+(search|find|dhundo|dhundho|dhundoo|dhoondo|talash)\\s*(karo|kar|karein)?\\s*$")
     private val NON_MUSIC_QUERY = Regex(
         "(?i)^(app|reel|reels|cricket|pubg|offline)\\b|\\b(video\\s+(games?|link|bhejo)|store\\s+se|link\\s+(bhejo|send)|download|send\\s+me)\\b"
     )
+    /**
+     * English function words marking a captured SEARCH_PREFIX group as
+     * question text rather than a song title ("find out the meaning of this
+     * song" → "out the meaning of this").
+     */
+    private val FUNCTION_WORDS = setOf(
+        "for", "a", "the", "out", "meaning", "of", "this", "my",
+        "best", "new", "old", "what", "how", "why", "which"
+    )
+    /** Music-service names are never song titles ("youtube song search"). */
+    private val SERVICE_NAMES = Regex("(?i)\\b(youtube|spotify|ytmusic|wynk|saavn|jiosaavn)\\b")
 
     data class SongResult(
         val title: String,
@@ -53,7 +64,8 @@ object SongSearchHelper {
      * chat about songs. Supported:
      * "play kesariya", "kesariya play karo", "kesariya song sunao",
      * "song: tum hi ho", "kesariya sunao",
-     * "search hum dil de chuke sanam song", "kesariya song search karo"
+     * "search hum dil de chuke sanam song", "search kesariya song karo",
+     * "kesariya song search karo", "kesariya song talash karo"
      */
     fun extractSongQuery(text: String): String? {
         val t = text.trim()
@@ -77,15 +89,18 @@ object SongSearchHelper {
             val q = it.groupValues[2].trim()
             if (q.length >= 2 && isLikelySongQuery(q)) return q
         }
-        // "search X song" — explicit search request
+        // "search X song [karo]" — explicit search request. The captured group
+        // must be real title text: questions that merely end in "song" (e.g.
+        // "find out the meaning of this song") are rejected by isRealTitleText.
         SEARCH_PREFIX.find(t)?.let {
             val q = it.groupValues[2].trim()
-            if (q.length >= 2 && isLikelySongQuery(q)) return q
+            if (q.length >= 2 && isLikelySongQuery(q) && isRealTitleText(q)) return q
         }
-        // "X song search karo" — explicit search request, suffix form
+        // "X song search|find|…|talash [karo]" — explicit search request,
+        // suffix form. Music-service names are never song titles.
         SEARCH_SUFFIX.find(t)?.let {
             val q = it.groupValues[1].trim()
-            if (q.length >= 2 && isLikelySongQuery(q)) return q
+            if (q.length >= 2 && isLikelySongQuery(q) && !isServiceName(q)) return q
         }
         // "X sunao" — single-word title only (avoids hijacking sentences)
         SUNAO.find(t)?.let {
@@ -101,6 +116,39 @@ object SongSearchHelper {
         if (Regex("\\bgame\\b").containsMatchIn(normalized)) return false
         return !NON_MUSIC_QUERY.containsMatchIn(normalized)
     }
+
+    /**
+     * Guards SEARCH_PREFIX against hijacking ordinary questions that merely
+     * end in "song". Requires at least one non-function word, so single-word
+     * real titles ("search kesariya song" → "kesariya") still match while
+     * "find out the meaning of this song" / "search for a song" / "search
+     * best song" fall through to normal chat.
+     */
+    private fun isRealTitleText(query: String): Boolean {
+        val tokens = query.trim().lowercase(java.util.Locale.ROOT)
+            .split(Regex("\\s+")).filter { it.isNotBlank() }
+        return tokens.isNotEmpty() && tokens.any { it !in FUNCTION_WORDS }
+    }
+
+    /** True when [query] names a music service rather than a song. */
+    private fun isServiceName(query: String): Boolean = SERVICE_NAMES.containsMatchIn(query)
+
+    /** Label shown on song-result messages (provider-agnostic, so a plain name). */
+    const val SONG_MODEL_LABEL = "Song Search"
+
+    /**
+     * Packs song fields into the `|||`-delimited attachmentName consumed by
+     * SuperChatAdapter's song card. Strips `|` from the remote-controlled
+     * title/artist so a malicious delimiter can't shift fields (or the
+     * browser-fallback URL) when the card unpacks them.
+     */
+    fun packSongAttachment(song: SongResult): String =
+        listOf(
+            song.title.replace("|", ""),
+            song.artist.replace("|", ""),
+            song.artworkUrl,
+            song.pageUrl
+        ).joinToString("|||")
 
     /** Searches PagalWorld and returns the best streamable match, or null. */
     suspend fun searchSong(query: String): SongResult? = withContext(Dispatchers.IO) {

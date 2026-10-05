@@ -74,6 +74,10 @@ class HomeFragment : Fragment() {
     private var voiceHelper: VoiceRecognitionHelper? = null
     private var isVoiceListening = false
 
+    /** One-shot entry animations: they run on first impression only, never on
+     * view recreation (the fragment view is rebuilt on every back-navigation). */
+    private var hasPlayedEntryAnimation = false
+
     private val requestAudioPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
@@ -233,8 +237,14 @@ class HomeFragment : Fragment() {
         // Tips auto-popup on first chat entry (skipped when opted out).
         TipsAutoPopup.maybeShow(this, preferencesManager, "home")
 
-        // Premium entry animations — staggered fade/slide-in for a smooth first impression.
-        playEntryAnimations()
+        // Premium entry animations — staggered fade/slide-in for a smooth
+        // first impression. One-shot per fragment instance: replaying them on
+        // every view recreation would blank the screen for ~700 ms on each
+        // back-navigation.
+        if (savedInstanceState == null && !hasPlayedEntryAnimation) {
+            hasPlayedEntryAnimation = true
+            playEntryAnimations()
+        }
     }
 
     /**
@@ -366,8 +376,10 @@ class HomeFragment : Fragment() {
         )
 
         // Contextual tips highlight: top banner for 5s with tips related to this query.
+        // Scoped to the fragment's view + view lifecycle so it can never
+        // outlive this screen (no floating banner over the next destination).
         if (content.isNotBlank()) {
-            runCatching { TipsHighlightBanner.show(requireActivity(), content) }
+            runCatching { TipsHighlightBanner.show(binding.root, viewLifecycleOwner.lifecycle, content) }
         }
 
         if (isGuest) {
@@ -659,6 +671,9 @@ class HomeFragment : Fragment() {
     override fun onDestroyView() {
         // Keep a pending attachment/grant across view recreation; the next view can render it.
         if (::chatAdapter.isInitialized) chatAdapter.releasePlayer()
+        // Remove the tips banner with the fragment's view — it must not float
+        // over the next destination or leak the destroyed view tree.
+        _binding?.let { TipsHighlightBanner.dismiss(it.root) }
         voiceHelper?.destroy()
         voiceHelper = null
         // Stop TTS speech so audio never keeps playing after leaving the screen

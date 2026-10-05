@@ -26,8 +26,13 @@ import android.util.LruCache
  */
 object SpriteSheetLoader {
 
-    /** Hard upper bound for grid sizing; actual count comes from the assets folder. */
-    const val STICKER_COUNT = 220
+    /**
+     * Hard upper bound for grid sizing; actual count comes from the assets folder.
+     * Covers the [EXTRA_STICKER_COUNT] virtual emoji stickers sitting past the
+     * 18+ SUPER pool (virtual indices 216..243), so [PoseRegistry.allStickers]
+     * keeps them all reachable in the picker.
+     */
+    const val STICKER_COUNT = 244
     private const val MAX_CACHE_SIZE = 48 // individual sticker bitmaps
 
     /**

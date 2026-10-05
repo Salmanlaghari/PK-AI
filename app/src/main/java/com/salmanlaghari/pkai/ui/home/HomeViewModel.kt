@@ -17,7 +17,7 @@ import com.salmanlaghari.pkai.data.repository.CodeExecutionResult
 import com.salmanlaghari.pkai.data.repository.CodeRunnerRepository
 import com.salmanlaghari.pkai.data.repository.ImageGenerationResult
 import com.salmanlaghari.pkai.data.repository.PollinationsImageRepository
-import com.salmanlaghari.pkai.ui.superchat.SuperChatAdapter
+import com.salmanlaghari.pkai.util.SongAttachment
 import com.salmanlaghari.pkai.util.SongSearchHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -490,9 +490,9 @@ class HomeViewModel @Inject constructor(
                             isUser = false,
                             modelUsed = replyLabel,
                             timestamp = System.currentTimeMillis(),
-                            attachmentType = SuperChatAdapter.ATTACHMENT_SONG,
+                            attachmentType = SongAttachment.TYPE,
                             attachmentUri = song.audioUrl,
-                            attachmentName = SongSearchHelper.packSongAttachment(song)
+                            attachmentName = SongAttachment.pack(song)
                         )
                     )
                 } else {

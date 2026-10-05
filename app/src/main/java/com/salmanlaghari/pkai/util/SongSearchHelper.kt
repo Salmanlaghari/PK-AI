@@ -118,16 +118,33 @@ object SongSearchHelper {
     }
 
     /**
+     * Words that mark a captured SEARCH_PREFIX group as a question rather
+     * than a song title. A denylist of function words alone can never be
+     * complete ("who wrote this", "how many songs"), so any interrogative /
+     * question-verb token rejects the whole group and the text falls through
+     * to the normal chat provider instead of opening a song card.
+     */
+    private val QUESTION_WORDS = setOf(
+        "who", "whom", "whose", "what", "which", "when", "where", "why", "how",
+        "tell", "me", "wrote", "written", "write", "sing", "sang", "sung",
+        "many", "much", "is", "are", "was", "were", "do", "does", "did",
+        "can", "could", "will", "would", "mean", "lyrics"
+    )
+
+    /**
      * Guards SEARCH_PREFIX against hijacking ordinary questions that merely
-     * end in "song". Requires at least one non-function word, so single-word
-     * real titles ("search kesariya song" → "kesariya") still match while
-     * "find out the meaning of this song" / "search for a song" / "search
-     * best song" fall through to normal chat.
+     * end in "song". Rejects the group when ANY token is a question word
+     * ("search who wrote this song", "search how many songs did Arijit
+     * sing"), and otherwise still requires at least one non-function word,
+     * so single-word real titles ("search kesariya song" → "kesariya") match
+     * while "find out the meaning of this song" falls through to chat.
      */
     private fun isRealTitleText(query: String): Boolean {
         val tokens = query.trim().lowercase(java.util.Locale.ROOT)
             .split(Regex("\\s+")).filter { it.isNotBlank() }
-        return tokens.isNotEmpty() && tokens.any { it !in FUNCTION_WORDS }
+        if (tokens.isEmpty()) return false
+        if (tokens.any { it in QUESTION_WORDS }) return false
+        return tokens.any { it !in FUNCTION_WORDS }
     }
 
     /** True when [query] names a music service rather than a song. */
@@ -138,16 +155,17 @@ object SongSearchHelper {
 
     /**
      * Packs song fields into the `|||`-delimited attachmentName consumed by
-     * SuperChatAdapter's song card. Strips `|` from the remote-controlled
-     * title/artist so a malicious delimiter can't shift fields (or the
-     * browser-fallback URL) when the card unpacks them.
+     * SuperChatAdapter's song card. Strips `|` from ALL four fields so a
+     * malicious delimiter in a remote-controlled value (og:image scraped
+     * from the song page, url from the WP search API) can't shift the
+     * unpacked slots when the card splits them.
      */
     fun packSongAttachment(song: SongResult): String =
         listOf(
             song.title.replace("|", ""),
             song.artist.replace("|", ""),
-            song.artworkUrl,
-            song.pageUrl
+            song.artworkUrl.replace("|", ""),
+            song.pageUrl.replace("|", "")
         ).joinToString("|||")
 
     /** Searches PagalWorld and returns the best streamable match, or null. */

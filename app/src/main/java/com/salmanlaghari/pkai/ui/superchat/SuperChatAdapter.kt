@@ -25,6 +25,7 @@ import com.salmanlaghari.pkai.data.repository.CodeExecutionResult
 import com.salmanlaghari.pkai.ui.chat.CodeBlockBinder
 import com.salmanlaghari.pkai.util.ImageLoadHelper
 import com.salmanlaghari.pkai.util.MarkdownImageParser
+import com.salmanlaghari.pkai.util.SongAttachment
 import com.salmanlaghari.pkai.util.SpriteSheetLoader
 import java.io.File
 
@@ -505,10 +506,10 @@ class SuperChatAdapter(
         fun bind(item: Item.Message) {
             val message = item.message
             val isNew = animatedIds.add(message.id)
-            val parts = (message.attachmentName ?: "").split("|||")
-            val title = parts.getOrElse(0) { "Unknown Song" }.ifBlank { "Unknown Song" }
-            val artist = parts.getOrElse(1) { "Unknown Artist" }.ifBlank { "Unknown Artist" }
-            val artwork = parts.getOrElse(2) { "" }
+            val card = SongAttachment.unpack(message.attachmentName)
+            val title = card.title
+            val artist = card.artist
+            val artwork = card.artworkUrl
             // Reset to the music-note placeholder first — a recycled holder
             // must never flash another song's artwork. Clear the tag too:
             // loadArtwork() returns early on a blank URL before re-tagging,
@@ -556,7 +557,7 @@ class SuperChatAdapter(
             val audioUrl = message.attachmentUri
             if (audioUrl.isNullOrBlank()) {
                 // No stream — fall back to opening the track page in the browser.
-                val pageUrl = (message.attachmentName ?: "").split("|||").getOrElse(3) { "" }
+                val pageUrl = SongAttachment.unpack(message.attachmentName).pageUrl
                 if (isSafeRemoteUrl(pageUrl)) {
                     try {
                         ctx.startActivity(
@@ -686,31 +687,44 @@ class SuperChatAdapter(
 
     /**
      * Notifies a single song card safely from async MediaPlayer callbacks.
-     * The update is posted to the next frame and deferred again when the
-     * RecyclerView is mid-layout, so a track ending / erroring during a
-     * layout pass can never throw IllegalStateException.
+     *
+     * The position is re-resolved inside EVERY deferred hop (never captured
+     * once and reused): a submitList landing between hops changes the item
+     * count, and a stale position would throw IndexOutOfBoundsException —
+     * the very crash this helper exists to avoid. When the RecyclerView is
+     * mid-layout the update is re-posted (bounded) instead of being silently
+     * dropped, so the play/pause glyph can't get stuck wrong after a track
+     * finishes or errors while the list is scrolling.
      */
     private fun safeNotifySongChanged(messageId: String) {
-        val update = {
-            val pos = currentList.indexOfFirst {
-                it is Item.Message && it.message.id == messageId
-            }
-            if (pos >= 0) {
-                val rv = recyclerView
-                if (rv == null || !rv.isComputingLayout) {
-                    notifyItemChanged(pos)
-                } else {
-                    // Layout is mid-computation — defer one more frame.
-                    rv.post { if (!rv.isComputingLayout) notifyItemChanged(pos) }
+        val rv = recyclerView
+        val attempt = object : Runnable {
+            var tries = 0
+            override fun run() {
+                val pos = currentList.indexOfFirst {
+                    it is Item.Message && it.message.id == messageId
                 }
+                // Message gone, or list shrank under us — nothing to update.
+                if (pos < 0 || pos >= itemCount) return
+                val view = rv
+                if (view != null && view.isComputingLayout) {
+                    // Mid-layout: try again shortly (bounded). Dropping the
+                    // update here would leave the glyph wrong until rebind.
+                    if (tries < 10) {
+                        tries++
+                        view.postDelayed(this, 50)
+                    }
+                    return
+                }
+                if (pos < itemCount) notifyItemChanged(pos)
             }
         }
-        recyclerView?.post { update() } ?: update()
+        if (rv != null) rv.post(attempt) else attempt.run()
     }
 
     /** True for AI song-result messages, which get the dedicated song card. */
     private fun isSongCard(message: ChatMessage): Boolean =
-        !message.isUser && message.attachmentType == ATTACHMENT_SONG
+        !message.isUser && message.attachmentType == SongAttachment.TYPE
 
     override fun getItemViewType(position: Int): Int = when (val item = getItem(position)) {
         is Item.Message -> if (isSongCard(item.message)) VIEW_SONG_CARD else VIEW_MESSAGE
@@ -760,7 +774,11 @@ class SuperChatAdapter(
         private const val VIEW_TYPING = 1
         private const val VIEW_SONG_CARD = 2
         /** [ChatMessage.attachmentType] value marking a rich song result card. */
-        const val ATTACHMENT_SONG = "song"
+        @Deprecated(
+            "Use SongAttachment.TYPE — ViewModels must not depend on the UI adapter.",
+            ReplaceWith("com.salmanlaghari.pkai.util.SongAttachment.TYPE")
+        )
+        const val ATTACHMENT_SONG = SongAttachment.TYPE
 
         private val DIFF = object : DiffUtil.ItemCallback<Item>() {
             override fun areItemsTheSame(oldItem: Item, newItem: Item): Boolean =

@@ -27,12 +27,24 @@ import android.util.LruCache
 object SpriteSheetLoader {
 
     /**
-     * Hard upper bound for grid sizing; actual count comes from the assets folder.
-     * Covers the [EXTRA_STICKER_COUNT] virtual emoji stickers sitting past the
-     * 18+ SUPER pool (virtual indices 216..243), so [PoseRegistry.allStickers]
-     * keeps them all reachable in the picker.
+     * Size of the full virtual sticker catalogue (real assets + virtual emoji
+     * stickers). Used by [PoseRegistry.allStickers] so the picker covers
+     * everything, including the [EXTRA_STICKER_COUNT] virtual emoji stickers
+     * sitting past the 18+ SUPER pool.
+     *
+     * NOTE: this is intentionally NOT used for the no-assets fallback in
+     * [availableStickers] — that path needs the real asset ceiling
+     * ([MAX_REAL_ASSET_COUNT]), otherwise the fallback generates out-of-range
+     * indices and pushes the themed emoji stickers out of their range.
      */
     const val STICKER_COUNT = 244
+    /**
+     * Real asset ceiling for the no-assets fallback: `pose_216.webp` is the
+     * highest bundled file, i.e. 0-based indices 0..215. Kept separate from
+     * [STICKER_COUNT] so growing the virtual extras can never regress the
+     * fallback path (see Kilo review on PR #101).
+     */
+    private const val MAX_REAL_ASSET_COUNT = 216
     private const val MAX_CACHE_SIZE = 48 // individual sticker bitmaps
 
     /**
@@ -97,7 +109,7 @@ object SpriteSheetLoader {
         } catch (_: Exception) {
             emptyList()
         }
-        val base = real.ifEmpty { IntArray(STICKER_COUNT) { it }.toList() }
+        val base = real.ifEmpty { IntArray(MAX_REAL_ASSET_COUNT) { it }.toList() }
         // Virtual emoji stickers start past the real assets AND past the 18+
         // SUPER pool (200..215), so dropping more pose_*.webp files later can
         // never collide with them and nothing existing shifts.

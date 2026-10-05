@@ -224,11 +224,9 @@ class SuperChatViewModel @Inject constructor(
     /**
      * Song search: appends the user message, searches PagalWorld, and posts a
      * visual song card (artwork + title + artist + streamable audio).
-     * Song data is packed into the attachment fields as:
-     * attachmentType=[SuperChatAdapter.ATTACHMENT_SONG], attachmentUri=audioUrl,
-     * attachmentName="title|||artist|||artworkUrl|||pageUrl" (via
-     * SongSearchHelper.packSongAttachment, which strips `|` from the
-     * remote-controlled title/artist so the delimiter can't be hijacked).
+     * Song data is packed into the attachment fields per the
+     * [SongAttachment] contract: attachmentType=[SongAttachment.TYPE],
+     * attachmentUri=audioUrl, attachmentName=[SongAttachment.pack] payload.
      * The adapter renders these as a dedicated [R.layout.item_song_card]
      * card (not plain text).
      */
@@ -254,9 +252,9 @@ class SuperChatViewModel @Inject constructor(
                     isUser = false,
                     modelUsed = com.salmanlaghari.pkai.util.SongSearchHelper.SONG_MODEL_LABEL,
                     timestamp = System.currentTimeMillis(),
-                    attachmentType = SuperChatAdapter.ATTACHMENT_SONG,
+                    attachmentType = com.salmanlaghari.pkai.util.SongAttachment.TYPE,
                     attachmentUri = song.audioUrl,
-                    attachmentName = com.salmanlaghari.pkai.util.SongSearchHelper.packSongAttachment(song)
+                    attachmentName = com.salmanlaghari.pkai.util.SongAttachment.pack(song)
                 )
             } else {
                 ChatMessage(

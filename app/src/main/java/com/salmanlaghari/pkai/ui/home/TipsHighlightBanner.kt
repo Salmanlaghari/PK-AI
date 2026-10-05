@@ -7,12 +7,15 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleObserver
 import com.salmanlaghari.pkai.R
+import java.lang.ref.WeakReference
+import java.util.WeakHashMap
 
 /**
  * Contextual "Tips Highlights" popup.
@@ -39,10 +42,32 @@ object TipsHighlightBanner {
     private const val ANIM_MS = 280L
 
     private val mainHandler = Handler(Looper.getMainLooper())
-    /** Auto-dismiss runnables keyed by container, so each view gets its own. */
-    private val pendingDismiss = mutableMapOf<ViewGroup, Runnable>()
-    /** Lifecycle observers keyed by banner view, so teardown removes them. */
-    private val bannerObservers = mutableMapOf<View, Pair<Lifecycle, LifecycleObserver>>()
+    /**
+     * Auto-dismiss runnables keyed WEAKLY by container: a static map must
+     * never pin a host view tree for the life of the process. The Runnable
+     * itself holds only a [WeakReference] to the container (a strong capture
+     * in the lambda would defeat the weak key), so a banner removed without
+     * going through [dismissInternal] can't leak.
+     */
+    private val pendingDismiss = WeakHashMap<ViewGroup, Runnable>()
+    /**
+     * Lifecycle observers keyed WEAKLY by banner view. The value holds the
+     * host Lifecycle (which doesn't reference the view), so entries vanish
+     * with the banner view instead of pinning it.
+     */
+    private val bannerObservers = WeakHashMap<View, Pair<Lifecycle, LifecycleObserver>>()
+
+    /**
+     * Category matchers, compiled ONCE. Building a Regex per word per send
+     * (~20 compilations on the main thread per message) was wasteful; these
+     * cover the same word sets as [tipsFor] used to match inline.
+     */
+    private val MUSIC_PATTERN = Regex("\\b(song|gana|gaana|music|singer|sunao|suno)\\b")
+    private val CODE_PATTERN =
+        Regex("\\b(code|python|kotlin|java|function|error|bug|api)\\b")
+    private val IMAGE_PATTERN =
+        Regex("\\b(image|photo|tasveer|picture|draw|banao)\\b")
+    private val VIDEO_PATTERN = Regex("\\b(video)\\b")
 
     /**
      * Shows the tips banner for [query] inside [container].
@@ -88,11 +113,22 @@ object TipsHighlightBanner {
                 .setDuration(ANIM_MS)
                 .start()
         }
-        // Tap to dismiss early.
-        banner.setOnClickListener { dismissInternal(container, animate = true) }
+        // The banner itself is deliberately NOT clickable: for DISPLAY_MS it
+        // sits on top of the fragment root, and a clickable banner would
+        // swallow every tap on the header row (Premium/Free tabs, menu…).
+        // Touches pass through to the views underneath; only the explicit
+        // close button consumes taps.
+        banner.isClickable = false
+        banner.isFocusable = false
+        banner.findViewById<ImageView>(R.id.ivTipsClose).setOnClickListener {
+            dismissInternal(container, animate = true)
+        }
 
-        // Auto-dismiss after 5 seconds, tracked per container.
-        val dismiss = Runnable { dismissInternal(container, animate = true) }
+        // Auto-dismiss after 5 seconds, tracked per container. The Runnable
+        // captures only a WeakReference — a strong capture would pin the
+        // container through the static map even with a weak key.
+        val containerRef = WeakReference(container)
+        val dismiss = Runnable { containerRef.get()?.let { dismissInternal(it, animate = true) } }
         pendingDismiss[container] = dismiss
         mainHandler.postDelayed(dismiss, DISPLAY_MS)
 
@@ -145,30 +181,28 @@ object TipsHighlightBanner {
      */
     private fun tipsFor(query: String): Pair<String, List<String>> {
         val q = query.lowercase()
-        // Word-boundary matching: "api" must not match inside "captain".
-        fun has(vararg words: String) = words.any { w ->
-            Regex("\\b${Regex.escape(w)}\\b").containsMatchIn(q)
-        }
+        // Word-boundary matching via the pre-compiled category patterns above:
+        // "api" must not match inside "captain".
         return when {
-            has("song", "gana", "gaana", "music", "singer", "sunao", "suno") ->
+            MUSIC_PATTERN.containsMatchIn(q) ->
                 "🎵 Music Tips" to listOf(
                     "Gaane ka naam + singer likhein — best results milenge",
                     "Card par ▶ dabayein, song direct chat mein play hoga",
                     "\"play kesariya\" jaisa short command bhi kaam karta hai"
                 )
-            has("code", "python", "kotlin", "java", "function", "error", "bug", "api") ->
+            CODE_PATTERN.containsMatchIn(q) ->
                 "💻 Coding Tips" to listOf(
                     "Error ka poora message paste karein — fix tez milega",
                     "Language ka naam zaroor likhein (Kotlin, Python…)",
                     "``` wale code blocks par Run dabakar test kar sakte hain"
                 )
-            has("image", "photo", "tasveer", "picture", "draw", "banao") ->
+            IMAGE_PATTERN.containsMatchIn(q) ->
                 "🎨 Image Tips" to listOf(
                     "Detail mein describe karein — style, colors, mood",
                     "Generated image par tap karke fullscreen dekhein",
                     "Roman Urdu ya English — dono mein prompt chalega"
                 )
-            has("video") ->
+            VIDEO_PATTERN.containsMatchIn(q) ->
                 "🎬 Video Tips" to listOf(
                     "Video ka topic + duration likhein for best result",
                     "Shorts ke liye \"short video\" zaroor mention karein",

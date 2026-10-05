@@ -170,17 +170,26 @@ class HomeFragment : Fragment() {
             viewModel.isImageMode.collect { updateImageModeToggle() }
         }
 
-        binding.btnTabPremium.setOnClickListener { viewModel.setFreeMode(false) }
-        binding.btnTabFree.setOnClickListener { viewModel.setFreeMode(true) }
-        binding.btnTabSuperChat.setOnClickListener {
-            findNavController().navigate(R.id.superChatFragment)
-        }
-        binding.btnTabUltraAi.setOnClickListener {
-            findNavController().navigate(R.id.aiHubFragment)
-        }
-
         binding.btnTabChat.setOnClickListener { viewModel.setImageMode(false) }
         binding.btnTabImage.setOnClickListener { viewModel.setImageMode(true) }
+
+        // AI Mode from the navigation drawer (nav_mode_premium / nav_mode_free).
+        // A fresh navigation carries it as the "aiMode" fragment argument; when
+        // the drawer is opened from Home itself it arrives via the current
+        // back-stack entry's SavedStateHandle (see MainActivity).
+        arguments?.getString("aiMode")?.let { mode ->
+            viewModel.setFreeMode(mode == "free")
+            arguments?.remove("aiMode")
+        }
+        findNavController().currentBackStackEntry?.savedStateHandle
+            ?.getLiveData<String>("aiMode")
+            ?.observe(viewLifecycleOwner) { mode ->
+                if (mode != null) {
+                    viewModel.setFreeMode(mode == "free")
+                    findNavController().currentBackStackEntry
+                        ?.savedStateHandle?.remove<String>("aiMode")
+                }
+            }
 
         setupFreeModelChips()
 
@@ -227,12 +236,10 @@ class HomeFragment : Fragment() {
         binding.btnMenu.setOnClickListener {
             (activity as? MainActivity)?.openDrawer()
         }
-        binding.btnNotifications.setOnClickListener {
-            Toast.makeText(requireContext(), "🔔 Notifications clicked!", Toast.LENGTH_SHORT).show()
-        }
-        binding.btnSettings.setOnClickListener {
-            findNavController().navigate(R.id.settingsFragment)
-        }
+        // NOTE (Task 2/3): the provider pill tabs (btnTabPremium/Free/SuperChat/UltraAi)
+        // and the header btnNotifications/btnSettings were removed from
+        // fragment_home.xml — provider switching and notifications now live in
+        // the navigation drawer.
 
         // Tips auto-popup on first chat entry (skipped when opted out).
         TipsAutoPopup.maybeShow(this, preferencesManager, "home")
@@ -248,8 +255,9 @@ class HomeFragment : Fragment() {
     }
 
     /**
-     * Plays the home screen entry animations: header slides down, provider tabs
-     * stagger in, chat input rises up. Kept subtle and premium — no jank.
+     * Plays the home screen entry animations: header slides down, chat list
+     * fades in, input bar rises up. Kept subtle and premium — no jank.
+     * (The provider pill tabs were removed in Task 2, so they no longer animate.)
      */
     private fun playEntryAnimations() {
         val b = _binding ?: return
@@ -257,19 +265,6 @@ class HomeFragment : Fragment() {
         b.layoutHeader.apply {
             alpha = 0f; translationY = -24f
             animate().alpha(1f).translationY(0f).setDuration(250).start()
-        }
-        // Provider tabs: staggered scale + fade, Premium first
-        val tabs = listOf(b.btnTabPremium, b.btnTabFree, b.btnTabSuperChat, b.btnTabUltraAi)
-        b.layoutChatModeTab.apply {
-            alpha = 0f; translationY = 24f
-            animate().alpha(1f).translationY(0f).setDuration(300).setStartDelay(80).start()
-        }
-        tabs.forEachIndexed { i, tab ->
-            tab.apply {
-                alpha = 0f; scaleX = 0.92f; scaleY = 0.92f
-                animate().alpha(1f).scaleX(1f).scaleY(1f)
-                    .setDuration(280).setStartDelay(120L + i * 60).start()
-            }
         }
         // Chat list: gentle fade
         b.rvChatMessages.apply {
@@ -300,7 +295,6 @@ class HomeFragment : Fragment() {
     /** Reflects the active provider/model in the persistent chip + input hint. */
     private fun updateProviderChip() {
         val currentBinding = _binding ?: return
-        updateTabSelection()
         val isFree = viewModel.isFreeMode.value
         val isImage = viewModel.isImageMode.value
 
@@ -323,20 +317,6 @@ class HomeFragment : Fragment() {
                 currentBinding.etMessageInput.setHint("Ask ${p.displayName}…")
             }
         }
-    }
-
-    /** Highlights the active chat-mode tab (Premium / Free). */
-    private fun updateTabSelection() {
-        val currentBinding = _binding ?: return
-        val isFree = viewModel.isFreeMode.value
-
-        // Per-tab premium selectors (state_selected) — hero gradients per provider.
-        currentBinding.btnTabPremium.isSelected = !isFree
-        currentBinding.btnTabFree.isSelected = isFree
-        val activeText = R.color.white
-        val idleText = R.color.outline
-        currentBinding.btnTabPremium.setTextColor(resources.getColor(if (!isFree) activeText else idleText, null))
-        currentBinding.btnTabFree.setTextColor(resources.getColor(if (isFree) activeText else idleText, null))
     }
 
     /** Updates the compact Chat / Image icon toggle to match the current mode. */

@@ -2,7 +2,7 @@
 <!-- Premium tab — HERO card: deep amber → deep purple gradient when selected
      (start is premium_amber_dark at 7.3:1 vs white so the label stays
      readable), dark glass with a subtle gold stroke when idle.
-     state_selected is toggled by HomeFragment.updateTabSelection()
+     state_selected is toggled by HomeFragment for the provider tabs
      (parent wires setSelected). -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_selected="true">

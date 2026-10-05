@@ -61,6 +61,13 @@
             app:argType="string"
             app:nullable="true"
             android:defaultValue="@null" />
+        <!-- Drawer "AI Mode" (nav_mode_premium / nav_mode_free) passes the mode
+             here; HomeFragment applies it to HomeViewModel and clears it. -->
+        <argument
+            android:name="aiMode"
+            app:argType="string"
+            app:nullable="true"
+            android:defaultValue="@null" />
         <action
             android:id="@+id/action_homeFragment_to_loginFragment"
             app:destination="@id/loginFragment"

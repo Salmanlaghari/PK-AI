@@ -132,13 +132,13 @@
                 android:textSize="10sp"
                 android:textStyle="bold" />
 
-            <!-- 3D animated card -->
+            <!-- 3D animated card — light professional variant (Task 4) -->
             <FrameLayout
                 android:id="@+id/aiCard"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="3dp"
-                android:background="@drawable/bg_ai_3d_card"
+                android:background="@drawable/bg_ai_card_light"
                 android:paddingHorizontal="14dp"
                 android:paddingVertical="11dp">
 
@@ -189,7 +189,7 @@
                         android:id="@+id/tvAiMessage"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:textColor="#FFFFFF"
+                        android:textColor="#1A1A2E"
                         android:textSize="13sp"
                         android:lineSpacingExtra="2dp"
                         tools:text="Hello! 👋 How are you?" />
@@ -209,7 +209,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
                         android:text="⚠️ Couldn't load image"
-                        android:textColor="#FFB4A2"
+                        android:textColor="#C62828"
                         android:textSize="11sp"
                         android:visibility="gone" />
 

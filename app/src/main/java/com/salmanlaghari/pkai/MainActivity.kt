@@ -7,9 +7,11 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
+import androidx.core.os.bundleOf
 import androidx.core.view.GravityCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
+import androidx.navigation.NavOptions
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
 import com.salmanlaghari.pkai.R
@@ -130,6 +132,22 @@ class MainActivity : AppCompatActivity() {
                     }
                     true
                 }
+                // AI Mode (moved from the Home top pill tabs): go home if needed,
+                // then hand the mode to HomeFragment (it applies + clears it).
+                R.id.nav_mode_premium -> {
+                    navigateHomeWithAiMode("premium")
+                    true
+                }
+                R.id.nav_mode_free -> {
+                    navigateHomeWithAiMode("free")
+                    true
+                }
+                // Notifications (moved from the Home header); no notifications
+                // screen exists in nav_graph yet, so keep the same Toast.
+                R.id.nav_notifications -> {
+                    Toast.makeText(this, "🔔 Notifications", Toast.LENGTH_SHORT).show()
+                    true
+                }
                 R.id.nav_profile -> {
                     if (navController.currentDestination?.id != R.id.profileFragment) {
                         navController.navigate(R.id.profileFragment)
@@ -182,6 +200,24 @@ class MainActivity : AppCompatActivity() {
 
     fun openDrawer() {
         binding.drawerLayout.openDrawer(GravityCompat.START)
+    }
+
+    /**
+     * Drawer "AI Mode" → Home. If we're already on Home the mode is delivered
+     * through the current back-stack entry's SavedStateHandle (no duplicate
+     * HomeFragment); otherwise we navigate to Home with the "aiMode" argument.
+     * HomeFragment applies it to HomeViewModel.setFreeMode() and clears it.
+     */
+    private fun navigateHomeWithAiMode(mode: String) {
+        if (navController.currentDestination?.id == R.id.homeFragment) {
+            navController.currentBackStackEntry?.savedStateHandle?.set("aiMode", mode)
+        } else {
+            navController.navigate(
+                R.id.homeFragment,
+                bundleOf("aiMode" to mode),
+                NavOptions.Builder().setLaunchSingleTop(true).build()
+            )
+        }
     }
 
     private fun themeResId(themeId: String): Int {

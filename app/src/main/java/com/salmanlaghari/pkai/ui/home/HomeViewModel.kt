@@ -237,15 +237,46 @@ class HomeViewModel @Inject constructor(
         // Song search intent → visual song card via PagalWorld (mirrors
         // SuperChatViewModel.searchAndSendSong so song cards render on Home
         // too). Attachments take the normal provider path instead.
+        //
+        // Bare song title fallback (Prince feedback): a plain title like
+        // "sanam Re Sanam" must open a PLAYABLE song card, not a text
+        // summary. The PagalWorld lookup is the guard — when no streamable
+        // match exists the message falls through to normal chat below.
         if (attachmentType == null) {
             val songQuery = SongSearchHelper.extractSongQuery(content.trim())
             if (songQuery != null) {
                 searchAndSendSong(content.trim(), songQuery)
                 return
             }
+            if (SongSearchHelper.looksLikeBareSongTitle(content.trim())) {
+                tryBareSongTitle(content.trim())
+                return
+            }
         }
 
         viewModelScope.launch {
+            runChatFlow(
+                content.trim(),
+                attachmentType,
+                attachmentUri,
+                attachmentName,
+                imageDataUri
+            )
+        }
+    }
+
+    /**
+     * Normal AI chat flow, extracted from [sendMessage] so the bare-song-title
+     * fallback can fall through to it when PagalWorld finds no streamable
+     * match. Manages [_isGenerating] itself.
+     */
+    private suspend fun runChatFlow(
+        content: String,
+        attachmentType: String?,
+        attachmentUri: String?,
+        attachmentName: String?,
+        imageDataUri: String?
+    ) {
             val isFree = _isFreeMode.value
             val freeModel = selectedFreeModel.value
             val provider = selectedProvider.value
@@ -453,6 +484,69 @@ class HomeViewModel @Inject constructor(
                     modelUsed = if (isFree) freeModel.chatLabel else provider.displayName
                 )
                 chatMessageDao.insertMessage(errorMessage)
+            } finally {
+                _isGenerating.value = false
+            }
+    }
+
+    /**
+     * Bare song title fallback: "sanam Re Sanam" → search PagalWorld first.
+     * A PLAYABLE song card is posted only when a streamable match exists;
+     * otherwise the message falls through to normal AI chat via [runChatFlow]
+     * so ordinary short texts ("ok", "hello ji") are never dead-ended.
+     */
+    private fun tryBareSongTitle(originalText: String) {
+        if (_isGenerating.value) return
+        // Set synchronously BEFORE the first suspend so the re-entrancy
+        // guard can't be bypassed by a fast double-tap.
+        _isGenerating.value = true
+        viewModelScope.launch {
+            try {
+                val song = SongSearchHelper.searchSong(originalText)
+                if (song != null) {
+                    val isFree = _isFreeMode.value
+                    val freeLabel = selectedFreeModel.value.chatLabel
+                    val replyLabel = if (isFree) freeLabel else SongSearchHelper.SONG_MODEL_LABEL
+                    chatMessageDao.insertMessage(
+                        ChatMessage(
+                            content = originalText,
+                            isUser = true,
+                            modelUsed = if (isFree) freeLabel else null,
+                            timestamp = System.currentTimeMillis()
+                        )
+                    )
+                    chatMessageDao.insertMessage(
+                        ChatMessage(
+                            content = "🎵 Ye raha aapka song:",
+                            isUser = false,
+                            modelUsed = replyLabel,
+                            timestamp = System.currentTimeMillis(),
+                            attachmentType = SongAttachment.TYPE,
+                            attachmentUri = song.audioUrl,
+                            attachmentName = SongAttachment.pack(song)
+                        )
+                    )
+                    try {
+                        historySessionId = chatHistoryRecorder.recordSession(
+                            sessionId = historySessionId,
+                            title = historySessionTitle ?: originalText.trim().take(60),
+                            preview = "🎵 $originalText".take(120)
+                        )
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Log.w(TAG, "History recording failed (best-effort)", e)
+                    }
+                } else {
+                    // No streamable match — let normal AI chat answer instead
+                    // of dead-ending with "nahi mila".
+                    runChatFlow(originalText, null, null, null, null)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "Bare song title lookup failed", e)
+                runChatFlow(originalText, null, null, null, null)
             } finally {
                 _isGenerating.value = false
             }

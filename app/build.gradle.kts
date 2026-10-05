@@ -40,7 +40,7 @@ android {
         val cerebrasApiKey = System.getenv("CEREBRAS_API_KEY") ?: localProperties.getProperty("CEREBRAS_API_KEY") ?: ""
         val huggingfaceApiKey = System.getenv("HUGGINGFACE_API_KEY") ?: localProperties.getProperty("HUGGINGFACE_API_KEY") ?: ""
         val groqModel = System.getenv("GROQ_MODEL") ?: localProperties.getProperty("GROQ_MODEL") ?: "openai/gpt-oss-20b"
-        val groqVisionModel = System.getenv("GROQ_VISION_MODEL") ?: localProperties.getProperty("GROQ_VISION_MODEL") ?: "meta-llama/llama-4-scout-17b-16e-instruct"
+        val groqVisionModel = System.getenv("GROQ_VISION_MODEL") ?: localProperties.getProperty("GROQ_VISION_MODEL") ?: "llama-4-scout-17b-16e-instruct"
         val openRouterApiKey = System.getenv("OPENROUTER_API_KEY") ?: localProperties.getProperty("OPENROUTER_API_KEY") ?: ""
         val hackerEarthClientId = System.getenv("HACKEREARTH_CLIENT_ID") ?: localProperties.getProperty("HACKEREARTH_CLIENT_ID") ?: ""
         val hackerEarthClientSecret = System.getenv("HACKEREARTH_CLIENT_SECRET") ?: localProperties.getProperty("HACKEREARTH_CLIENT_SECRET") ?: ""

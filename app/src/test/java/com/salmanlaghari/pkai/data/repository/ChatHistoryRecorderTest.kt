@@ -35,6 +35,10 @@ private class FakeChatHistoryDao : ChatHistoryDao {
         items[itemId]?.let { items[itemId] = it.copy(isPinned = isPinned) }
     }
 
+    override suspend fun isPinned(itemId: String): Boolean? {
+        return items[itemId]?.isPinned
+    }
+
     override suspend fun clearAll() {
         items.clear()
     }

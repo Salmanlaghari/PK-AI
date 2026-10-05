@@ -102,4 +102,28 @@
 
     <color name="white">#FFFFFF</color>
     <color name="html_green">#69F0AE</color>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         Home screen premium redesign (Oct 5, Prince feedback)
+         ═══════════════════════════════════════════════════════════════ -->
+    <!-- Dark chatbox: hint + typed text must stay readable on #1C1C28 -->
+    <color name="home_hint">#B3FFFFFF</color>
+    <color name="home_hint_focused">#E6FFFFFF</color>
+    <color name="home_input_text">#FFFFFF</color>
+    <color name="home_input_stroke">#40FFFFFF</color>
+
+    <!-- Provider tab cards -->
+    <color name="tab_glass_dark">#B31E1E2E</color>
+    <color name="premium_amber">#FFB300</color>
+    <!-- Deep amber/brown used as the START of selected-state gradients under
+         white text: 7.3:1 vs #FFB300's 1.8:1, so the whole gradient clears 4.5:1. -->
+    <color name="premium_amber_dark">#7A4D00</color>
+    <color name="premium_deep_purple">#4A148C</color>
+    <!-- Deep blue start: 8.6:1 vs #4FC3F7's 2.0:1 with white text. -->
+    <color name="tab_free_start">#0D47A1</color>
+    <color name="tab_free_end">#1565C0</color>
+    <color name="tab_super_start">#FF80AB</color>
+    <color name="tab_super_end">#AD1457</color>
+    <color name="tab_ultra_start">#B388FF</color>
+    <color name="tab_ultra_end">#4527A0</color>
 </resources>

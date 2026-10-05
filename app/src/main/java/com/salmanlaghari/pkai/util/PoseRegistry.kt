@@ -22,15 +22,15 @@ object PoseRegistry {
     /** Candidate poses per mood — [stickerForMood] cycles through these. */
     val moodStickers: Map<Mood, List<Int>> = mapOf(
         Mood.GREETING to listOf(0, 12, 10, 17),          // wave, welcome, clap, salute
-        Mood.HAPPY to listOf(3, 18, 13, 4),              // pointing, fist pump, excited, peace
+        Mood.HAPPY to listOf(3, 18, 13, 4, 221, 222),    // pointing, fist pump, excited, peace, 🤣 😜
         Mood.GRATEFUL to listOf(1, 10, 5),               // heart hands, clap, kiss
-        Mood.SAD to listOf(15, 16, 7),                   // shy, arms crossed, sitting
-        Mood.LOVE to listOf(5, 1, 6),                    // kiss, heart hands, hips
+        Mood.SAD to listOf(15, 16, 7, 226, 227, 229),    // shy, arms crossed, sitting, 😢 😭 🥺
+        Mood.LOVE to listOf(5, 1, 6, 216, 217, 218),     // kiss, heart hands, hips, 💕 😍 🥰
         Mood.FAREWELL to listOf(0, 17, 12),              // wave, salute, welcome
-        Mood.EXCITED to listOf(8, 14, 4, 18),            // jump, cheer, peace, fist pump
+        Mood.EXCITED to listOf(8, 14, 4, 18, 234, 235, 236), // jump, cheer, peace, fist pump, 🎉 🥳 🎊
         Mood.AGREE to listOf(2, 6, 17),                  // thumbs up, hips, salute
         Mood.DISAGREE to listOf(16, 15, 11),             // crossed, shy, thinking
-        Mood.ANGRY to listOf(16, 15, 19),                // crossed, shy, back view
+        Mood.ANGRY to listOf(16, 15, 19, 230, 231),      // crossed, shy, back view, 😠 😡
         Mood.THINKING to listOf(11, 15, 9),              // thinking, shy, hologram
         Mood.NEUTRAL to listOf(
             6, 9, 13, 19,                                 // sheet 1 variety
@@ -43,7 +43,8 @@ object PoseRegistry {
             144, 150, 157,                                // sheet 8
             163, 170,                                     // sheet 9
             182, 190, 197,                                // sheet 10
-            200, 205, 210, 215                            // sheet 11 (new)
+            200, 205, 210, 215,                           // sheet 11 (new)
+            239, 240, 241, 242, 243                       // Desi emoji stickers 🇵🇰 🍵 🏏 🕌 🌙
         )
     )
 

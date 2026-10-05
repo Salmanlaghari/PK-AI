@@ -2,8 +2,11 @@ package com.salmanlaghari.pkai.ui.superchat
 
 import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
+import android.content.Intent
 import android.graphics.BitmapFactory
+import android.media.AudioAttributes
 import android.media.MediaPlayer
+import android.net.Uri
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -11,6 +14,7 @@ import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -21,6 +25,7 @@ import com.salmanlaghari.pkai.data.repository.CodeExecutionResult
 import com.salmanlaghari.pkai.ui.chat.CodeBlockBinder
 import com.salmanlaghari.pkai.util.ImageLoadHelper
 import com.salmanlaghari.pkai.util.MarkdownImageParser
+import com.salmanlaghari.pkai.util.SongAttachment
 import com.salmanlaghari.pkai.util.SpriteSheetLoader
 import java.io.File
 
@@ -31,6 +36,9 @@ import java.io.File
  * - A typing indicator (bouncing dots) is shown while the AI generates.
  * - Image attachments render as thumbnails (tap → fullscreen), voice notes
  *   as playable bubbles.
+ * - Song search results render as a dedicated rich song card
+ *   ([R.layout.item_song_card]) with artwork, title, artist and a play
+ *   button — never plain text.
  *
  * Entrance animations run only once per message id — rebinding on scroll
  * never replays them.
@@ -65,6 +73,9 @@ class SuperChatAdapter(
     private var voicePlayer: MediaPlayer? = null
     private var playingMessageId: String? = null
     private var pausedMessageId: String? = null
+
+    /** Streaming player for song cards when no host callback handles playback. */
+    private var songPlayer: MediaPlayer? = null
 
     /** Callback when the song play button is tapped (handled by Fragment). */
     var onSongPlayClicked: ((ChatMessage) -> Unit)? = null
@@ -162,6 +173,11 @@ class SuperChatAdapter(
         voicePlayer = null
         playingMessageId = null
         pausedMessageId = null
+        try { songPlayer?.stop() } catch (_: Exception) { }
+        songPlayer?.release()
+        songPlayer = null
+        playingSongId = null
+        isSongPaused = false
         // Shut down background executors so no threads leak per adapter instance
         try { artworkExecutor.shutdownNow() } catch (_: Exception) { }
         try { thumbnailExecutor.shutdownNow() } catch (_: Exception) { }
@@ -189,12 +205,6 @@ class SuperChatAdapter(
         private val voiceUserRow: View = view.findViewById(R.id.voiceUserRow)
         private val btnUserVoicePlay: TextView = view.findViewById(R.id.btnUserVoicePlay)
         private val tvUserVoiceDuration: TextView = view.findViewById(R.id.tvUserVoiceDuration)
-        // Song card
-        private val songCard: View = view.findViewById(R.id.songCard)
-        private val ivSongArt: ImageView = view.findViewById(R.id.ivSongArt)
-        private val tvSongTitle: TextView = view.findViewById(R.id.tvSongTitle)
-        private val tvSongArtist: TextView = view.findViewById(R.id.tvSongArtist)
-        private val btnSongPlay: TextView = view.findViewById(R.id.btnSongPlay)
 
         fun bind(item: Item.Message) {
             val message = item.message
@@ -237,23 +247,6 @@ class SuperChatAdapter(
                 pkAiVisualHeader.visibility =
                     if (message.modelUsed == com.salmanlaghari.pkai.util.PkAiAssistant.PK_AI_LABEL)
                         View.VISIBLE else View.GONE
-
-                // 🎵 Song visual card
-                if (message.attachmentType == "song") {
-                    val parts = (message.attachmentName ?: "").split("|||")
-                    val title = parts.getOrElse(0) { "Unknown Song" }
-                    val artist = parts.getOrElse(1) { "Unknown Artist" }
-                    val artwork = parts.getOrElse(2) { "" }
-                    songCard.visibility = View.VISIBLE
-                    tvSongTitle.text = title
-                    tvSongArtist.text = artist
-                    loadArtwork(artwork, ivSongArt)
-                    btnSongPlay.text =
-                        if (playingSongId == message.id && !isSongPaused) "⏸" else "▶"
-                    btnSongPlay.setOnClickListener { onSongPlayClicked?.invoke(message) }
-                } else {
-                    songCard.visibility = View.GONE
-                }
 
                 // Generated-image markdown renders inline; ```code``` blocks get
                 // the shared runnable cards; the rest stays as bubble text.
@@ -493,6 +486,167 @@ class SuperChatAdapter(
         }
     }
 
+    /**
+     * Dedicated rich song card ([R.layout.item_song_card]) for song search
+     * results: artwork thumbnail (music-note placeholder until it loads),
+     * title, artist, and a play button.
+     *
+     * Playback: when a host sets [onSongPlayClicked] (Super Chat fragment
+     * owns streaming there), the tap is delegated to it. Otherwise the card
+     * plays the stream itself with MediaPlayer; when there is no audio URL it
+     * opens the track page in the browser instead.
+     */
+    inner class SongCardHolder(view: View) : BaseHolder(view) {
+        private val cardRoot: View = view.findViewById(R.id.songCardRoot)
+        private val ivArt: ImageView = view.findViewById(R.id.ivCardArt)
+        private val tvTitle: TextView = view.findViewById(R.id.tvCardTitle)
+        private val tvArtist: TextView = view.findViewById(R.id.tvCardArtist)
+        private val btnPlay: TextView = view.findViewById(R.id.btnCardPlay)
+
+        fun bind(item: Item.Message) {
+            val message = item.message
+            val isNew = animatedIds.add(message.id)
+            val card = SongAttachment.unpack(message.attachmentName)
+            val title = card.title
+            val artist = card.artist
+            val artwork = card.artworkUrl
+            // Reset to the music-note placeholder first — a recycled holder
+            // must never flash another song's artwork. Clear the tag too:
+            // loadArtwork() returns early on a blank URL before re-tagging,
+            // so a stale tag would let an in-flight old download win.
+            ivArt.tag = null
+            ivArt.setImageResource(R.drawable.ic_music_note)
+            tvTitle.text = title
+            tvArtist.text = artist
+            loadArtwork(artwork, ivArt)
+            btnPlay.text =
+                if (playingSongId == message.id && !isSongPaused) "⏸" else "▶"
+            btnPlay.setOnClickListener { onPlayTapped(message) }
+            // Always reset animation state (and cancel any in-flight animator):
+            // a holder recycled mid-animation and rebound to an already-seen
+            // message must not replay the slide-in or stay translucent.
+            cardRoot.animate().cancel()
+            cardRoot.alpha = 1f
+            cardRoot.translationY = 0f
+            if (isNew) {
+                cardRoot.alpha = 0f
+                cardRoot.translationY = 40f
+                cardRoot.animate()
+                    .alpha(1f)
+                    .translationY(0f)
+                    .setDuration(320)
+                    .setInterpolator(AccelerateDecelerateInterpolator())
+                    .start()
+            }
+        }
+
+        private fun onPlayTapped(message: ChatMessage) {
+            // Super Chat fragment owns streaming playback — delegate to it.
+            val host = onSongPlayClicked
+            if (host != null) {
+                host(message)
+                return
+            }
+            // No host handler (e.g. Home screen): play inline in the adapter.
+            toggleLocalPlayback(message)
+        }
+
+        /** Self-contained streaming playback, used when no host callback is set. */
+        private fun toggleLocalPlayback(message: ChatMessage) {
+            val ctx = itemView.context
+            val audioUrl = message.attachmentUri
+            if (audioUrl.isNullOrBlank()) {
+                // No stream — fall back to opening the track page in the browser.
+                val pageUrl = SongAttachment.unpack(message.attachmentName).pageUrl
+                if (isSafeRemoteUrl(pageUrl)) {
+                    try {
+                        ctx.startActivity(
+                            Intent(Intent.ACTION_VIEW, Uri.parse(pageUrl))
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        )
+                    } catch (_: Exception) {
+                        Toast.makeText(ctx, "😔 Link nahi khul saka", Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    Toast.makeText(ctx, "😔 Audio stream nahi mila", Toast.LENGTH_SHORT).show()
+                }
+                return
+            }
+            // Never hand a remote-supplied URL with a non-http(s) scheme
+            // (file://, content://, …) to MediaPlayer.
+            if (!isSafeRemoteUrl(audioUrl)) {
+                Toast.makeText(ctx, "😔 Audio stream nahi mila", Toast.LENGTH_SHORT).show()
+                return
+            }
+            try {
+                // Tapping the currently playing song toggles pause/resume.
+                if (playingSongId == message.id && songPlayer != null) {
+                    val player = songPlayer!!
+                    if (player.isPlaying) {
+                        player.pause()
+                        isSongPaused = true
+                    } else {
+                        player.start()
+                        isSongPaused = false
+                    }
+                    safeNotifySongChanged(message.id)
+                    return
+                }
+                // Stop any previous song before starting a new one.
+                try { songPlayer?.stop() } catch (_: Exception) { }
+                songPlayer?.release()
+                songPlayer = null
+                isSongPaused = false
+                Toast.makeText(ctx, "🎵 Loading song…", Toast.LENGTH_SHORT).show()
+                val player = MediaPlayer()
+                try {
+                    player.setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                            .setUsage(AudioAttributes.USAGE_MEDIA)
+                            .build()
+                    )
+                    player.setDataSource(audioUrl)
+                    // Assign BEFORE prepareAsync so callbacks always see the field.
+                    songPlayer = player
+                    player.setOnPreparedListener {
+                        it.start()
+                        playingSongId = message.id
+                        isSongPaused = false
+                        safeNotifySongChanged(message.id)
+                    }
+                    player.setOnCompletionListener {
+                        // Release the native player — a completed instance
+                        // still holds codecs/buffers until released.
+                        it.release()
+                        if (songPlayer === it) songPlayer = null
+                        playingSongId = null
+                        isSongPaused = false
+                        safeNotifySongChanged(message.id)
+                    }
+                    player.setOnErrorListener { mp, _, _ ->
+                        Toast.makeText(ctx, "😔 Song play nahi ho saka", Toast.LENGTH_SHORT).show()
+                        // An errored MediaPlayer is stuck in the Error state —
+                        // release it so the next tap starts fresh.
+                        mp.release()
+                        if (songPlayer === mp) songPlayer = null
+                        playingSongId = null
+                        isSongPaused = false
+                        safeNotifySongChanged(message.id)
+                        true
+                    }
+                    player.prepareAsync()
+                } catch (_: Exception) {
+                    try { player.release() } catch (_: Exception) { }
+                    if (songPlayer === player) songPlayer = null
+                    Toast.makeText(ctx, "😔 Song play nahi ho saka", Toast.LENGTH_SHORT).show()
+                }
+            } catch (_: Exception) {
+                Toast.makeText(ctx, "😔 Song play nahi ho saka", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     inner class TypingHolder(view: View) : BaseHolder(view) {
         private val dots = listOf<View>(
             view.findViewById(R.id.dot1),
@@ -524,23 +678,78 @@ class SuperChatAdapter(
 
     // ── Adapter ──────────────────────────────────────────────────────
 
-    override fun getItemViewType(position: Int): Int = when (getItem(position)) {
-        is Item.Message -> VIEW_MESSAGE
+    /** Attached RecyclerView — set on attach so async callbacks can post safely. */
+    private var recyclerView: RecyclerView? = null
+
+    /** Only http/https URLs may be handed to external sinks (browser, player). */
+    private fun isSafeRemoteUrl(url: String?): Boolean =
+        !url.isNullOrBlank() && Uri.parse(url).scheme?.lowercase() in setOf("http", "https")
+
+    /**
+     * Notifies a single song card safely from async MediaPlayer callbacks.
+     *
+     * The position is re-resolved inside EVERY deferred hop (never captured
+     * once and reused): a submitList landing between hops changes the item
+     * count, and a stale position would throw IndexOutOfBoundsException —
+     * the very crash this helper exists to avoid. When the RecyclerView is
+     * mid-layout the update is re-posted (bounded) instead of being silently
+     * dropped, so the play/pause glyph can't get stuck wrong after a track
+     * finishes or errors while the list is scrolling.
+     */
+    private fun safeNotifySongChanged(messageId: String) {
+        val rv = recyclerView
+        val attempt = object : Runnable {
+            var tries = 0
+            override fun run() {
+                val pos = currentList.indexOfFirst {
+                    it is Item.Message && it.message.id == messageId
+                }
+                // Message gone, or list shrank under us — nothing to update.
+                if (pos < 0 || pos >= itemCount) return
+                val view = rv
+                if (view != null && view.isComputingLayout) {
+                    // Mid-layout: try again shortly (bounded). Dropping the
+                    // update here would leave the glyph wrong until rebind.
+                    if (tries < 10) {
+                        tries++
+                        view.postDelayed(this, 50)
+                    }
+                    return
+                }
+                if (pos < itemCount) notifyItemChanged(pos)
+            }
+        }
+        if (rv != null) rv.post(attempt) else attempt.run()
+    }
+
+    /** True for AI song-result messages, which get the dedicated song card. */
+    private fun isSongCard(message: ChatMessage): Boolean =
+        !message.isUser && message.attachmentType == SongAttachment.TYPE
+
+    override fun getItemViewType(position: Int): Int = when (val item = getItem(position)) {
+        is Item.Message -> if (isSongCard(item.message)) VIEW_SONG_CARD else VIEW_MESSAGE
         Item.Typing -> VIEW_TYPING
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): BaseHolder {
         val inflater = LayoutInflater.from(parent.context)
-        return if (viewType == VIEW_TYPING) {
-            TypingHolder(inflater.inflate(R.layout.item_typing_indicator, parent, false))
-        } else {
-            MessageHolder(inflater.inflate(R.layout.item_super_chat_message, parent, false))
+        return when (viewType) {
+            VIEW_TYPING ->
+                TypingHolder(inflater.inflate(R.layout.item_typing_indicator, parent, false))
+            VIEW_SONG_CARD ->
+                SongCardHolder(inflater.inflate(R.layout.item_song_card, parent, false))
+            else ->
+                MessageHolder(inflater.inflate(R.layout.item_super_chat_message, parent, false))
         }
     }
 
     override fun onBindViewHolder(holder: BaseHolder, position: Int) {
         when (val item = getItem(position)) {
-            is Item.Message -> (holder as MessageHolder).bind(item)
+            is Item.Message -> when (holder) {
+                is SongCardHolder -> holder.bind(item)
+                is MessageHolder -> holder.bind(item)
+                else -> throw IllegalStateException("Unexpected holder for chat message")
+            }
             Item.Typing -> (holder as TypingHolder).start()
         }
     }
@@ -550,9 +759,26 @@ class SuperChatAdapter(
         super.onViewRecycled(holder)
     }
 
+    override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
+        super.onAttachedToRecyclerView(recyclerView)
+        this.recyclerView = recyclerView
+    }
+
+    override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
+        this.recyclerView = null
+        super.onDetachedFromRecyclerView(recyclerView)
+    }
+
     companion object {
         private const val VIEW_MESSAGE = 0
         private const val VIEW_TYPING = 1
+        private const val VIEW_SONG_CARD = 2
+        /** [ChatMessage.attachmentType] value marking a rich song result card. */
+        @Deprecated(
+            "Use SongAttachment.TYPE — ViewModels must not depend on the UI adapter.",
+            ReplaceWith("com.salmanlaghari.pkai.util.SongAttachment.TYPE")
+        )
+        const val ATTACHMENT_SONG = SongAttachment.TYPE
 
         private val DIFF = object : DiffUtil.ItemCallback<Item>() {
             override fun areItemsTheSame(oldItem: Item, newItem: Item): Boolean =

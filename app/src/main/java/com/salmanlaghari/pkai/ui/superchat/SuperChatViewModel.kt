@@ -224,9 +224,11 @@ class SuperChatViewModel @Inject constructor(
     /**
      * Song search: appends the user message, searches PagalWorld, and posts a
      * visual song card (artwork + title + artist + streamable audio).
-     * Song data is packed into the attachment fields as:
-     * attachmentType="song", attachmentUri=audioUrl,
-     * attachmentName="title|||artist|||artworkUrl".
+     * Song data is packed into the attachment fields per the
+     * [SongAttachment] contract: attachmentType=[SongAttachment.TYPE],
+     * attachmentUri=audioUrl, attachmentName=[SongAttachment.pack] payload.
+     * The adapter renders these as a dedicated [R.layout.item_song_card]
+     * card (not plain text).
      */
     fun searchAndSendSong(originalText: String, query: String) {
         if (_isGenerating.value) return
@@ -248,11 +250,11 @@ class SuperChatViewModel @Inject constructor(
                 ChatMessage(
                     content = "🎵 Ye raha aapka song:",
                     isUser = false,
-                    modelUsed = "Song Search",
+                    modelUsed = com.salmanlaghari.pkai.util.SongSearchHelper.SONG_MODEL_LABEL,
                     timestamp = System.currentTimeMillis(),
-                    attachmentType = "song",
+                    attachmentType = com.salmanlaghari.pkai.util.SongAttachment.TYPE,
                     attachmentUri = song.audioUrl,
-                    attachmentName = "${song.title}|||${song.artist}|||${song.artworkUrl}"
+                    attachmentName = com.salmanlaghari.pkai.util.SongAttachment.pack(song)
                 )
             } else {
                 ChatMessage(

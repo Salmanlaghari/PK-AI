@@ -182,6 +182,22 @@ const POPUP_CLOSED_SETTLE_MS = 1500;
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+/**
+ * Ask the native layer to close the Puter auth popup. Called on every
+ * successful sign-in path: Puter's own page does not always call
+ * window.close() after multi-step verification (email/phone), which left
+ * the popup open on a blank white page. Idempotent — a no-op when the
+ * popup already closed itself, or on non-Android hosts where the bridge
+ * is absent.
+ */
+function closeNativePuterPopup(): void {
+  try {
+    (window as any).AndroidOAuth?.dismissPuterPopup?.();
+  } catch {
+    /* bridge absent — nothing to close */
+  }
+}
+
 export type PuterSignInStage = "sdk" | "popup-wait";
 
 export async function isPuterSignedIn(): Promise<boolean> {
@@ -252,7 +268,9 @@ export async function signInToPuter(
     if (winner === "sign-in-resolved") {
       // The SDK promise itself resolved — the token postMessage landed, so
       // the session is established. Trust the SDK, don't gamble it on the
-      // session poll.
+      // session poll. Close the native popup: Puter's page may not close
+      // itself after verification, leaving a blank white box.
+      closeNativePuterPopup();
       return await readPuterUser();
     }
     // Popup closed with the SDK promise still pending: race the still-pending
@@ -264,6 +282,7 @@ export async function signInToPuter(
       waitForPuterSession(POPUP_CLOSED_SETTLE_MS),
     ]);
     if (settled) {
+      closeNativePuterPopup();
       return await readPuterUser();
     }
   } catch (e) {
@@ -277,6 +296,7 @@ export async function signInToPuter(
   // landing, so the session poll gets one chance to upgrade to success
   // before the failure is surfaced to the user.
   if (raceError && (await waitForPuterSession(SESSION_SETTLE_MS))) {
+    closeNativePuterPopup();
     return await readPuterUser();
   }
 

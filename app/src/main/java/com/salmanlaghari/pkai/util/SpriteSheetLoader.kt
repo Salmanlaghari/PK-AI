@@ -26,9 +26,37 @@ import android.util.LruCache
  */
 object SpriteSheetLoader {
 
-    /** Hard upper bound for grid sizing; actual count comes from the assets folder. */
-    const val STICKER_COUNT = 220
+    /**
+     * Size of the full virtual sticker catalogue (real assets + virtual emoji
+     * stickers). Used by [PoseRegistry.allStickers] so the picker covers
+     * everything, including the [EXTRA_STICKER_COUNT] virtual emoji stickers
+     * sitting past the 18+ SUPER pool.
+     *
+     * NOTE: this is intentionally NOT used for the no-assets fallback in
+     * [availableStickers] — that path needs the real asset ceiling
+     * ([MAX_REAL_ASSET_COUNT]), otherwise the fallback generates out-of-range
+     * indices and pushes the themed emoji stickers out of their range.
+     */
+    const val STICKER_COUNT = 244
+    /**
+     * Real asset ceiling for the no-assets fallback: `pose_216.webp` is the
+     * highest bundled file, i.e. 0-based indices 0..215. Kept separate from
+     * [STICKER_COUNT] so growing the virtual extras can never regress the
+     * fallback path (see Kilo review on PR #101).
+     */
+    private const val MAX_REAL_ASSET_COUNT = 216
     private const val MAX_CACHE_SIZE = 48 // individual sticker bitmaps
+
+    /**
+     * Extra emoji stickers appended after the bundled assets (virtual indices
+     * rendered by [generatePlaceholder] — no asset files needed).
+     */
+    const val EXTRA_STICKER_COUNT = 28
+    /**
+     * First virtual (emoji) sticker index. Sits just past the 18+ SUPER pool
+     * (200..215) so existing placeholder indices keep their legacy look.
+     */
+    private const val VIRTUAL_STICKER_START = 216
 
     private val cellCache = object : LruCache<Int, Bitmap>(MAX_CACHE_SIZE) {}
 
@@ -38,16 +66,39 @@ object SpriteSheetLoader {
         "👏", "🤔", "🤗", "🤷", "🤸", "😊", "🙅", "🫡", "💪", "🔄"
     )
 
+    /**
+     * Themed emoji for the [EXTRA_STICKER_COUNT] extra stickers, in index
+     * order starting at the virtual start (216..243 with the current assets).
+     * Categories: love/romance, funny, sad, angry, celebration, Desi/Pakistani.
+     */
+    private val extraStickerEmoji = listOf(
+        // Love / romance 💕
+        "💕", "😍", "🥰", "💋", "❤️‍🔥",
+        // Funny 😂
+        "🤣", "😜", "🤪", "😹", "🙈",
+        // Sad 😢
+        "😢", "😭", "💔", "🥺",
+        // Angry 😠
+        "😠", "😡", "🤬", "👿",
+        // Celebration 🎉
+        "🎉", "🥳", "🎊", "🎂", "🪅",
+        // Desi / Pakistani 🇵🇰
+        "🇵🇰", "🍵", "🏏", "🕌", "🌙"
+    )
+
     private var catalog: List<Int>? = null
+    /** First virtual (emoji) sticker index of the current catalogue. */
+    private var virtualStart: Int = VIRTUAL_STICKER_START
 
     /**
-     * Sorted list of available sticker indices (0-based), read from the assets
-     * folder. Falls back to the full 0..199 range when the folder is absent so
-     * placeholder stickers still populate the grid.
+     * Sorted list of available sticker indices (0-based): the real sticker
+     * files from the assets folder, followed by [EXTRA_STICKER_COUNT] virtual
+     * emoji stickers. Falls back to the full 0..199 range when the folder is
+     * absent so placeholder stickers still populate the grid.
      */
     fun availableStickers(context: Context): List<Int> {
         catalog?.let { return it }
-        val list = try {
+        val real = try {
             context.assets.list("poses/stickers")
                 ?.mapNotNull { name ->
                     Regex("^pose_(\\d+)\\.webp$").find(name)?.groupValues?.get(1)?.toIntOrNull()
@@ -58,7 +109,12 @@ object SpriteSheetLoader {
         } catch (_: Exception) {
             emptyList()
         }
-        val result = list.ifEmpty { IntArray(STICKER_COUNT) { it }.toList() }
+        val base = real.ifEmpty { IntArray(MAX_REAL_ASSET_COUNT) { it }.toList() }
+        // Virtual emoji stickers start past the real assets AND past the 18+
+        // SUPER pool (200..215), so dropping more pose_*.webp files later can
+        // never collide with them and nothing existing shifts.
+        virtualStart = maxOf((base.maxOrNull() ?: -1) + 1, VIRTUAL_STICKER_START)
+        val result = base + (virtualStart until virtualStart + EXTRA_STICKER_COUNT).toList()
         catalog = result
         return result
     }
@@ -87,6 +143,17 @@ object SpriteSheetLoader {
         }
     } catch (_: Exception) {
         null
+    }
+
+    /**
+     * Emoji drawn on a placeholder card. Extra (virtual) stickers use their own
+     * themed emoji; older indices keep the legacy cycle so nothing existing
+     * changes appearance.
+     */
+    private fun emojiFor(index: Int): String {
+        val extra = index - virtualStart
+        if (extra in extraStickerEmoji.indices) return extraStickerEmoji[extra]
+        return placeholderEmoji[index % placeholderEmoji.size]
     }
 
     /**
@@ -119,7 +186,7 @@ object SpriteSheetLoader {
         canvas.drawOval(RectF(70f, size - 78f, size - 70f, size - 30f), paint)
 
         // Big emoji "pose".
-        val emoji = placeholderEmoji[index % placeholderEmoji.size]
+        val emoji = emojiFor(index)
         paint.color = Color.WHITE
         paint.textSize = 110f
         paint.textAlign = Paint.Align.CENTER

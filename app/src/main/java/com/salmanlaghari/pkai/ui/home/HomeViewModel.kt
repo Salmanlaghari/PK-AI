@@ -17,6 +17,8 @@ import com.salmanlaghari.pkai.data.repository.CodeExecutionResult
 import com.salmanlaghari.pkai.data.repository.CodeRunnerRepository
 import com.salmanlaghari.pkai.data.repository.ImageGenerationResult
 import com.salmanlaghari.pkai.data.repository.PollinationsImageRepository
+import com.salmanlaghari.pkai.util.SongAttachment
+import com.salmanlaghari.pkai.util.SongSearchHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import android.content.Context
@@ -232,6 +234,17 @@ class HomeViewModel @Inject constructor(
             return
         }
 
+        // Song search intent → visual song card via PagalWorld (mirrors
+        // SuperChatViewModel.searchAndSendSong so song cards render on Home
+        // too). Attachments take the normal provider path instead.
+        if (attachmentType == null) {
+            val songQuery = SongSearchHelper.extractSongQuery(content.trim())
+            if (songQuery != null) {
+                searchAndSendSong(content.trim(), songQuery)
+                return
+            }
+        }
+
         viewModelScope.launch {
             val isFree = _isFreeMode.value
             val freeModel = selectedFreeModel.value
@@ -440,6 +453,68 @@ class HomeViewModel @Inject constructor(
                     modelUsed = if (isFree) freeModel.chatLabel else provider.displayName
                 )
                 chatMessageDao.insertMessage(errorMessage)
+            } finally {
+                _isGenerating.value = false
+            }
+        }
+    }
+
+    /**
+     * Song search for the Home screen: inserts the user message, searches
+     * PagalWorld, and posts a visual song card (attachmentType "song") into
+     * the Room-backed list. Mirrors SuperChatViewModel.searchAndSendSong().
+     * The reply is labelled for the active tab (song cards show no label
+     * themselves) so it passes the Premium/Free mode filter in both.
+     */
+    fun searchAndSendSong(originalText: String, query: String) {
+        if (_isGenerating.value) return
+        viewModelScope.launch {
+            val isFree = _isFreeMode.value
+            val freeLabel = selectedFreeModel.value.chatLabel
+            chatMessageDao.insertMessage(
+                ChatMessage(
+                    content = originalText,
+                    isUser = true,
+                    modelUsed = if (isFree) freeLabel else null,
+                    timestamp = System.currentTimeMillis()
+                )
+            )
+            _isGenerating.value = true
+            try {
+                val song = SongSearchHelper.searchSong(query)
+                val replyLabel = if (isFree) freeLabel else SongSearchHelper.SONG_MODEL_LABEL
+                if (song != null) {
+                    chatMessageDao.insertMessage(
+                        ChatMessage(
+                            content = "🎵 Ye raha aapka song:",
+                            isUser = false,
+                            modelUsed = replyLabel,
+                            timestamp = System.currentTimeMillis(),
+                            attachmentType = SongAttachment.TYPE,
+                            attachmentUri = song.audioUrl,
+                            attachmentName = SongAttachment.pack(song)
+                        )
+                    )
+                } else {
+                    chatMessageDao.insertMessage(
+                        ChatMessage(
+                            content = "😔 \"$query\" nahi mila. Koi aur song try karein!",
+                            isUser = false,
+                            modelUsed = replyLabel,
+                            timestamp = System.currentTimeMillis()
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Song search failed", e)
+                chatMessageDao.insertMessage(
+                    ChatMessage(
+                        content = "😔 Song search nahi ho saka. Phir try karein!",
+                        isUser = false,
+                        modelUsed = if (isFree) freeLabel else SongSearchHelper.SONG_MODEL_LABEL,
+                        timestamp = System.currentTimeMillis()
+                    )
+                )
             } finally {
                 _isGenerating.value = false
             }

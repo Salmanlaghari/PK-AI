@@ -22,4 +22,54 @@ class SongSearchHelperTest {
         assertNull(SongSearchHelper.extractSongQuery("song: game download"))
         assertNull(SongSearchHelper.extractSongQuery("play online game song sunao"))
     }
+
+    @Test
+    fun searchPrefixRequiresRealTitleText() {
+        // Questions that merely end in "song" must not hijack chat.
+        assertNull(SongSearchHelper.extractSongQuery("find out the meaning of this song"))
+        assertNull(SongSearchHelper.extractSongQuery("find the meaning of this song"))
+        assertNull(SongSearchHelper.extractSongQuery("search for a song"))
+        assertNull(SongSearchHelper.extractSongQuery("search best song"))
+        assertNull(SongSearchHelper.extractSongQuery("search my best song"))
+        // Real titles still match, single- or multi-word.
+        assertEquals("kesariya", SongSearchHelper.extractSongQuery("search kesariya song"))
+        assertEquals("tum hi ho", SongSearchHelper.extractSongQuery("search tum hi ho song"))
+        assertEquals(
+            "hum dil de chuke sanam",
+            SongSearchHelper.extractSongQuery("search hum dil de chuke sanam song")
+        )
+        // Optional karo/kar/karein tail on the prefix form.
+        assertEquals(
+            "hum dil de chuke sanam",
+            SongSearchHelper.extractSongQuery("search hum dil de chuke sanam song karo")
+        )
+        assertEquals("kesariya", SongSearchHelper.extractSongQuery("find kesariya song karein"))
+    }
+
+    @Test
+    fun searchSuffixRejectsServiceNamesAndSupportsTalash() {
+        // Service-name questions get answered with chat, not a song card.
+        assertNull(SongSearchHelper.extractSongQuery("youtube song search"))
+        assertNull(SongSearchHelper.extractSongQuery("spotify song find"))
+        assertNull(SongSearchHelper.extractSongQuery("youtube song talash karo"))
+        // Suffix forms keep working, talash included.
+        assertEquals("kesariya", SongSearchHelper.extractSongQuery("kesariya song search karo"))
+        assertEquals("kesariya", SongSearchHelper.extractSongQuery("kesariya song talash karo"))
+        assertEquals("kesariya", SongSearchHelper.extractSongQuery("kesariya song talash"))
+    }
+
+    @Test
+    fun packSongAttachmentStripsPipeDelimiter() {
+        val song = SongSearchHelper.SongResult(
+            title = "A|||B",
+            artist = "X|Y",
+            artworkUrl = "https://a.example/art.jpg",
+            audioUrl = "https://a.example/song.mp3",
+            pageUrl = "https://a.example/song/"
+        )
+        assertEquals(
+            "AB|||XY|||https://a.example/art.jpg|||https://a.example/song/",
+            SongSearchHelper.packSongAttachment(song)
+        )
+    }
 }

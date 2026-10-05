@@ -1360,6 +1360,9 @@ class AiHubFragment : Fragment() {
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         (520 * resources.displayMetrics.density).toInt()
                     )
+                    // Dark background (same as the main WebView) so a blank or
+                    // still-loading auth page never flashes white.
+                    setBackgroundColor(0xFF020617.toInt())
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true
                     settings.databaseEnabled = true
@@ -1514,6 +1517,22 @@ class AiHubFragment : Fragment() {
                 fun disconnectFlowMusic() {
                     Log.d("AiHubFragment", "disconnectFlowMusic called from JS")
                     this@AiHubFragment.disconnectFlowMusic()
+                }
+
+                /**
+                 * Called by the web layer (puterService.ts) once Puter sign-in
+                 * has fully succeeded. Puter's auth page does not always call
+                 * window.close() after multi-step verification, which left the
+                 * popup open on a blank white page — dismiss it here instead.
+                 * Idempotent: safe when the popup already closed itself
+                 * (destroyPuterPopupViews handles nulls, and the extra
+                 * puter-popup-closed event is ignored by the web layer when no
+                 * popup is open).
+                 */
+                @JavascriptInterface
+                fun dismissPuterPopup() {
+                    Log.d("AiHubFragment", "dismissPuterPopup called from JS")
+                    activity?.runOnUiThread { this@AiHubFragment.dismissPuterPopup() }
                 }
 
                 @JavascriptInterface

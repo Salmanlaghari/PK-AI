@@ -232,6 +232,59 @@ class HomeFragment : Fragment() {
 
         // Tips auto-popup on first chat entry (skipped when opted out).
         TipsAutoPopup.maybeShow(this, preferencesManager, "home")
+
+        // Premium entry animations — staggered fade/slide-in for a smooth first impression.
+        playEntryAnimations()
+    }
+
+    /**
+     * Plays the home screen entry animations: header slides down, provider tabs
+     * stagger in, chat input rises up. Kept subtle and premium — no jank.
+     */
+    private fun playEntryAnimations() {
+        val b = _binding ?: return
+        // Header: fade + slide down from top
+        b.layoutHeader.apply {
+            alpha = 0f; translationY = -24f
+            animate().alpha(1f).translationY(0f).setDuration(250).start()
+        }
+        // Provider tabs: staggered scale + fade, Premium first
+        val tabs = listOf(b.btnTabPremium, b.btnTabFree, b.btnTabSuperChat, b.btnTabUltraAi)
+        b.layoutChatModeTab.apply {
+            alpha = 0f; translationY = 24f
+            animate().alpha(1f).translationY(0f).setDuration(300).setStartDelay(80).start()
+        }
+        tabs.forEachIndexed { i, tab ->
+            tab.apply {
+                alpha = 0f; scaleX = 0.92f; scaleY = 0.92f
+                animate().alpha(1f).scaleX(1f).scaleY(1f)
+                    .setDuration(280).setStartDelay(120L + i * 60).start()
+            }
+        }
+        // Chat list: gentle fade
+        b.rvChatMessages.apply {
+            alpha = 0f
+            animate().alpha(1f).setDuration(250).setStartDelay(150).start()
+        }
+        // Input bar: rise up + fade
+        b.inputMessageLayout.apply {
+            alpha = 0f; translationY = 32f
+            animate().alpha(1f).translationY(0f).setDuration(320).setStartDelay(200).start()
+        }
+        // Action buttons: pop in staggered, send last with a slight overshoot
+        val buttons = listOf(b.btnAttach, b.btnVoice, b.btnSend)
+        buttons.forEachIndexed { i, btn ->
+            btn.apply {
+                alpha = 0f; scaleX = 0.6f; scaleY = 0.6f
+                animate().alpha(1f).scaleX(1f).scaleY(1f)
+                    .setDuration(260).setStartDelay(280L + i * 70).start()
+            }
+        }
+        // Active provider chip: subtle rise, last
+        b.chipActiveProvider.apply {
+            alpha = 0f; translationY = 12f
+            animate().alpha(1f).translationY(0f).setDuration(200).setStartDelay(480).start()
+        }
     }
 
     /** Reflects the active provider/model in the persistent chip + input hint. */
@@ -265,17 +318,14 @@ class HomeFragment : Fragment() {
     /** Highlights the active chat-mode tab (Premium / Free). */
     private fun updateTabSelection() {
         val currentBinding = _binding ?: return
-        val selectedBg = R.drawable.bg_pill_chip_selected
-        val transparent = android.R.color.transparent
-        val activeText = R.color.white
-        val idleText = R.color.outline
-
         val isFree = viewModel.isFreeMode.value
 
-        currentBinding.btnTabPremium.setBackgroundResource(if (!isFree) selectedBg else transparent)
+        // Per-tab premium selectors (state_selected) — hero gradients per provider.
+        currentBinding.btnTabPremium.isSelected = !isFree
+        currentBinding.btnTabFree.isSelected = isFree
+        val activeText = R.color.white
+        val idleText = R.color.outline
         currentBinding.btnTabPremium.setTextColor(resources.getColor(if (!isFree) activeText else idleText, null))
-
-        currentBinding.btnTabFree.setBackgroundResource(if (isFree) selectedBg else transparent)
         currentBinding.btnTabFree.setTextColor(resources.getColor(if (isFree) activeText else idleText, null))
     }
 
@@ -314,6 +364,11 @@ class HomeFragment : Fragment() {
             attachmentName = att?.name,
             imageDataUri = imageDataUri
         )
+
+        // Contextual tips highlight: top banner for 5s with tips related to this query.
+        if (content.isNotBlank()) {
+            runCatching { TipsHighlightBanner.show(requireActivity(), content) }
+        }
 
         if (isGuest) {
             lifecycleScope.launch { preferencesManager.incrementGuestMessageCount() }

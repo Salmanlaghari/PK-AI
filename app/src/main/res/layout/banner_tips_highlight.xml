@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Contextual tips banner — slides down from the top of the screen for ~5
+    seconds showing tips related to the user's last query. Inflated and
+    managed by TipsHighlightBanner; NOT added to any fragment layout.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/bannerRoot"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bg_tips_banner"
+    android:padding="12dp">
+
+    <TextView
+        android:id="@+id/tvTipsTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="#FFC857"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:text="💡 Tips" />
+
+    <LinearLayout
+        android:id="@+id/llTipsContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:orientation="vertical" />
+</LinearLayout>

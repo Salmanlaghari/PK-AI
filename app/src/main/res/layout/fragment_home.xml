@@ -146,57 +146,83 @@
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:background="@drawable/bg_pill_chip_selected"
+                android:layout_marginEnd="5dp"
+                android:background="@drawable/bg_home_tab_premium"
                 android:clickable="true"
                 android:focusable="true"
                 android:fontFamily="@font/poppins"
                 android:gravity="center"
+                android:letterSpacing="0.04"
                 android:text="💎 Premium"
                 android:textColor="@color/white"
                 android:textSize="12sp"
-                android:textStyle="bold" />
+                android:textStyle="bold"
+                android:shadowColor="#80000000"
+                android:shadowDx="0"
+                android:shadowDy="1"
+                android:shadowRadius="3" />
 
             <TextView
                 android:id="@+id/btn_tab_free"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:background="@android:color/transparent"
+                android:layout_marginEnd="5dp"
+                android:background="@drawable/bg_home_tab_free"
                 android:clickable="true"
                 android:focusable="true"
                 android:fontFamily="@font/poppins"
                 android:gravity="center"
+                android:letterSpacing="0.04"
                 android:text="🌍 Free AI"
-                android:textColor="@color/outline"
-                android:textSize="12sp" />
+                android:textColor="@color/white"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:shadowColor="#80000000"
+                android:shadowDx="0"
+                android:shadowDy="1"
+                android:shadowRadius="3" />
 
             <TextView
                 android:id="@+id/btn_tab_super_chat"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:background="@android:color/transparent"
+                android:layout_marginEnd="5dp"
+                android:background="@drawable/bg_home_tab_super"
                 android:clickable="true"
                 android:focusable="true"
                 android:fontFamily="@font/poppins"
                 android:gravity="center"
+                android:letterSpacing="0.04"
                 android:text="✨ Super"
-                android:textColor="@color/outline"
-                android:textSize="12sp" />
+                android:textColor="@color/white"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:shadowColor="#80000000"
+                android:shadowDx="0"
+                android:shadowDy="1"
+                android:shadowRadius="3" />
 
             <TextView
                 android:id="@+id/btn_tab_ultra_ai"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
-                android:background="@android:color/transparent"
+                android:background="@drawable/bg_home_tab_ultra"
                 android:clickable="true"
                 android:focusable="true"
                 android:fontFamily="@font/poppins"
                 android:gravity="center"
+                android:letterSpacing="0.04"
                 android:text="⚡ Ultra AI 4"
-                android:textColor="@color/outline"
-                android:textSize="11sp" />
+                android:textColor="@color/white"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:shadowColor="#80000000"
+                android:shadowDx="0"
+                android:shadowDy="1"
+                android:shadowRadius="3" />
         </LinearLayout>
     </LinearLayout>
 
@@ -357,10 +383,10 @@
             app:boxCornerRadiusBottomStart="28dp"
             app:boxCornerRadiusTopEnd="28dp"
             app:boxCornerRadiusTopStart="28dp"
-            app:boxStrokeColor="@color/outlineVariant"
+            app:boxStrokeColor="@color/home_input_stroke"
             app:boxStrokeWidth="1dp"
             app:boxStrokeWidthFocused="1.5dp"
-            app:hintTextColor="@color/electric_blue_glow"
+            app:hintTextColor="@color/home_hint_focused"
             app:layout_constraintBottom_toTopOf="@id/chip_active_provider"
             app:layout_constraintEnd_toStartOf="@id/btn_voice"
             app:layout_constraintStart_toEndOf="@id/btn_attach"
@@ -374,8 +400,8 @@
                 android:hint="Ask anything…"
                 android:inputType="textMultiLine|textCapSentences"
                 android:maxLines="4"
-                android:textColor="#1A1A2E"
-                android:textColorHint="#6B5BD6" />
+                android:textColor="@color/home_input_text"
+                android:textColorHint="@color/home_hint" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <!-- Voice input button (compact, inline beside the input) -->
@@ -425,9 +451,13 @@
             android:paddingHorizontal="12dp"
             android:paddingVertical="5dp"
             android:text="⚡ Groq"
-            android:textColor="@color/on_primary"
+            android:textColor="@color/white"
             android:textSize="12sp"
             android:textStyle="bold"
+            android:shadowColor="#80000000"
+            android:shadowDx="0"
+            android:shadowDy="1"
+            android:shadowRadius="3"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/input_message_layout" />

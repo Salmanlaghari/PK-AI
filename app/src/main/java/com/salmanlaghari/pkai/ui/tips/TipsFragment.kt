@@ -191,7 +191,7 @@ class TipsFragment : BottomSheetDialogFragment() {
 
     companion object {
         const val KEY_SUPER_UNLOCKED = "super_stickers_unlocked"
-        private const val SUPER_CODE_HINT = "PKAI-•••••-18"
+        private const val SUPER_CODE_HINT = "PKAI-SUPER-18"
         internal const val SUPER_CODE_SHA256 = "c3f10ca04036997bb2fabce7227a59129fc58ba49c51ba21df3183d1b69d67a7"
         internal fun sha256(value: String): String = java.security.MessageDigest.getInstance("SHA-256")
             .digest(value.trim().uppercase(java.util.Locale.ROOT).toByteArray(Charsets.UTF_8))

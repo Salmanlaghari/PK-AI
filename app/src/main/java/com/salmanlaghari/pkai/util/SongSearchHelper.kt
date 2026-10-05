@@ -26,6 +26,11 @@ object SongSearchHelper {
     private val SONG_ACTION = Regex("(?i)^(.+?)\\s+(song|gana|gaana)\\s+(sunao|suna|play|chalao|lagao)\\s*$")
     private val SONG_PREFIX = Regex("(?i)^(song|gana|gaana)\\s*:\\s*(.+)$")
     private val SUNAO = Regex("(?i)^([^\\s]+)\\s+sunao\\s*$")
+    // "search X song" — explicit search request (Prince's feedback: plain
+    // "Search Hum Dil de chuke Sanam song" must open a song card, not text).
+    private val SEARCH_PREFIX = Regex("(?i)^(search|find|dhundo|dhoondo|talash)\\s+(.+?)\\s+(song|gana|gaana)\\s*$")
+    // "X song search karo" — explicit search request, suffix form.
+    private val SEARCH_SUFFIX = Regex("(?i)^(.+?)\\s+(song|gana|gaana)\\s+(search|find|dhundo|dhoondo)\\s*(karo|kar|karein)?\\s*$")
     private val NON_MUSIC_QUERY = Regex(
         "(?i)^(app|reel|reels|cricket|pubg|offline)\\b|\\b(video\\s+(games?|link|bhejo)|store\\s+se|link\\s+(bhejo|send)|download|send\\s+me)\\b"
     )
@@ -34,7 +39,9 @@ object SongSearchHelper {
         val title: String,
         val artist: String,
         val artworkUrl: String,
-        val audioUrl: String
+        val audioUrl: String,
+        /** PagalWorld song page — browser fallback when no stream URL exists. */
+        val pageUrl: String = ""
     ) {
         fun hasStream(): Boolean = audioUrl.isNotBlank()
     }
@@ -45,7 +52,8 @@ object SongSearchHelper {
      * Only EXPLICIT requests match — a bare "X song" no longer hijacks normal
      * chat about songs. Supported:
      * "play kesariya", "kesariya play karo", "kesariya song sunao",
-     * "song: tum hi ho", "kesariya sunao"
+     * "song: tum hi ho", "kesariya sunao",
+     * "search hum dil de chuke sanam song", "kesariya song search karo"
      */
     fun extractSongQuery(text: String): String? {
         val t = text.trim()
@@ -67,6 +75,16 @@ object SongSearchHelper {
         // "song: X" / "gana: X" — explicit prefix
         SONG_PREFIX.find(t)?.let {
             val q = it.groupValues[2].trim()
+            if (q.length >= 2 && isLikelySongQuery(q)) return q
+        }
+        // "search X song" — explicit search request
+        SEARCH_PREFIX.find(t)?.let {
+            val q = it.groupValues[2].trim()
+            if (q.length >= 2 && isLikelySongQuery(q)) return q
+        }
+        // "X song search karo" — explicit search request, suffix form
+        SEARCH_SUFFIX.find(t)?.let {
+            val q = it.groupValues[1].trim()
             if (q.length >= 2 && isLikelySongQuery(q)) return q
         }
         // "X sunao" — single-word title only (avoids hijacking sentences)
@@ -137,7 +155,8 @@ object SongSearchHelper {
             title = fallbackTitle.ifBlank { "Unknown Song" },
             artist = artist,
             artworkUrl = artwork,
-            audioUrl = audioUrl
+            audioUrl = audioUrl,
+            pageUrl = pageUrl
         )
     }
 

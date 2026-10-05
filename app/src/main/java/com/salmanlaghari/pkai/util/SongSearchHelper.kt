@@ -39,6 +39,10 @@ object SongSearchHelper {
     private val SEARCH_PREFIX = Regex("(?i)^(search|find|dhundo|dhundho|dhundoo|dhoondo|talash)\\s+(.+?)\\s+(song|gana|gaana)\\s*(karo|kar|karein)?\\s*$")
     // "X song search|find|…|talash [karo]" — explicit search request, suffix form.
     private val SEARCH_SUFFIX = Regex("(?i)^(.+?)\\s+(song|gana|gaana)\\s+(search|find|dhundo|dhundho|dhundoo|dhoondo|talash)\\s*(karo|kar|karein)?\\s*$")
+    // "X song/gana/gaana" — bare title + song suffix (Prince's on-device
+    // feedback: "Sanam Teri qasem song" must open a song card, not text).
+    // Guarded by looksLikeSongTitle to avoid hijacking normal chat.
+    private val SONG_SUFFIX_BARE = Regex("(?i)^(.+?)\\s+(song|gana|gaana)\\s*$")
     private val NON_MUSIC_QUERY = Regex(
         "(?i)^(app|reel|reels|cricket|pubg|offline)\\b|\\b(video\\s+(games?|link|bhejo)|store\\s+se|link\\s+(bhejo|send)|download|send\\s+me)\\b"
     )
@@ -112,6 +116,13 @@ object SongSearchHelper {
             val q = it.groupValues[1].trim()
             if (q.length >= 2 && isLikelySongQuery(q) && !isServiceName(q)) return q
         }
+        // "X song/gana/gaana" — bare title + song suffix. Guarded by
+        // looksLikeSongTitle so normal chat ("I love this song") is not
+        // hijacked — only real title-like phrases open a song card.
+        SONG_SUFFIX_BARE.find(t)?.let {
+            val q = it.groupValues[1].trim()
+            if (q.length >= 2 && isLikelySongQuery(q) && looksLikeSongTitle(q) && !isServiceName(q)) return q
+        }
         // "X sunao" — single-word title only (avoids hijacking sentences)
         SUNAO.find(t)?.let {
             val q = it.groupValues[1].trim()
@@ -125,6 +136,33 @@ object SongSearchHelper {
         if (normalized == "game of thrones") return true
         if (Regex("\\bgame\\b").containsMatchIn(normalized)) return false
         return !NON_MUSIC_QUERY.containsMatchIn(normalized)
+    }
+
+    /**
+     * Guards the bare "X song/gana" suffix pattern: only true when the
+     * captured text looks like a song title (short noun phrase), not a
+     * chat sentence. Rejects question words, sentence pronouns at the
+     * start, and overly long phrases.
+     */
+    private fun looksLikeSongTitle(text: String): Boolean {
+        val trimmed = text.trim()
+        val words = trimmed.split(Regex("\\s+"))
+        // Song titles are short
+        if (words.size > 6 || trimmed.length > 40) return false
+        val lower = words.map { it.lowercase(java.util.Locale.ROOT) }
+        // Questions are not titles
+        val questionWords = setOf(
+            "what", "where", "when", "why", "how", "who", "which", "whom", "whose",
+            "kya", "kab", "kahan", "kaise", "kyun", "kyon", "kaun", "kis", "kitna", "kitne"
+        )
+        if (lower.any { it in questionWords }) return false
+        // Sentences starting with pronouns are chat, not titles
+        val sentenceStarters = setOf(
+            "i", "you", "he", "she", "we", "they", "it",
+            "mai", "main", "tum", "aap", "vo", "wo", "hum", "yeh", "ye"
+        )
+        if (lower.firstOrNull() in sentenceStarters) return false
+        return trimmed.length >= 2
     }
 
     /**

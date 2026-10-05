@@ -3,6 +3,7 @@ package com.salmanlaghari.pkai.util
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONArray
 import java.net.HttpURLConnection
 import java.net.URL
@@ -21,6 +22,13 @@ object SongSearchHelper {
     private const val TIMEOUT = 8000
     /** Max chars read from any HTTP response (OOM guard). */
     private const val MAX_RESPONSE_CHARS = 512 * 1024
+    /**
+     * IO dispatcher for network calls. Overridable in unit tests so
+     * [searchSong] cooperates with the test dispatcher instead of hanging
+     * on the real [Dispatchers.IO] thread pool.
+     */
+    @Volatile
+    var ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.IO
     private val PLAY_PREFIX = Regex("(?i)^play\\s+(.+)$")
     private val PLAY_SUFFIX = Regex("(?i)^(.+?)\\s+play\\s+(karo|kar)\\s*$")
     private val SONG_ACTION = Regex("(?i)^(.+?)\\s+(song|gana|gaana)\\s+(sunao|suna|play|chalao|lagao)\\s*$")
@@ -200,25 +208,35 @@ object SongSearchHelper {
             song.pageUrl.replace("|", "")
         ).joinToString("|||")
 
-    /** Searches PagalWorld and returns the best streamable match, or null. */
-    suspend fun searchSong(query: String): SongResult? = withContext(Dispatchers.IO) {
-        try {
-            val enc = URLEncoder.encode(query.trim(), "UTF-8")
-            val searchUrl = "$BASE/wp-json/wp/v2/search?search=$enc&per_page=10"
-            val body = httpGet(searchUrl) ?: return@withContext null
-            val arr = JSONArray(body)
-            for (i in 0 until arr.length()) {
-                val item = arr.optJSONObject(i) ?: continue
-                val pageUrl = item.optString("url", "")
-                if (!pageUrl.contains("/song/")) continue
-                val title = decodeHtml(item.optString("title", "Unknown"))
-                val song = parseSongPage(pageUrl, title)
-                if (song != null && song.hasStream()) return@withContext song
+    /**
+     * Searches PagalWorld and returns the best streamable match, or null.
+     * The whole lookup is bounded by [timeoutMs] so callers never hang —
+     * the bare-title heuristic path passes a short 2s budget, explicit
+     * song requests use the default 10s.
+     */
+    suspend fun searchSong(
+        query: String,
+        timeoutMs: Long = 10_000
+    ): SongResult? = withContext(ioDispatcher) {
+        withTimeoutOrNull(timeoutMs) {
+            try {
+                val enc = URLEncoder.encode(query.trim(), "UTF-8")
+                val searchUrl = "$BASE/wp-json/wp/v2/search?search=$enc&per_page=10"
+                val body = httpGet(searchUrl) ?: return@withTimeoutOrNull null
+                val arr = JSONArray(body)
+                for (i in 0 until arr.length()) {
+                    val item = arr.optJSONObject(i) ?: continue
+                    val pageUrl = item.optString("url", "")
+                    if (!pageUrl.contains("/song/")) continue
+                    val title = decodeHtml(item.optString("title", "Unknown"))
+                    val song = parseSongPage(pageUrl, title)
+                    if (song != null && song.hasStream()) return@withTimeoutOrNull song
+                }
+                null
+            } catch (e: Exception) {
+                Log.w(TAG, "search error: ${e.message}")
+                null
             }
-            null
-        } catch (e: Exception) {
-            Log.w(TAG, "search error: ${e.message}")
-            null
         }
     }
 

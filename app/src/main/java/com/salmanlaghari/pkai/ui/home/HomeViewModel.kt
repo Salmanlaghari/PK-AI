@@ -33,7 +33,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
@@ -503,12 +502,10 @@ class HomeViewModel @Inject constructor(
         _isGenerating.value = true
         viewModelScope.launch {
             try {
-                // Bounded lookup: PagalWorld has its own 8s HTTP timeouts, but
-                // the withContext(Dispatchers.IO) hop never completes under a
-                // test dispatcher — cap it so we always fall through to chat.
-                val song = withTimeoutOrNull(10_000) {
-                    SongSearchHelper.searchSong(originalText)
-                }
+                // Heuristic path: short 2s budget (Kilo review) — the deadline
+                // lives inside searchSong so all call sites are covered.
+                // Falls through to normal chat when no streamable match.
+                val song = SongSearchHelper.searchSong(originalText, timeoutMs = 2_000)
                 if (song != null) {
                     val isFree = _isFreeMode.value
                     val freeLabel = selectedFreeModel.value.chatLabel

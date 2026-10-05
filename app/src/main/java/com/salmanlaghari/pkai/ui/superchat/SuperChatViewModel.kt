@@ -18,7 +18,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.CancellationException
 import javax.inject.Inject
 
@@ -304,10 +303,12 @@ class SuperChatViewModel @Inject constructor(
 
         _isGenerating.value = true
         viewModelScope.launch {
+            // Heuristic path: short 2s budget — deadline lives inside
+            // searchSong so all call sites are covered.
             val song = try {
-                withTimeoutOrNull(10_000) {
-                    com.salmanlaghari.pkai.util.SongSearchHelper.searchSong(originalText)
-                }
+                com.salmanlaghari.pkai.util.SongSearchHelper.searchSong(
+                    originalText, timeoutMs = 2_000
+                )
             } catch (_: Exception) {
                 null
             }

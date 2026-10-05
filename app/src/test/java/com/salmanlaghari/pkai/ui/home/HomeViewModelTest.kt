@@ -63,6 +63,9 @@ class HomeViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
+        // Route SongSearchHelper's network IO through the test dispatcher so
+        // the bare-song-title fallback doesn't hang on the real IO pool.
+        com.salmanlaghari.pkai.util.SongSearchHelper.ioDispatcher = testDispatcher
 
         mockContext = mock(Context::class.java)
         val tempDir = File(System.getProperty("java.io.tmpdir", "/tmp"), "pkai_test_${System.currentTimeMillis()}").apply { mkdirs() }
@@ -143,6 +146,8 @@ class HomeViewModelTest {
     fun tearDown() {
         collectJob.cancel()
         Dispatchers.resetMain()
+        com.salmanlaghari.pkai.util.SongSearchHelper.ioDispatcher =
+            kotlinx.coroutines.Dispatchers.IO
     }
 
     @Test

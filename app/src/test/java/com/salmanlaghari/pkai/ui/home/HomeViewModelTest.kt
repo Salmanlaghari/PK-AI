@@ -63,9 +63,9 @@ class HomeViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
-        // Route SongSearchHelper's network IO through the test dispatcher so
-        // the bare-song-title fallback doesn't hang on the real IO pool.
-        com.salmanlaghari.pkai.util.SongSearchHelper.ioDispatcher = testDispatcher
+        // Bypass real network in the bare-song-title fallback: return null
+        // so messages fall through to normal chat without opening sockets.
+        com.salmanlaghari.pkai.util.SongSearchHelper.testSearchOverride = { null }
 
         mockContext = mock(Context::class.java)
         val tempDir = File(System.getProperty("java.io.tmpdir", "/tmp"), "pkai_test_${System.currentTimeMillis()}").apply { mkdirs() }
@@ -146,8 +146,7 @@ class HomeViewModelTest {
     fun tearDown() {
         collectJob.cancel()
         Dispatchers.resetMain()
-        com.salmanlaghari.pkai.util.SongSearchHelper.ioDispatcher =
-            kotlinx.coroutines.Dispatchers.IO
+        com.salmanlaghari.pkai.util.SongSearchHelper.testSearchOverride = null
     }
 
     @Test

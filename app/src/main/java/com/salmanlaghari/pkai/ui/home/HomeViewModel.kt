@@ -502,10 +502,10 @@ class HomeViewModel @Inject constructor(
         _isGenerating.value = true
         viewModelScope.launch {
             try {
-                // Heuristic path: short 2s budget (Kilo review) — the deadline
-                // lives inside searchSong so all call sites are covered.
-                // Falls through to normal chat when no streamable match.
-                val song = SongSearchHelper.searchSong(originalText, timeoutMs = 2_000)
+                // Heuristic path: PagalWorld lookup is bounded by HTTP
+                // timeouts inside searchSong. Falls through to normal chat
+                // when no streamable match is found.
+                val song = SongSearchHelper.searchSong(originalText)
                 if (song != null) {
                     val isFree = _isFreeMode.value
                     val freeLabel = selectedFreeModel.value.chatLabel

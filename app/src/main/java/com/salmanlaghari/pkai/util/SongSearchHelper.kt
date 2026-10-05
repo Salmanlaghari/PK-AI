@@ -1,9 +1,9 @@
 package com.salmanlaghari.pkai.util
 
 import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONArray
 import java.net.HttpURLConnection
 import java.net.URL
@@ -23,12 +23,12 @@ object SongSearchHelper {
     /** Max chars read from any HTTP response (OOM guard). */
     private const val MAX_RESPONSE_CHARS = 512 * 1024
     /**
-     * IO dispatcher for network calls. Overridable in unit tests so
-     * [searchSong] cooperates with the test dispatcher instead of hanging
-     * on the real [Dispatchers.IO] thread pool.
+     * Test-only hook: when set, [searchSong] returns this lambda's result
+     * instead of touching the network. Null (default) means real lookup.
+     * Scoped to tests — production code never sets this.
      */
     @Volatile
-    var ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.IO
+    var testSearchOverride: (suspend (String) -> SongResult?)? = null
     private val PLAY_PREFIX = Regex("(?i)^play\\s+(.+)$")
     private val PLAY_SUFFIX = Regex("(?i)^(.+?)\\s+play\\s+(karo|kar)\\s*$")
     private val SONG_ACTION = Regex("(?i)^(.+?)\\s+(song|gana|gaana)\\s+(sunao|suna|play|chalao|lagao)\\s*$")
@@ -210,19 +210,19 @@ object SongSearchHelper {
 
     /**
      * Searches PagalWorld and returns the best streamable match, or null.
-     * The whole lookup is bounded by [timeoutMs] so callers never hang —
-     * the bare-title heuristic path passes a short 2s budget, explicit
-     * song requests use the default 10s.
+     * Network I/O is bounded by the HTTP connect/read timeouts ([TIMEOUT]);
+     * callers needing a tighter budget should enforce it around this call
+     * with a dispatcher that actually suspends (this body is blocking IO —
+     * coroutine timeouts cannot preempt it, per Kilo review).
      */
-    suspend fun searchSong(
-        query: String,
-        timeoutMs: Long = 10_000
-    ): SongResult? = withContext(ioDispatcher) {
-        withTimeoutOrNull(timeoutMs) {
+    suspend fun searchSong(query: String): SongResult? {
+        // Test hook: bypass network entirely in unit tests.
+        testSearchOverride?.let { return it(query) }
+        return withContext(Dispatchers.IO) {
             try {
                 val enc = URLEncoder.encode(query.trim(), "UTF-8")
                 val searchUrl = "$BASE/wp-json/wp/v2/search?search=$enc&per_page=10"
-                val body = httpGet(searchUrl) ?: return@withTimeoutOrNull null
+                val body = httpGet(searchUrl) ?: return@withContext null
                 val arr = JSONArray(body)
                 for (i in 0 until arr.length()) {
                     val item = arr.optJSONObject(i) ?: continue
@@ -230,9 +230,11 @@ object SongSearchHelper {
                     if (!pageUrl.contains("/song/")) continue
                     val title = decodeHtml(item.optString("title", "Unknown"))
                     val song = parseSongPage(pageUrl, title)
-                    if (song != null && song.hasStream()) return@withTimeoutOrNull song
+                    if (song != null && song.hasStream()) return@withContext song
                 }
                 null
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Log.w(TAG, "search error: ${e.message}")
                 null

@@ -303,12 +303,9 @@ class SuperChatViewModel @Inject constructor(
 
         _isGenerating.value = true
         viewModelScope.launch {
-            // Heuristic path: short 2s budget — deadline lives inside
-            // searchSong so all call sites are covered.
+            // Heuristic path: bounded by HTTP timeouts inside searchSong.
             val song = try {
-                com.salmanlaghari.pkai.util.SongSearchHelper.searchSong(
-                    originalText, timeoutMs = 2_000
-                )
+                com.salmanlaghari.pkai.util.SongSearchHelper.searchSong(originalText)
             } catch (_: Exception) {
                 null
             }

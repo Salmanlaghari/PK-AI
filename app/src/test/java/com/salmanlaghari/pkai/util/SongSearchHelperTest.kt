@@ -77,7 +77,7 @@ class SongSearchHelperTest {
             pageUrl = "https://a.example/song/"
         )
         assertEquals(
-            "AB|||XY|||https://a.example/art.jpg|||https://a.example/song/",
+            "AB|||XY|||https://a.example/art.jpg|||https://a.example/song/|||PagalWorld",
             SongSearchHelper.packSongAttachment(song)
         )
     }

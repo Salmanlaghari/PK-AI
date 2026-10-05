@@ -59,6 +59,15 @@ class SongSearchHelperTest {
     }
 
     @Test
+    fun searchPrefixRejectsServiceNames() {
+        // The service-name guard covers the prefix form too, not just suffix.
+        assertNull(SongSearchHelper.extractSongQuery("search youtube song"))
+        assertNull(SongSearchHelper.extractSongQuery("find spotify song karo"))
+        // Real titles still match on the prefix form.
+        assertEquals("kesariya", SongSearchHelper.extractSongQuery("search kesariya song"))
+    }
+
+    @Test
     fun packSongAttachmentStripsPipeDelimiter() {
         val song = SongSearchHelper.SongResult(
             title = "A|||B",

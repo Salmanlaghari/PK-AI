@@ -522,13 +522,16 @@ class SuperChatAdapter(
             btnPlay.text =
                 if (playingSongId == message.id && !isSongPaused) "⏸" else "▶"
             btnPlay.setOnClickListener { onPlayTapped(message) }
-            // Always reset animation state (and cancel any in-flight animator):
-            // a holder recycled mid-animation and rebound to an already-seen
-            // message must not replay the slide-in or stay translucent.
-            cardRoot.animate().cancel()
-            cardRoot.alpha = 1f
-            cardRoot.translationY = 0f
-            if (isNew) {
+            // Reset animation state only for already-seen messages: an
+            // unconditional cancel fights DefaultItemAnimator's change
+            // animation on every rebind (e.g. from safeNotifySongChanged),
+            // killing the play/pause glyph transition and snapping cards
+            // that rebind inside the entrance window to full opacity.
+            if (!isNew) {
+                cardRoot.animate().cancel()
+                cardRoot.alpha = 1f
+                cardRoot.translationY = 0f
+            } else {
                 cardRoot.alpha = 0f
                 cardRoot.translationY = 40f
                 cardRoot.animate()
@@ -592,7 +595,17 @@ class SuperChatAdapter(
                     safeNotifySongChanged(message.id)
                     return
                 }
-                // Stop any previous song before starting a new one.
+                // Stop any previous song before starting a new one. Clear
+                // playingSongId FIRST and notify the old card: until the new
+                // player's onPrepared fires (network latency), the stale id
+                // would keep rendering ⏸ on the old card with no notify ever
+                // reaching it, and tapping it would drive the new
+                // still-PREPARING player into IllegalStateException.
+                val previousSongId = playingSongId
+                playingSongId = null
+                if (previousSongId != null && previousSongId != message.id) {
+                    safeNotifySongChanged(previousSongId)
+                }
                 try { songPlayer?.stop() } catch (_: Exception) { }
                 songPlayer?.release()
                 songPlayer = null
@@ -708,11 +721,21 @@ class SuperChatAdapter(
                 if (pos < 0 || pos >= itemCount) return
                 val view = rv
                 if (view != null && view.isComputingLayout) {
-                    // Mid-layout: try again shortly (bounded). Dropping the
-                    // update here would leave the glyph wrong until rebind.
+                    // Mid-layout: try again shortly (bounded).
                     if (tries < 10) {
                         tries++
                         view.postDelayed(this, 50)
+                    } else {
+                        // Bounded retries exhausted — post one final attempt
+                        // to the queue instead of silently dropping it, so it
+                        // runs after the current layout pass completes and the
+                        // play/pause glyph can't get stuck wrong.
+                        view.post {
+                            val p = currentList.indexOfFirst {
+                                it is Item.Message && it.message.id == messageId
+                            }
+                            if (p >= 0 && p < itemCount) notifyItemChanged(p)
+                        }
                     }
                     return
                 }

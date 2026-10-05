@@ -143,9 +143,20 @@ class SuperChatViewModel @Inject constructor(
 
         // Song search intent → visual song card via PagalWorld.
         // Guarded by _isGenerating so rapid taps can't stack searches.
+        //
+        // Bare song title fallback (Prince feedback): a plain title like
+        // "sanam Re Sanam" must open a PLAYABLE song card, not a text
+        // summary. The PagalWorld lookup is the guard — when no streamable
+        // match exists the message falls through to normal chat below.
         val songQuery = com.salmanlaghari.pkai.util.SongSearchHelper.extractSongQuery(trimmed)
         if (songQuery != null && !_isGenerating.value) {
             searchAndSendSong(trimmed, songQuery)
+            return
+        }
+        if (com.salmanlaghari.pkai.util.SongSearchHelper.looksLikeBareSongTitle(trimmed) &&
+            !_isGenerating.value
+        ) {
+            tryBareSongTitle(trimmed, specialMode)
             return
         }
 
@@ -268,6 +279,61 @@ class SuperChatViewModel @Inject constructor(
             _messageStickers.value = _messageStickers.value + (replyMessage.id to sticker)
             _messages.value = _messages.value + replyMessage
             _isGenerating.value = false
+        }
+    }
+
+    /**
+     * Bare song title fallback: "sanam Re Sanam" → search PagalWorld first.
+     * A PLAYABLE song card is posted only when a streamable match exists;
+     * otherwise the message falls through to normal AI chat via [fetchReply]
+     * so ordinary short texts are never dead-ended.
+     */
+    private fun tryBareSongTitle(originalText: String, specialMode: Boolean) {
+        if (_isGenerating.value) return
+        val userMessage = ChatMessage(
+            content = originalText,
+            isUser = true,
+            timestamp = System.currentTimeMillis()
+        )
+        val pose = if (specialMode) PoseRegistry.randomSpecialSticker()
+        else nextPoseFor(MoodDetector.detect(originalText))
+        _currentSticker.value = pose
+        _messageStickers.value = _messageStickers.value + (userMessage.id to pose)
+        _messages.value = _messages.value + userMessage
+
+        _isGenerating.value = true
+        viewModelScope.launch {
+            // Heuristic path: bounded by HTTP timeouts inside searchSong.
+            val song = try {
+                com.salmanlaghari.pkai.util.SongSearchHelper.searchSong(originalText)
+            } catch (_: Exception) {
+                null
+            }
+            if (song != null) {
+                val replyMessage = ChatMessage(
+                    content = "🎵 Ye raha aapka song:",
+                    isUser = false,
+                    modelUsed = com.salmanlaghari.pkai.util.SongSearchHelper.SONG_MODEL_LABEL,
+                    timestamp = System.currentTimeMillis(),
+                    attachmentType = com.salmanlaghari.pkai.util.SongAttachment.TYPE,
+                    attachmentUri = song.audioUrl,
+                    attachmentName = com.salmanlaghari.pkai.util.SongAttachment.pack(song)
+                )
+                val sticker = if (specialMode) PoseRegistry.randomSpecialSticker()
+                else nextPoseFor(Mood.HAPPY)
+                _messageStickers.value = _messageStickers.value + (replyMessage.id to sticker)
+                _messages.value = _messages.value + replyMessage
+                _isGenerating.value = false
+            } else {
+                // No streamable match — normal AI chat answers instead.
+                // fetchReply manages _isGenerating itself.
+                _isGenerating.value = false
+                fetchReply(
+                    originalText,
+                    specialMode,
+                    languageInstruction = lastLanguageInstruction
+                )
+            }
         }
     }
 

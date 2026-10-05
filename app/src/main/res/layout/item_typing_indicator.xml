@@ -11,7 +11,7 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:background="@drawable/bg_ai_3d_card"
+        android:background="@drawable/bg_ai_card_light"
         android:paddingHorizontal="16dp"
         android:paddingVertical="12dp">
 

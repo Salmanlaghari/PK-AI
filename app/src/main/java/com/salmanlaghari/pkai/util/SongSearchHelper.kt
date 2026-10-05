@@ -1,6 +1,7 @@
 package com.salmanlaghari.pkai.util
 
 import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -21,6 +22,13 @@ object SongSearchHelper {
     private const val TIMEOUT = 8000
     /** Max chars read from any HTTP response (OOM guard). */
     private const val MAX_RESPONSE_CHARS = 512 * 1024
+    /**
+     * Test-only hook: when set, [searchSong] returns this lambda's result
+     * instead of touching the network. Null (default) means real lookup.
+     * Scoped to tests — production code never sets this.
+     */
+    @Volatile
+    var testSearchOverride: (suspend (String) -> SongResult?)? = null
     private val PLAY_PREFIX = Regex("(?i)^play\\s+(.+)$")
     private val PLAY_SUFFIX = Regex("(?i)^(.+?)\\s+play\\s+(karo|kar)\\s*$")
     private val SONG_ACTION = Regex("(?i)^(.+?)\\s+(song|gana|gaana)\\s+(sunao|suna|play|chalao|lagao)\\s*$")
@@ -91,10 +99,12 @@ object SongSearchHelper {
         }
         // "search X song [karo]" — explicit search request. The captured group
         // must be real title text: questions that merely end in "song" (e.g.
-        // "find out the meaning of this song") are rejected by isRealTitleText.
+        // "find out the meaning of this song") are rejected by isRealTitleText,
+        // and music-service names are never song titles (same guard as the
+        // suffix branch below).
         SEARCH_PREFIX.find(t)?.let {
             val q = it.groupValues[2].trim()
-            if (q.length >= 2 && isLikelySongQuery(q) && isRealTitleText(q)) return q
+            if (q.length >= 2 && isLikelySongQuery(q) && isRealTitleText(q) && !isServiceName(q)) return q
         }
         // "X song search|find|…|talash [karo]" — explicit search request,
         // suffix form. Music-service names are never song titles.
@@ -150,6 +160,36 @@ object SongSearchHelper {
     /** True when [query] names a music service rather than a song. */
     private fun isServiceName(query: String): Boolean = SERVICE_NAMES.containsMatchIn(query)
 
+    /**
+     * Heuristic for a *bare* song title ("sanam Re Sanam") typed with no
+     * explicit song keywords. Conservative on purpose: short text, no
+     * question marks, no question words, not a sentence. The PagalWorld
+     * lookup itself is the final guard — callers must only show a song card
+     * when a streamable match is actually found, otherwise fall through to
+     * normal chat. This keeps ordinary chat ("hello", "how are you") safe
+     * while letting "sanam Re Sanam" open a playable card.
+     */
+    fun looksLikeBareSongTitle(text: String): Boolean {
+        val t = text.trim()
+        if (t.length < 3 || t.length > 60) return false
+        if (t.contains('?') || t.contains('!')) return false
+        val tokens = t.lowercase(java.util.Locale.ROOT)
+            .split(Regex("\\s+")).filter { it.isNotBlank() }
+        if (tokens.isEmpty() || tokens.size > 6) return false
+        // Questions and chat phrases are never bare titles.
+        if (tokens.any { it in QUESTION_WORDS }) return false
+        if (CHAT_STARTERS.any { starter -> t.startsWith(starter, ignoreCase = true) }) return false
+        return true
+    }
+
+    /** Common chat openers that must never be treated as song titles. */
+    private val CHAT_STARTERS = listOf(
+        "hello", "hi ", "hey ", "salam", "assalam", "aoa ",
+        "how are", "what is", "what's", "tell me", "please",
+        "can you", "could you", "would you", "i want", "i need",
+        "mera ", "meri ", "mujhe ", "ap ", "tum ", "yeh ", "ye "
+    )
+
     /** Label shown on song-result messages (provider-agnostic, so a plain name). */
     const val SONG_MODEL_LABEL = "Song Search"
 
@@ -168,25 +208,37 @@ object SongSearchHelper {
             song.pageUrl.replace("|", "")
         ).joinToString("|||")
 
-    /** Searches PagalWorld and returns the best streamable match, or null. */
-    suspend fun searchSong(query: String): SongResult? = withContext(Dispatchers.IO) {
-        try {
-            val enc = URLEncoder.encode(query.trim(), "UTF-8")
-            val searchUrl = "$BASE/wp-json/wp/v2/search?search=$enc&per_page=10"
-            val body = httpGet(searchUrl) ?: return@withContext null
-            val arr = JSONArray(body)
-            for (i in 0 until arr.length()) {
-                val item = arr.optJSONObject(i) ?: continue
-                val pageUrl = item.optString("url", "")
-                if (!pageUrl.contains("/song/")) continue
-                val title = decodeHtml(item.optString("title", "Unknown"))
-                val song = parseSongPage(pageUrl, title)
-                if (song != null && song.hasStream()) return@withContext song
+    /**
+     * Searches PagalWorld and returns the best streamable match, or null.
+     * Network I/O is bounded by the HTTP connect/read timeouts ([TIMEOUT]);
+     * callers needing a tighter budget should enforce it around this call
+     * with a dispatcher that actually suspends (this body is blocking IO —
+     * coroutine timeouts cannot preempt it, per Kilo review).
+     */
+    suspend fun searchSong(query: String): SongResult? {
+        // Test hook: bypass network entirely in unit tests.
+        testSearchOverride?.let { return it(query) }
+        return withContext(Dispatchers.IO) {
+            try {
+                val enc = URLEncoder.encode(query.trim(), "UTF-8")
+                val searchUrl = "$BASE/wp-json/wp/v2/search?search=$enc&per_page=10"
+                val body = httpGet(searchUrl) ?: return@withContext null
+                val arr = JSONArray(body)
+                for (i in 0 until arr.length()) {
+                    val item = arr.optJSONObject(i) ?: continue
+                    val pageUrl = item.optString("url", "")
+                    if (!pageUrl.contains("/song/")) continue
+                    val title = decodeHtml(item.optString("title", "Unknown"))
+                    val song = parseSongPage(pageUrl, title)
+                    if (song != null && song.hasStream()) return@withContext song
+                }
+                null
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "search error: ${e.message}")
+                null
             }
-            null
-        } catch (e: Exception) {
-            Log.w(TAG, "search error: ${e.message}")
-            null
         }
     }
 

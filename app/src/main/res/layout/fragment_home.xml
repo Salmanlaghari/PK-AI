@@ -50,7 +50,7 @@
             android:gravity="center"
             android:orientation="vertical"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/btn_notifications"
+            app:layout_constraintEnd_toStartOf="@id/spacer_balance"
             app:layout_constraintStart_toEndOf="@id/btn_menu"
             app:layout_constraintTop_toTopOf="parent">
 
@@ -90,143 +90,24 @@
                 android:shadowRadius="6" />
         </LinearLayout>
 
-        <!-- Notifications -->
-        <ImageButton
-            android:id="@+id/btn_notifications"
+        <!-- Balance spacer: invisible twin of the menu button so the centered
+             title stays truly centered (Task 3: header keeps menu + title only) -->
+        <View
+            android:id="@+id/spacer_balance"
             android:layout_width="44dp"
             android:layout_height="44dp"
-            android:layout_marginEnd="4dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="Notifications"
-            android:padding="10dp"
-            android:src="@drawable/ic_notifications"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/btn_settings"
-            app:layout_constraintTop_toTopOf="parent"
-            app:tint="@color/html_cyan" />
-
-        <!-- Settings -->
-        <ImageButton
-            android:id="@+id/btn_settings"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="Settings"
-            android:padding="10dp"
-            android:src="@drawable/ic_settings"
+            android:visibility="invisible"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:tint="@color/html_cyan" />
+            app:layout_constraintTop_toTopOf="parent" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- ═══ Chat Mode Tab ═══ -->
-    <LinearLayout
-        android:id="@+id/layout_chat_mode_tab"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:background="@android:color/transparent"
-        android:orientation="horizontal"
-        android:paddingHorizontal="16dp"
-        android:paddingVertical="6dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/layout_header">
+    <!-- ═══ Chat Mode Tabs — REMOVED (Task 2): provider switching moved to the
+         navigation drawer "AI Mode" group (nav_mode_premium / nav_mode_free).
+         Super / Ultra AI 4 pills are gone too — those screens already live in
+         the drawer (nav_super_chat, nav_ultra_ai). ═══ -->
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="38dp"
-            android:background="@drawable/bg_pill_chip"
-            android:gravity="center"
-            android:orientation="horizontal"
-            android:padding="3dp">
-
-            <TextView
-                android:id="@+id/btn_tab_premium"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:layout_marginEnd="5dp"
-                android:background="@drawable/bg_home_tab_premium"
-                android:clickable="true"
-                android:focusable="true"
-                android:fontFamily="@font/poppins"
-                android:gravity="center"
-                android:letterSpacing="0.04"
-                android:text="💎 Premium"
-                android:textColor="@color/white"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                android:shadowColor="#80000000"
-                android:shadowDx="0"
-                android:shadowDy="1"
-                android:shadowRadius="3" />
-
-            <TextView
-                android:id="@+id/btn_tab_free"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:layout_marginEnd="5dp"
-                android:background="@drawable/bg_home_tab_free"
-                android:clickable="true"
-                android:focusable="true"
-                android:fontFamily="@font/poppins"
-                android:gravity="center"
-                android:letterSpacing="0.04"
-                android:text="🌍 Free AI"
-                android:textColor="@color/white"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                android:shadowColor="#80000000"
-                android:shadowDx="0"
-                android:shadowDy="1"
-                android:shadowRadius="3" />
-
-            <TextView
-                android:id="@+id/btn_tab_super_chat"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:layout_marginEnd="5dp"
-                android:background="@drawable/bg_home_tab_super"
-                android:clickable="true"
-                android:focusable="true"
-                android:fontFamily="@font/poppins"
-                android:gravity="center"
-                android:letterSpacing="0.04"
-                android:text="✨ Super"
-                android:textColor="@color/white"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                android:shadowColor="#80000000"
-                android:shadowDx="0"
-                android:shadowDy="1"
-                android:shadowRadius="3" />
-
-            <TextView
-                android:id="@+id/btn_tab_ultra_ai"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:background="@drawable/bg_home_tab_ultra"
-                android:clickable="true"
-                android:focusable="true"
-                android:fontFamily="@font/poppins"
-                android:gravity="center"
-                android:letterSpacing="0.04"
-                android:text="⚡ Ultra AI 4"
-                android:textColor="@color/white"
-                android:textSize="11sp"
-                android:textStyle="bold"
-                android:shadowColor="#80000000"
-                android:shadowDx="0"
-                android:shadowDy="1"
-                android:shadowRadius="3" />
-        </LinearLayout>
-    </LinearLayout>
-
-    <!-- ═══ Free AI Model Selector (visible only on the Free AI tab) ═══ -->
+    <!-- ═══ Free AI Model Selector (visible only in Free AI mode) ═══ -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/layout_free_model_selector"
         style="@style/PkAi.GlassCard.Elevated"
@@ -238,7 +119,7 @@
         app:cardCornerRadius="14dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/layout_chat_mode_tab"
+        app:layout_constraintTop_toBottomOf="@id/layout_header"
         tools:visibility="visible">
 
         <LinearLayout

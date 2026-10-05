@@ -24,12 +24,31 @@
             android:title="Profile" />
     </group>
 
+    <item android:title="AI Mode">
+        <menu>
+            <group android:id="@+id/group_ai_mode" android:checkableBehavior="single">
+                <item
+                    android:id="@+id/nav_mode_premium"
+                    android:icon="@drawable/ic_star"
+                    android:title="💎 Premium" />
+                <item
+                    android:id="@+id/nav_mode_free"
+                    android:icon="@drawable/ic_chats"
+                    android:title="🌍 Free AI" />
+            </group>
+        </menu>
+    </item>
+
     <item android:title="Account">
         <menu>
             <item
                 android:id="@+id/nav_sys_settings"
                 android:icon="@drawable/ic_settings"
                 android:title="Settings" />
+            <item
+                android:id="@+id/nav_notifications"
+                android:icon="@drawable/ic_notifications"
+                android:title="🔔 Notifications" />
             <item
                 android:id="@+id/nav_premium"
                 android:icon="@drawable/ic_star"

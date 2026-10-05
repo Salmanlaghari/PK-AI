@@ -256,28 +256,34 @@ class SuperChatViewModel @Inject constructor(
 
         _isGenerating.value = true
         viewModelScope.launch {
-            val song = com.salmanlaghari.pkai.util.SongSearchHelper.searchSong(query)
-            val replyMessage = if (song != null) {
-                ChatMessage(
-                    content = "🎵 Ye raha aapka song:",
-                    isUser = false,
-                    modelUsed = com.salmanlaghari.pkai.util.SongSearchHelper.SONG_MODEL_LABEL,
-                    timestamp = System.currentTimeMillis(),
-                    attachmentType = com.salmanlaghari.pkai.util.SongAttachment.TYPE,
-                    attachmentUri = song.audioUrl,
-                    attachmentName = com.salmanlaghari.pkai.util.SongAttachment.pack(song)
-                )
+            val songs = com.salmanlaghari.pkai.util.SongSearchHelper.searchSongs(query, maxResults = 5)
+            val replyMessages = if (songs.isNotEmpty()) {
+                songs.mapIndexed { index, song ->
+                    ChatMessage(
+                        content = if (index == 0) "🎵 Ye rahe aapke songs (${songs.size}):" else "",
+                        isUser = false,
+                        modelUsed = com.salmanlaghari.pkai.util.SongSearchHelper.SONG_MODEL_LABEL,
+                        timestamp = System.currentTimeMillis(),
+                        attachmentType = com.salmanlaghari.pkai.util.SongAttachment.TYPE,
+                        attachmentUri = song.audioUrl,
+                        attachmentName = com.salmanlaghari.pkai.util.SongAttachment.pack(song)
+                    )
+                }
             } else {
-                ChatMessage(
-                    content = "😔 \"$query\" nahi mila. Koi aur song try karein!",
-                    isUser = false,
-                    timestamp = System.currentTimeMillis()
+                listOf(
+                    ChatMessage(
+                        content = "😔 \"$query\" nahi mila. Koi aur song try karein!",
+                        isUser = false,
+                        timestamp = System.currentTimeMillis()
+                    )
                 )
             }
             val sticker = if (specialMode) PoseRegistry.randomSpecialSticker()
                 else nextPoseFor(Mood.HAPPY)
-            _messageStickers.value = _messageStickers.value + (replyMessage.id to sticker)
-            _messages.value = _messages.value + replyMessage
+            replyMessages.forEach { msg ->
+                _messageStickers.value = _messageStickers.value + (msg.id to sticker)
+                _messages.value = _messages.value + msg
+            }
             _isGenerating.value = false
         }
     }

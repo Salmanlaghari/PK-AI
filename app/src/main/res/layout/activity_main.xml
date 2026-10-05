@@ -20,19 +20,21 @@
             android:layout_width="0dp"
             android:layout_height="0dp"
             app:defaultNavHost="true"
-            app:layout_constraintBottom_toTopOf="@id/bottom_navigation"
+            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             app:navGraph="@navigation/nav_graph" />
 
-        <!-- Material 3 Bottom Navigation -->
+        <!-- Bottom Navigation — REMOVED per Prince's feedback. All destinations
+             live in the sidebar drawer. Kept GONE for layout stability. -->
         <com.google.android.material.bottomnavigation.BottomNavigationView
             android:id="@+id/bottom_navigation"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:background="@color/surfaceContainer"
             android:elevation="8dp"
+            android:visibility="gone"
             app:backgroundTint="@color/surfaceContainer"
             app:itemActiveIndicatorStyle="@style/Widget.Material3.BottomNavigationView.ActiveIndicator"
             app:itemIconTint="@color/electric_blue_glow"
@@ -40,7 +42,6 @@
             app:itemRippleColor="@color/primary"
             app:labelVisibilityMode="labeled"
             app:menu="@menu/menu_bottom_nav"
-            android:visibility="gone"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent" />

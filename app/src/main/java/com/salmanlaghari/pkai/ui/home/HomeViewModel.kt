@@ -315,7 +315,7 @@ class HomeViewModel @Inject constructor(
                 val notice = when {
                     attachmentType == "image" && !isFree ->
                         "⚠️ ${provider.displayName} is a text-only chat model and can't view images. " +
-                            "Switch to a vision-capable provider (Groq supports vision) to send photos."
+                            "Switch to a vision-capable provider (PK-AI supports vision) to send photos."
                     attachmentType == "image" ->
                         "⚠️ The Free AI tab is text-only and can't view images. " +
                             "Use the 🖼 Image tool to generate a picture instead."
@@ -503,10 +503,11 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 // Heuristic path: PagalWorld lookup is bounded by HTTP
-                // timeouts inside searchSong. Falls through to normal chat
-                // when no streamable match is found.
-                val song = SongSearchHelper.searchSong(originalText)
-                if (song != null) {
+                // timeouts inside searchSongs. Returns up to 5 matches —
+                // Prince's feedback: show ALL songs, not just one.
+                // Falls through to normal chat when no streamable match.
+                val songs = SongSearchHelper.searchSongs(originalText, maxResults = 5)
+                if (songs.isNotEmpty()) {
                     val isFree = _isFreeMode.value
                     val freeLabel = selectedFreeModel.value.chatLabel
                     val replyLabel = if (isFree) freeLabel else SongSearchHelper.SONG_MODEL_LABEL
@@ -518,17 +519,20 @@ class HomeViewModel @Inject constructor(
                             timestamp = System.currentTimeMillis()
                         )
                     )
-                    chatMessageDao.insertMessage(
-                        ChatMessage(
-                            content = "🎵 Ye raha aapka song:",
-                            isUser = false,
-                            modelUsed = replyLabel,
-                            timestamp = System.currentTimeMillis(),
-                            attachmentType = SongAttachment.TYPE,
-                            attachmentUri = song.audioUrl,
-                            attachmentName = SongAttachment.pack(song)
+                    // Insert a card per song so the user can pick and play.
+                    songs.forEachIndexed { index, song ->
+                        chatMessageDao.insertMessage(
+                            ChatMessage(
+                                content = if (index == 0) "🎵 Ye rahe aapke songs (${songs.size}):" else "",
+                                isUser = false,
+                                modelUsed = replyLabel,
+                                timestamp = System.currentTimeMillis(),
+                                attachmentType = SongAttachment.TYPE,
+                                attachmentUri = song.audioUrl,
+                                attachmentName = SongAttachment.pack(song)
+                            )
                         )
-                    )
+                    }
                     try {
                         historySessionId = chatHistoryRecorder.recordSession(
                             sessionId = historySessionId,
@@ -581,20 +585,22 @@ class HomeViewModel @Inject constructor(
                 )
             )
             try {
-                val song = SongSearchHelper.searchSong(query)
+                val songs = SongSearchHelper.searchSongs(query, maxResults = 5)
                 val replyLabel = if (isFree) freeLabel else SongSearchHelper.SONG_MODEL_LABEL
-                if (song != null) {
-                    chatMessageDao.insertMessage(
-                        ChatMessage(
-                            content = "🎵 Ye raha aapka song:",
-                            isUser = false,
-                            modelUsed = replyLabel,
-                            timestamp = System.currentTimeMillis(),
-                            attachmentType = SongAttachment.TYPE,
-                            attachmentUri = song.audioUrl,
-                            attachmentName = SongAttachment.pack(song)
+                if (songs.isNotEmpty()) {
+                    songs.forEachIndexed { index, song ->
+                        chatMessageDao.insertMessage(
+                            ChatMessage(
+                                content = if (index == 0) "🎵 Ye rahe aapke songs (${songs.size}):" else "",
+                                isUser = false,
+                                modelUsed = replyLabel,
+                                timestamp = System.currentTimeMillis(),
+                                attachmentType = SongAttachment.TYPE,
+                                attachmentUri = song.audioUrl,
+                                attachmentName = SongAttachment.pack(song)
+                            )
                         )
-                    )
+                    }
                 } else {
                     chatMessageDao.insertMessage(
                         ChatMessage(

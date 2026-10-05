@@ -1,51 +1,50 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Contextual tips banner — slides down from the top of the screen for ~5
-    seconds showing tips related to the user's last query. Inflated and
-    managed by TipsHighlightBanner; NOT added to any fragment layout.
+    Contextual tips — compact single-line format per Prince's feedback.
+    Shows occasionally as a small line, not a big banner.
+    Inflated and managed by TipsHighlightBanner; NOT added to any fragment layout.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/bannerRoot"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:background="@drawable/bg_tips_banner"
-    android:padding="12dp">
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="#CC1A1A2E"
+    android:paddingHorizontal="12dp"
+    android:paddingVertical="6dp">
 
-    <LinearLayout
-        android:layout_width="match_parent"
+    <TextView
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical">
+        android:text="💡"
+        android:textSize="12sp"
+        android:layout_marginEnd="6dp" />
 
-        <TextView
-            android:id="@+id/tvTipsTitle"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:textColor="#FFC857"
-            android:textSize="13sp"
-            android:textStyle="bold"
-            android:text="💡 Tips" />
+    <TextView
+        android:id="@+id/tvTipsTitle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:textColor="#FFC857"
+        android:textSize="11sp"
+        android:maxLines="1"
+        android:ellipsize="end" />
 
-        <!-- Explicit close affordance: the banner itself is NOT clickable so
-             it never swallows taps meant for the header underneath.
-             Light tint on the dark banner background so the icon is actually
-             visible; 48dp touch target per a11y minimum. -->
-        <ImageView
-            android:id="@+id/ivTipsClose"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:padding="12dp"
-            android:src="@android:drawable/ic_menu_close_clear_cancel"
-            android:tint="#FFC857"
-            android:contentDescription="Close tips" />
-    </LinearLayout>
+    <ImageView
+        android:id="@+id/ivTipsClose"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:padding="4dp"
+        android:src="@android:drawable/ic_menu_close_clear_cancel"
+        android:tint="#FFC857"
+        android:contentDescription="Close tips" />
 
+    <!-- Hidden container for backward compat — tips now show as single line -->
     <LinearLayout
         android:id="@+id/llTipsContainer"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
         android:orientation="vertical" />
 </LinearLayout>

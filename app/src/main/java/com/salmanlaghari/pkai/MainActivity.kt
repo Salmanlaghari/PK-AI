@@ -79,16 +79,11 @@ class MainActivity : AppCompatActivity() {
 
         binding.bottomNavigation.setupWithNavController(navController)
 
-        navController.addOnDestinationChangedListener { _, destination, _ ->
-            if (destination.id == R.id.homeFragment ||
-                destination.id == R.id.chatsFragment ||
-                destination.id == R.id.historyFragment ||
-                destination.id == R.id.profileFragment) {
-                binding.bottomNavigation.visibility = View.VISIBLE
-            } else {
-                // Hide bottom navigation for Ultra AI 4 (aiHubFragment) & details to grant full screen access
-                binding.bottomNavigation.visibility = View.GONE
-            }
+        // Prince's feedback: bottom nav removed entirely — all destinations
+        // live in the sidebar drawer. Chat gets full-screen view.
+        binding.bottomNavigation.visibility = View.GONE
+        navController.addOnDestinationChangedListener { _, _, _ ->
+            binding.bottomNavigation.visibility = View.GONE
         }
 
         setupDrawerNavigation()

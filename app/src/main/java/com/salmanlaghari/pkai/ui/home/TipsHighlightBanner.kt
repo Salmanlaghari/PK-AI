@@ -40,6 +40,13 @@ object TipsHighlightBanner {
     private const val TAG = "tips_banner_highlight"
     private const val DISPLAY_MS = 5000L
     private const val ANIM_MS = 280L
+    /**
+     * Show tips occasionally, not on every query — Prince's feedback:
+     * tips are important for session suggestions but should appear
+     * "kabi kabi" (sometimes) in a small line format.
+     */
+    private const val SHOW_EVERY_NTH_QUERY = 3
+    private var queryCounter = 0
 
     private val mainHandler = Handler(Looper.getMainLooper())
     /**
@@ -76,6 +83,7 @@ object TipsHighlightBanner {
 
     /**
      * Shows the tips banner for [query] inside [container].
+     * Shows only occasionally (every Nth query) per Prince's feedback.
      * Any banner already showing in the container is replaced.
      */
     fun show(container: ViewGroup, lifecycle: Lifecycle, query: String) {
@@ -83,6 +91,9 @@ object TipsHighlightBanner {
             mainHandler.post { show(container, lifecycle, query) }
             return
         }
+        // Occasional display: only every Nth query shows tips.
+        queryCounter++
+        if (queryCounter % SHOW_EVERY_NTH_QUERY != 0) return
         // One banner at a time per container — drop the previous one without animation.
         dismissInternal(container, animate = false)
 
@@ -90,18 +101,9 @@ object TipsHighlightBanner {
         val banner = LayoutInflater.from(container.context)
             .inflate(R.layout.banner_tips_highlight, container, false)
         banner.tag = TAG
-        banner.findViewById<TextView>(R.id.tvTipsTitle).text = title
-        val tipContainer = banner.findViewById<LinearLayout>(R.id.llTipsContainer)
-        val density = container.resources.displayMetrics.density
-        tips.take(3).forEach { tip ->
-            tipContainer.addView(TextView(container.context).apply {
-                text = "• $tip"
-                setTextColor(Color.WHITE)
-                textSize = 12f
-                val vPad = (3 * density).toInt()
-                setPadding(0, vPad, 0, vPad)
-            })
-        }
+        // Compact single-line format: show first tip inline with title.
+        val firstTip = tips.firstOrNull() ?: ""
+        banner.findViewById<TextView>(R.id.tvTipsTitle).text = "$title: $firstTip"
 
         val margin = (12 * density).toInt()
         val params = FrameLayout.LayoutParams(

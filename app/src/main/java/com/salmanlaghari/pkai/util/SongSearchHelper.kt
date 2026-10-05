@@ -91,10 +91,12 @@ object SongSearchHelper {
         }
         // "search X song [karo]" — explicit search request. The captured group
         // must be real title text: questions that merely end in "song" (e.g.
-        // "find out the meaning of this song") are rejected by isRealTitleText.
+        // "find out the meaning of this song") are rejected by isRealTitleText,
+        // and music-service names are never song titles (same guard as the
+        // suffix branch below).
         SEARCH_PREFIX.find(t)?.let {
             val q = it.groupValues[2].trim()
-            if (q.length >= 2 && isLikelySongQuery(q) && isRealTitleText(q)) return q
+            if (q.length >= 2 && isLikelySongQuery(q) && isRealTitleText(q) && !isServiceName(q)) return q
         }
         // "X song search|find|…|talash [karo]" — explicit search request,
         // suffix form. Music-service names are never song titles.

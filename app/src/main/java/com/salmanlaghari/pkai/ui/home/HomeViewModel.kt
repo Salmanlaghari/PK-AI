@@ -468,6 +468,10 @@ class HomeViewModel @Inject constructor(
      */
     fun searchAndSendSong(originalText: String, query: String) {
         if (_isGenerating.value) return
+        // Set synchronously BEFORE the first suspending insert so the
+        // re-entrancy guard can't be bypassed by a fast double-tap while
+        // insertMessage() suspends.
+        _isGenerating.value = true
         viewModelScope.launch {
             val isFree = _isFreeMode.value
             val freeLabel = selectedFreeModel.value.chatLabel
@@ -479,7 +483,6 @@ class HomeViewModel @Inject constructor(
                     timestamp = System.currentTimeMillis()
                 )
             )
-            _isGenerating.value = true
             try {
                 val song = SongSearchHelper.searchSong(query)
                 val replyLabel = if (isFree) freeLabel else SongSearchHelper.SONG_MODEL_LABEL
@@ -504,6 +507,22 @@ class HomeViewModel @Inject constructor(
                             timestamp = System.currentTimeMillis()
                         )
                     )
+                }
+                // Record the song exchange in History like every AI reply, so
+                // song conversations appear on the History screen and the next
+                // chat continues this session instead of starting a new one.
+                // Best-effort and isolated: a Room failure here must not
+                // surface as a bogus error bubble. Cancellation is rethrown.
+                try {
+                    historySessionId = chatHistoryRecorder.recordSession(
+                        sessionId = historySessionId,
+                        title = historySessionTitle ?: originalText.trim().take(60),
+                        preview = "🎵 $query".take(120)
+                    )
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.w(TAG, "History recording failed (best-effort)", e)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Song search failed", e)

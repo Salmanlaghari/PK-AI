@@ -61,13 +61,18 @@ object TipsHighlightBanner {
      * Category matchers, compiled ONCE. Building a Regex per word per send
      * (~20 compilations on the main thread per message) was wasteful; these
      * cover the same word sets as [tipsFor] used to match inline.
+     *
+     * Plurals are matched via an optional "s" suffix: \b(song)\b never
+     * matches "songs", so without (?:s)? real queries like "play some
+     * songs" or "generate 3 images" would silently fall through to the
+     * generic tips card.
      */
-    private val MUSIC_PATTERN = Regex("\\b(song|gana|gaana|music|singer|sunao|suno)\\b")
+    private val MUSIC_PATTERN = Regex("\\b(songs?|gana|gaana|musics?|singers?|sunao|suno)\\b")
     private val CODE_PATTERN =
-        Regex("\\b(code|python|kotlin|java|function|error|bug|api)\\b")
+        Regex("\\b(codes?|pythons?|kotlins?|javas?|functions?|errors?|bugs?|apis?)\\b")
     private val IMAGE_PATTERN =
-        Regex("\\b(image|photo|tasveer|picture|draw|banao)\\b")
-    private val VIDEO_PATTERN = Regex("\\b(video)\\b")
+        Regex("\\b(images?|photos?|tasveer|pictures?|draw|banao)\\b")
+    private val VIDEO_PATTERN = Regex("\\b(videos?)\\b")
 
     /**
      * Shows the tips banner for [query] inside [container].

@@ -64,7 +64,9 @@ object SongSearchHelper {
         val artworkUrl: String,
         val audioUrl: String,
         /** PagalWorld song page — browser fallback when no stream URL exists. */
-        val pageUrl: String = ""
+        val pageUrl: String = "",
+        /** Source name for display (e.g. "PagalWorld", "Spotify", "YouTube Music"). */
+        val source: String = "PagalWorld"
     ) {
         fun hasStream(): Boolean = audioUrl.isNotBlank()
     }
@@ -249,7 +251,8 @@ object SongSearchHelper {
             song.title.replace("|", ""),
             song.artist.replace("|", ""),
             song.artworkUrl.replace("|", ""),
-            song.pageUrl.replace("|", "")
+            song.pageUrl.replace("|", ""),
+            song.source.replace("|", "")
         ).joinToString("|||")
 
     /**
@@ -260,28 +263,44 @@ object SongSearchHelper {
      * coroutine timeouts cannot preempt it, per Kilo review).
      */
     suspend fun searchSong(query: String): SongResult? {
+        return searchSongs(query, maxResults = 1).firstOrNull()
+    }
+
+    /**
+     * Searches PagalWorld and returns up to [maxResults] streamable matches.
+     * Prince's feedback: show ALL songs starting with the query word, not
+     * just one. Each result includes its source for display.
+     */
+    suspend fun searchSongs(query: String, maxResults: Int = 5): List<SongResult> {
         // Test hook: bypass network entirely in unit tests.
-        testSearchOverride?.let { return it(query) }
+        testSearchOverride?.let {
+            val single = it(query)
+            return if (single != null) listOf(single) else emptyList()
+        }
         return withContext(Dispatchers.IO) {
             try {
                 val enc = URLEncoder.encode(query.trim(), "UTF-8")
-                val searchUrl = "$BASE/wp-json/wp/v2/search?search=$enc&per_page=10"
-                val body = httpGet(searchUrl) ?: return@withContext null
+                val searchUrl = "$BASE/wp-json/wp/v2/search?search=$enc&per_page=20"
+                val body = httpGet(searchUrl) ?: return@withContext emptyList<SongResult>()
                 val arr = JSONArray(body)
+                val results = mutableListOf<SongResult>()
                 for (i in 0 until arr.length()) {
+                    if (results.size >= maxResults) break
                     val item = arr.optJSONObject(i) ?: continue
                     val pageUrl = item.optString("url", "")
                     if (!pageUrl.contains("/song/")) continue
                     val title = decodeHtml(item.optString("title", "Unknown"))
                     val song = parseSongPage(pageUrl, title)
-                    if (song != null && song.hasStream()) return@withContext song
+                    if (song != null && song.hasStream()) {
+                        results.add(song.copy(source = "PagalWorld"))
+                    }
                 }
-                null
+                results
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 Log.w(TAG, "search error: ${e.message}")
-                null
+                emptyList()
             }
         }
     }

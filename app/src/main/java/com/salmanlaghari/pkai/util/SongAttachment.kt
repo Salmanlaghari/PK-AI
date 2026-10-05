@@ -36,7 +36,8 @@ object SongAttachment {
         val title: String,
         val artist: String,
         val artworkUrl: String,
-        val pageUrl: String
+        val pageUrl: String,
+        val source: String = "PagalWorld"
     )
 
     /**
@@ -49,7 +50,8 @@ object SongAttachment {
             title = parts.getOrElse(0) { "Unknown Song" }.ifBlank { "Unknown Song" },
             artist = parts.getOrElse(1) { "Unknown Artist" }.ifBlank { "Unknown Artist" },
             artworkUrl = parts.getOrElse(2) { "" },
-            pageUrl = parts.getOrElse(3) { "" }
+            pageUrl = parts.getOrElse(3) { "" },
+            source = parts.getOrElse(4) { "PagalWorld" }.ifBlank { "PagalWorld" }
         )
     }
 }

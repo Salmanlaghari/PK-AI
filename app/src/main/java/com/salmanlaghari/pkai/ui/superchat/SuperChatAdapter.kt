@@ -501,6 +501,7 @@ class SuperChatAdapter(
         private val ivArt: ImageView = view.findViewById(R.id.ivCardArt)
         private val tvTitle: TextView = view.findViewById(R.id.tvCardTitle)
         private val tvArtist: TextView = view.findViewById(R.id.tvCardArtist)
+        private val tvSource: TextView = view.findViewById(R.id.tvCardSource)
         private val btnPlay: TextView = view.findViewById(R.id.btnCardPlay)
 
         fun bind(item: Item.Message) {
@@ -518,6 +519,7 @@ class SuperChatAdapter(
             ivArt.setImageResource(R.drawable.ic_music_note)
             tvTitle.text = title
             tvArtist.text = artist
+            tvSource.text = "📻 ${card.source}"
             loadArtwork(artwork, ivArt)
             btnPlay.text =
                 if (playingSongId == message.id && !isSongPaused) "⏸" else "▶"

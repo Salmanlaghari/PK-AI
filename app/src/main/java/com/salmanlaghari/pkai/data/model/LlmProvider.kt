@@ -64,8 +64,8 @@ data class LlmProvider(
             ),
             LlmProvider(
                 id = "groq",
-                displayName = "Groq",
-                tagline = "Fastest inference on earth",
+                displayName = "PK-AI",
+                tagline = "PK-AI's flagship fast model",
                 logoEmoji = "⚡",
                 format = ProviderFormat.OPENAI,
                 baseUrl = "https://api.groq.com/openai/v1/",

@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { X, Sparkles, Loader2, CheckCircle2, Bell, ArrowRight, Zap } from "lucide-react";
 import {
   signInToPuter,
   isPuterSignedIn,
   getCachedPuterUser,
   loadPuterSDK,
+  PUTER_ERR_POPUP_CLOSED,
   type PuterUser,
 } from "../services/puterService";
 
@@ -27,6 +28,18 @@ export default function PuterAuthModal({ isOpen, onClose, onAuthSuccess }: Puter
   const [hint, setHint] = useState<string | null>(null);
   const [sdkReady, setSdkReady] = useState(false);
   const [visible, setVisible] = useState(false);
+
+  // Guards the connect attempt: handleClose supersedes the in-flight
+  // attempt so a late onAuthSuccess can never flip auth state after the
+  // user dismissed the sheet; mountedRef covers actual unmount.
+  const attemptIdRef = useRef(0);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!isOpen) {
@@ -93,34 +106,57 @@ export default function PuterAuthModal({ isOpen, onClose, onAuthSuccess }: Puter
   }, [stage]);
 
   const handleClose = useCallback(() => {
+    // Supersede any in-flight connect attempt: its late completion must
+    // not touch UI state or fire onAuthSuccess after the user cancelled.
+    attemptIdRef.current += 1;
     setVisible(false);
     setTimeout(onClose, 250);
   }, [onClose]);
 
   const handleConnect = useCallback(async () => {
+    const attemptId = ++attemptIdRef.current;
+    const isCurrent = () =>
+      attemptIdRef.current === attemptId && mountedRef.current;
     setIsSigningIn(true);
     setError(null);
     setHint(null);
     try {
       // A cached session may already be valid (e.g. app was backgrounded).
       if (await isPuterSignedIn()) {
+        if (!isCurrent()) return;
         const cached = getCachedPuterUser();
         onAuthSuccess(cached || { username: "AI User", uuid: "" });
         return;
       }
-      const user = await signInToPuter(setStage);
+      // Guard the stage callback too: a superseded attempt must not touch
+      // UI state (setStage is likewise skipped in the completion paths).
+      const user = await signInToPuter((s) => {
+        if (isCurrent()) setStage(s);
+      });
+      if (!isCurrent()) return;
       onAuthSuccess(user);
     } catch (err: any) {
+      if (!isCurrent()) return;
+      // A closed popup is the user changing their mind — not an error, so
+      // reset silently. The service tags this with a stable code (the legacy
+      // regex covers messages from older native builds).
+      const code = String(err?.code || "");
       const msg = String(err?.msg || err?.message || "Connect nahi ho saka.");
-      // A closed popup is the user changing their mind — not an error.
-      if (/dismiss|close|cancel|denied/i.test(msg)) {
+      const userCancelled =
+        code === PUTER_ERR_POPUP_CLOSED ||
+        /dismiss|close|cancel|denied|band kar diya/i.test(msg);
+      if (userCancelled) {
         setIsSigningIn(false);
         return;
       }
+      // Real failures surface the REAL reason in-app (timeout, popup
+      // blocked, SDK errors) — never a silent spinner or generic message.
       setError(msg);
     } finally {
-      setIsSigningIn(false);
-      setStage(null);
+      if (isCurrent()) {
+        setIsSigningIn(false);
+        setStage(null);
+      }
     }
   }, [onAuthSuccess]);
 

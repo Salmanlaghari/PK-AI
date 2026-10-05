@@ -1,11 +1,13 @@
 package com.salmanlaghari.pkai.ui.superchat
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.salmanlaghari.pkai.data.model.ChatMessage
 import com.salmanlaghari.pkai.data.remote.provider.AiProviderFactory
 import com.salmanlaghari.pkai.data.remote.provider.AiResponse
 import com.salmanlaghari.pkai.data.local.datastore.PreferencesManager
+import com.salmanlaghari.pkai.data.repository.ChatHistoryRecorder
 import kotlinx.coroutines.flow.first
 import com.salmanlaghari.pkai.util.PkAiAssistant
 import com.salmanlaghari.pkai.util.Mood
@@ -16,6 +18,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 import javax.inject.Inject
 
 /**
@@ -30,10 +33,12 @@ import javax.inject.Inject
 @HiltViewModel
 class SuperChatViewModel @Inject constructor(
     private val providerFactory: AiProviderFactory,
-    private val preferencesManager: PreferencesManager
+    private val preferencesManager: PreferencesManager,
+    private val chatHistoryRecorder: ChatHistoryRecorder
 ) : ViewModel() {
 
     companion object {
+        private const val TAG = "SuperChatViewModel"
         private const val PERSONA =
             "You are PK AI's friendly virtual assistant in Super Chat. Reply warmly, " +
                 "briefly (1-2 sentences) and add one fitting emoji."
@@ -57,6 +62,10 @@ class SuperChatViewModel @Inject constructor(
     /** Sticker shown beside each message, keyed by message id. */
     private val _messageStickers = MutableStateFlow<Map<String, Int>>(emptyMap())
     val messageStickers: StateFlow<Map<String, Int>> = _messageStickers.asStateFlow()
+
+    /** Session-level history tracking (History screen). Null until the first AI reply. */
+    private var historySessionId: String? = null
+    private var historySessionTitle: String? = null
 
     private val _livePoseEnabled = MutableStateFlow(true)
     val livePoseEnabled: StateFlow<Boolean> = _livePoseEnabled.asStateFlow()
@@ -307,6 +316,27 @@ class SuperChatViewModel @Inject constructor(
             _messageStickers.value = _messageStickers.value +
                 (replyMessage.id to replySticker)
             _messages.value = _messages.value + replyMessage
+            // Record/refresh this Super Chat session in the History screen.
+            if (historySessionTitle == null) {
+                historySessionTitle = prompt.trim().take(60)
+            }
+            // Best-effort: a Room failure here must never crash this coroutine
+            // or skip the _isGenerating reset below — history is secondary.
+            // Cancellation is always rethrown: swallowing CancellationException
+            // breaks structured concurrency (the cancelled coroutine would keep
+            // mutating state instead of unwinding).
+            historySessionId = try {
+                chatHistoryRecorder.recordSession(
+                    sessionId = historySessionId,
+                    title = historySessionTitle ?: prompt.trim().take(60),
+                    preview = reply.take(120)
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "History recording failed (best-effort)", e)
+                historySessionId
+            }
             _isGenerating.value = false
         }
     }

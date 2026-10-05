@@ -25,11 +25,7 @@ class HistoryViewModel @Inject constructor(
         chatHistoryDao.getAllHistoryFlow(),
         _searchQuery
     ) { rawHistory, query ->
-        var history = rawHistory
-        if (history.isEmpty()) {
-            prepopulateFakeHistory()
-            history = chatHistoryDao.getAllHistory()
-        }
+        val history = rawHistory
 
         // Apply Search Filtering
         val filtered = if (query.isBlank()) {
@@ -67,30 +63,6 @@ class HistoryViewModel @Inject constructor(
     fun deleteItem(itemId: String) {
         viewModelScope.launch {
             chatHistoryDao.deleteItem(itemId)
-        }
-    }
-
-    private fun prepopulateFakeHistory() {
-        viewModelScope.launch {
-            val now = System.currentTimeMillis()
-            val oneDay = 86400000L
-
-            val items = listOf(
-                ChatHistoryItem(
-                    title = "🧠 Claude: Legal Alignment",
-                    lastMessage = "To establish a safe user agreement, we must state that...",
-                    timestamp = now,
-                    isPinned = true
-                ),
-                ChatHistoryItem(
-                    title = "🌊 DeepSeek: Logic & Math Calculations",
-                    lastMessage = "The optimized polynomial equation reduces processing overhead by...",
-                    timestamp = now - oneDay * 12,
-                    isPinned = false
-                )
-            )
-
-            items.forEach { chatHistoryDao.insertItem(it) }
         }
     }
 

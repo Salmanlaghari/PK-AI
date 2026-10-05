@@ -252,42 +252,10 @@
         android:paddingTop="8dp"
         android:paddingBottom="8dp"
         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-        app:layout_constraintBottom_toTopOf="@id/layout_typing"
+        app:layout_constraintBottom_toTopOf="@id/layout_input"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/layout_free_model_selector" />
-
-    <!-- ═══ Typing Indicator ═══ -->
-    <LinearLayout
-        android:id="@+id/layout_typing"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="16dp"
-        android:layout_marginBottom="6dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:visibility="gone"
-        app:layout_constraintBottom_toTopOf="@id/layout_input"
-        app:layout_constraintStart_toStartOf="parent"
-        tools:visibility="visible">
-
-        <ProgressBar
-            android:id="@+id/pb_typing"
-            style="?android:attr/progressBarStyleSmall"
-            android:layout_width="16dp"
-            android:layout_height="16dp"
-            android:layout_marginEnd="8dp"
-            android:indeterminateTint="@color/electric_blue_glow" />
-
-        <TextView
-            android:id="@+id/tv_typing"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:fontFamily="@font/poppins"
-            android:text="AI is thinking…"
-            android:textColor="@color/outline"
-            android:textSize="12sp" />
-    </LinearLayout>
 
     <!-- ═══ Input Area (light glass) ═══ -->
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -324,87 +292,42 @@
                 android:padding="10dp" />
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Chat / Image mode toggle (Stylish 8K HD Premium Round Icon Bar) -->
+        <!-- Chat / Image mode toggle — compact icon buttons -->
         <LinearLayout
             android:id="@+id/layout_image_mode_toggle"
             android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_marginHorizontal="8dp"
+            android:layout_height="wrap_content"
             android:layout_marginBottom="6dp"
-            android:background="@drawable/bg_mode_toggle_container"
-            android:elevation="4dp"
             android:gravity="center_vertical"
             android:orientation="horizontal"
+            android:paddingHorizontal="4dp"
             app:layout_constraintBottom_toTopOf="@id/input_message_layout"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/layout_attachment_preview">
 
-            <!-- 8K HD Chat Button (Gole Icon) -->
-            <LinearLayout
+            <!-- Chat mode (small icon) -->
+            <ImageButton
                 android:id="@+id/btn_tab_chat"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginEnd="8dp"
                 android:background="@drawable/bg_mode_button_chat_active"
-                android:clickable="true"
-                android:focusable="true"
-                android:gravity="center"
-                android:orientation="horizontal"
-                android:paddingHorizontal="10dp"
-                android:paddingVertical="4dp">
+                android:contentDescription="Chat mode"
+                android:padding="9dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_hd_chat_circle" />
 
-                <ImageView
-                    android:id="@+id/iv_tab_chat_icon"
-                    android:layout_width="26dp"
-                    android:layout_height="26dp"
-                    android:contentDescription="Chat 8K HD Icon"
-                    android:src="@drawable/ic_hd_chat_circle" />
-
-                <TextView
-                    android:id="@+id/tv_tab_chat_title"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:fontFamily="@font/poppins"
-                    android:text="Chat 8K"
-                    android:textColor="@color/white"
-                    android:textSize="12sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
-
-            <!-- 8K HD Image Button (Gole Icon) -->
-            <LinearLayout
+            <!-- Image generation mode (small icon) -->
+            <ImageButton
                 android:id="@+id/btn_tab_image"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_marginStart="4dp"
-                android:layout_weight="1"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
                 android:background="@drawable/bg_mode_button_inactive"
-                android:clickable="true"
-                android:focusable="true"
-                android:gravity="center"
-                android:orientation="horizontal"
-                android:paddingHorizontal="10dp"
-                android:paddingVertical="4dp">
-
-                <ImageView
-                    android:id="@+id/iv_tab_image_icon"
-                    android:layout_width="26dp"
-                    android:layout_height="26dp"
-                    android:contentDescription="Image Studio 8K HD Icon"
-                    android:src="@drawable/ic_hd_image_circle" />
-
-                <TextView
-                    android:id="@+id/tv_tab_image_title"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:fontFamily="@font/poppins"
-                    android:text="Image 8K Studio"
-                    android:textColor="@color/outline"
-                    android:textSize="12sp" />
-            </LinearLayout>
+                android:contentDescription="Image generation mode"
+                android:padding="9dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_hd_image_circle" />
         </LinearLayout>
 
         <!-- Attachment FAB (left) -->

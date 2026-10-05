@@ -1,10 +1,13 @@
 package com.salmanlaghari.pkai.data.remote.provider
 
+import com.salmanlaghari.pkai.BuildConfig
+import com.salmanlaghari.pkai.data.local.secure.GeminiKeyStore
 import com.salmanlaghari.pkai.data.model.FreeAiModel
 import com.salmanlaghari.pkai.data.model.LlmProvider
 import com.salmanlaghari.pkai.data.remote.PublicFreeApiService
 import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -14,13 +17,32 @@ class AiProviderFactoryTest {
 
     private lateinit var mockOkHttpClient: OkHttpClient
     private lateinit var mockPublicFreeApiService: PublicFreeApiService
+    private lateinit var mockGeminiKeyStore: GeminiKeyStore
     private lateinit var factory: AiProviderFactory
 
     @Before
     fun setUp() {
         mockOkHttpClient = mock(OkHttpClient::class.java)
         mockPublicFreeApiService = mock(PublicFreeApiService::class.java)
-        factory = AiProviderFactory(mockOkHttpClient, mockPublicFreeApiService)
+        mockGeminiKeyStore = mock(GeminiKeyStore::class.java)
+        factory = AiProviderFactory(mockOkHttpClient, mockPublicFreeApiService, mockGeminiKeyStore)
+    }
+
+    @Test
+    fun `gemini prefers user BYOK key over shared build key`() = runTest {
+        val userKey = "user-supplied-key"
+        org.mockito.Mockito.`when`(mockGeminiKeyStore.getApiKey()).thenReturn(userKey)
+        // The resolved key must be EXACTLY the user's BYOK key — not merely
+        // non-blank — proving the user's own quota is consumed even when the
+        // shared BuildConfig key is also set.
+        assertEquals(userKey, factory.keyFor(LlmProvider.fromId("gemini")))
+        assertTrue(factory.hasConfiguredKey(LlmProvider.fromId("gemini")))
+    }
+
+    @Test
+    fun `gemini falls back to shared build key when no user key stored`() = runTest {
+        org.mockito.Mockito.`when`(mockGeminiKeyStore.getApiKey()).thenReturn(null)
+        assertEquals(BuildConfig.GEMINI_API_KEY, factory.keyFor(LlmProvider.fromId("gemini")))
     }
 
     @Test

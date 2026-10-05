@@ -12,6 +12,7 @@ import com.salmanlaghari.pkai.data.remote.provider.AiProviderFactory
 import com.salmanlaghari.pkai.data.remote.provider.AiResponse
 import com.salmanlaghari.pkai.data.repository.AppRepository
 import com.salmanlaghari.pkai.data.repository.AuthRepository
+import com.salmanlaghari.pkai.data.repository.ChatHistoryRecorder
 import com.salmanlaghari.pkai.data.repository.CodeExecutionResult
 import com.salmanlaghari.pkai.data.repository.CodeRunnerRepository
 import com.salmanlaghari.pkai.data.repository.ImageGenerationResult
@@ -32,6 +33,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 import javax.inject.Inject
 import android.util.Base64
 
@@ -44,7 +46,8 @@ class HomeViewModel @Inject constructor(
     private val aiProviderFactory: AiProviderFactory,
     private val preferencesManager: PreferencesManager,
     private val codeRunnerRepository: CodeRunnerRepository,
-    private val pollinationsImageRepository: PollinationsImageRepository
+    private val pollinationsImageRepository: PollinationsImageRepository,
+    private val chatHistoryRecorder: ChatHistoryRecorder
 ) : ViewModel() {
 
     /** Hugging Face text-to-image model used by the dedicated Image Generation tab. */
@@ -56,6 +59,9 @@ class HomeViewModel @Inject constructor(
     private val _isFreeMode = MutableStateFlow(false)
     val isFreeMode: StateFlow<Boolean> = _isFreeMode.asStateFlow()
 
+    /** Session-level history tracking (History screen). Null until the first AI reply. */
+    private var historySessionId: String? = null
+    private var historySessionTitle: String? = null
     private val _isImageMode = MutableStateFlow(false)
     val isImageMode: StateFlow<Boolean> = _isImageMode.asStateFlow()
 
@@ -410,6 +416,22 @@ class HomeViewModel @Inject constructor(
                             modelUsed = finalLabel
                         )
                     )
+                    // Best-effort: isolated from the streaming try/catch above so a
+                    // Room failure here can't surface as a bogus error bubble
+                    // after a successful reply. Cancellation is always rethrown
+                    // — swallowing CancellationException breaks structured
+                    // concurrency.
+                    try {
+                        historySessionId = chatHistoryRecorder.recordSession(
+                            sessionId = historySessionId,
+                            title = historySessionTitle ?: content.trim().take(60),
+                            preview = builder.toString().take(120)
+                        )
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Log.w(TAG, "History recording failed (best-effort)", e)
+                    }
                 }
             } catch (e: Exception) {
                 val errorMessage = ChatMessage(

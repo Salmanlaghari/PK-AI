@@ -13,6 +13,7 @@ import com.salmanlaghari.pkai.data.remote.provider.AiProviderFactory
 import com.salmanlaghari.pkai.data.remote.provider.AiResponse
 import com.salmanlaghari.pkai.data.repository.AppRepository
 import com.salmanlaghari.pkai.data.repository.AuthRepository
+import com.salmanlaghari.pkai.data.repository.ChatHistoryRecorder
 import com.salmanlaghari.pkai.data.repository.CodeRunnerRepository
 import com.salmanlaghari.pkai.data.repository.PollinationsImageRepository
 import kotlinx.coroutines.CoroutineScope
@@ -128,7 +129,8 @@ class HomeViewModelTest {
             aiProviderFactory = mockAiProviderFactory,
             preferencesManager = mockPreferencesManager,
             codeRunnerRepository = mock(CodeRunnerRepository::class.java),
-            pollinationsImageRepository = mock(PollinationsImageRepository::class.java)
+            pollinationsImageRepository = mock(PollinationsImageRepository::class.java),
+            chatHistoryRecorder = mock(ChatHistoryRecorder::class.java)
         )
 
         // Start collecting chatMessages Flow to activate WhileSubscribed collection

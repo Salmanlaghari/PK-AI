@@ -9,12 +9,18 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.salmanlaghari.pkai.R
 import com.salmanlaghari.pkai.data.model.ChatMessage
+import com.salmanlaghari.pkai.data.model.FreeAiModel
+import com.salmanlaghari.pkai.data.repository.CodeExecutionResult
+import com.salmanlaghari.pkai.ui.chat.CodeBlockBinder
+import com.salmanlaghari.pkai.util.ImageLoadHelper
+import com.salmanlaghari.pkai.util.MarkdownImageParser
 import com.salmanlaghari.pkai.util.SpriteSheetLoader
 import java.io.File
 
@@ -34,7 +40,12 @@ class SuperChatAdapter(
     private val onCopy: (ChatMessage) -> Unit,
     private val onFavorite: (ChatMessage) -> Unit,
     private val onShare: (ChatMessage) -> Unit,
-    private val onImageClick: (String) -> Unit
+    private val onImageClick: (String) -> Unit,
+    /**
+     * Runs a ```code``` snippet (Home screen). Null hides the Run button —
+     * Super Chat shows code blocks with Copy only.
+     */
+    private val onRunCode: ((source: String, lang: String, onResult: (CodeExecutionResult) -> Unit) -> Unit)? = null
 ) : ListAdapter<SuperChatAdapter.Item, SuperChatAdapter.BaseHolder>(DIFF) {
 
     /** Adapter items: either a chat message or the typing indicator. */
@@ -167,7 +178,12 @@ class SuperChatAdapter(
         private val pkAiVisualHeader: View = view.findViewById(R.id.pkAiVisualHeader)
         private val shimmerView: View = view.findViewById(R.id.shimmerView)
         private val tvUserMessage: TextView = view.findViewById(R.id.tvUserMessage)
+        private val tvAiName: TextView = view.findViewById(R.id.tvAiName)
         private val tvAiMessage: TextView = view.findViewById(R.id.tvAiMessage)
+        private val ivAiSticker: ImageView = view.findViewById(R.id.ivAiSticker)
+        private val layoutAiImages: LinearLayout = view.findViewById(R.id.layoutAiImages)
+        private val tvAiImageError: TextView = view.findViewById(R.id.tvAiImageError)
+        private val layoutCodeBlocks: LinearLayout = view.findViewById(R.id.layoutCodeBlocks)
         private val tvUserLabel: TextView = view.findViewById(R.id.tvUserName)
         private val ivUserImage: ImageView = view.findViewById(R.id.ivUserImage)
         private val voiceUserRow: View = view.findViewById(R.id.voiceUserRow)
@@ -193,7 +209,29 @@ class SuperChatAdapter(
             } else {
                 userRow.visibility = View.GONE
                 aiRow.visibility = View.VISIBLE
-                tvAiMessage.text = message.content
+
+                // Model tag (e.g. "Groq"). Hidden when the message has no model
+                // (e.g. Home system messages like "Switched to Gemini"); the
+                // internal "Free · " tier prefix is stripped before display.
+                val modelUsed = message.modelUsed?.takeIf { it.isNotBlank() }
+                if (modelUsed == null) {
+                    tvAiName.visibility = View.GONE
+                } else {
+                    tvAiName.visibility = View.VISIBLE
+                    tvAiName.text = modelUsed.removePrefix(FreeAiModel.LABEL_PREFIX)
+                }
+
+                // Mood sticker beside every AI reply; hidden when the message
+                // has none (e.g. on Home, which doesn't do mood poses).
+                val stickerIndex = stickers[message.id]
+                if (stickerIndex != null) {
+                    ivAiSticker.visibility = View.VISIBLE
+                    ivAiSticker.setImageBitmap(
+                        SpriteSheetLoader.getSticker(itemView.context, stickerIndex)
+                    )
+                } else {
+                    ivAiSticker.visibility = View.GONE
+                }
 
                 // PK-AI visual result header for PK-AI mode replies ✨
                 pkAiVisualHeader.visibility =
@@ -217,10 +255,17 @@ class SuperChatAdapter(
                     songCard.visibility = View.GONE
                 }
 
-                stickers[message.id]?.let { index ->
-                    itemView.findViewById<ImageView>(R.id.ivAiSticker)
-                        .setImageBitmap(SpriteSheetLoader.getSticker(itemView.context, index))
-                }
+                // Generated-image markdown renders inline; ```code``` blocks get
+                // the shared runnable cards; the rest stays as bubble text.
+                val imageParsed = MarkdownImageParser.parse(message.content)
+                bindMarkdownImages(message.id, imageParsed.images)
+                val visibleText = CodeBlockBinder.bind(
+                    itemView.context,
+                    layoutCodeBlocks,
+                    imageParsed.text,
+                    onRunCode
+                )
+                tvAiMessage.text = visibleText.ifBlank { " " }
 
                 val fav = message.content in favoriteContents
                 itemView.findViewById<TextView>(R.id.btnFav).text = if (fav) "💖" else "💜"
@@ -236,21 +281,72 @@ class SuperChatAdapter(
             }
         }
 
+        /**
+         * Renders markdown image embeds (e.g. generated pictures) inline below
+         * the bubble text. Tap opens the fullscreen viewer.
+         */
+        private fun bindMarkdownImages(
+            messageId: String,
+            images: List<MarkdownImageParser.MarkdownImage>
+        ) {
+            // Tag guard: a recycled holder must never show another message's
+            // images or a stale error from an in-flight load.
+            layoutAiImages.tag = messageId
+            layoutAiImages.removeAllViews()
+            tvAiImageError.visibility = View.GONE
+            if (images.isEmpty()) {
+                layoutAiImages.visibility = View.GONE
+                return
+            }
+            layoutAiImages.visibility = View.VISIBLE
+            val density = itemView.resources.displayMetrics.density
+            images.forEach { image ->
+                val imageView = ImageView(itemView.context).apply {
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        (160 * density).toInt()
+                    ).apply { bottomMargin = (8 * density).toInt() }
+                    scaleType = ImageView.ScaleType.CENTER_CROP
+                    adjustViewBounds = true
+                    setOnClickListener { onImageClick(image.source) }
+                }
+                layoutAiImages.addView(imageView)
+                ImageLoadHelper.load(itemView.context, image.source, imageView) {
+                    if (layoutAiImages.tag == messageId) {
+                        imageView.visibility = View.GONE
+                        tvAiImageError.visibility = View.VISIBLE
+                    }
+                }
+            }
+        }
+
         private fun bindUserContent(message: ChatMessage) {
             when (message.attachmentType) {
                 "image" -> {
-                    tvUserMessage.visibility = View.GONE
                     voiceUserRow.visibility = View.GONE
                     ivUserImage.visibility = View.VISIBLE
+                    // Keep the user's caption above the image when one was typed.
+                    if (message.content.isNotBlank()) {
+                        tvUserMessage.visibility = View.VISIBLE
+                        tvUserMessage.text = message.content
+                    } else {
+                        tvUserMessage.visibility = View.GONE
+                    }
                     loadThumbnail(message.attachmentUri, ivUserImage)
                     ivUserImage.setOnClickListener {
                         message.attachmentUri?.let { onImageClick(it) }
                     }
                 }
                 "audio" -> {
-                    tvUserMessage.visibility = View.GONE
                     ivUserImage.visibility = View.GONE
                     voiceUserRow.visibility = View.VISIBLE
+                    // Keep the user's caption above the voice note when one was typed.
+                    if (message.content.isNotBlank()) {
+                        tvUserMessage.visibility = View.VISIBLE
+                        tvUserMessage.text = message.content
+                    } else {
+                        tvUserMessage.visibility = View.GONE
+                    }
                     val playing = playingMessageId == message.id && pausedMessageId != message.id
                     btnUserVoicePlay.text = if (playing) "⏸" else "▶"
                     tvUserVoiceDuration.text = message.attachmentName ?: "🎤"
@@ -260,7 +356,16 @@ class SuperChatAdapter(
                     tvUserMessage.visibility = View.VISIBLE
                     ivUserImage.visibility = View.GONE
                     voiceUserRow.visibility = View.GONE
-                    tvUserMessage.text = message.content
+                    // File attachments (video/pdf/…) show a label when there is no typed text.
+                    tvUserMessage.text = message.content.ifBlank {
+                        val emoji = when (message.attachmentType) {
+                            "video" -> "🎥"
+                            "audio" -> "🎵"
+                            "pdf" -> "📄"
+                            else -> "📎"
+                        }
+                        "$emoji ${message.attachmentName ?: "Attachment"}"
+                    }
                 }
             }
         }

@@ -63,7 +63,9 @@ object CodeBlockParser {
     fun mapToHackerEarthLanguage(rawLanguage: String): String? {
         return when (rawLanguage.lowercase().trim()) {
             "python", "python3", "py" -> "PYTHON3_8"
-            "java" -> "JAVA17"
+            // JAVA14 is the newest Java code the HackerEarth v4 set lists;
+            // never emit JAVA17 — the backend would 400 it.
+            "java" -> "JAVA14"
             "cpp", "c++", "cxx", "cc" -> "CPP17"
             "c" -> "C"
             "javascript", "js", "node", "nodejs" -> "JAVASCRIPT_NODE"

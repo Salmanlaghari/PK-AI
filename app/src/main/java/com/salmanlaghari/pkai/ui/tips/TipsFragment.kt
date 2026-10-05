@@ -7,25 +7,40 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
-import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.bottomsheet.BottomSheetBehavior
+import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.salmanlaghari.pkai.R
+import com.salmanlaghari.pkai.data.local.datastore.PreferencesManager
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 /**
  * Tips screen — helpful usage tips plus the hidden 🔞 Super Stickers unlock.
+ *
+ * Shown as a bottom sheet: reachable from the Super Chat header button and
+ * auto-popped on first chat entry (until the user opts out via the
+ * "Don't show automatically again" checkbox, persisted in PreferencesManager).
  *
  * The "Secret Stickers" card is gated behind an 18+ confirm dialog; confirming
  * reveals the redeem code which unlocks the Super Stickers pack in the sticker
  * picker (persisted in SharedPreferences).
  */
 @AndroidEntryPoint
-class TipsFragment : Fragment() {
+class TipsFragment : BottomSheetDialogFragment() {
+
+    @Inject
+    lateinit var preferencesManager: PreferencesManager
 
     private lateinit var prefs: SharedPreferences
 
@@ -39,11 +54,30 @@ class TipsFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         prefs = requireContext().getSharedPreferences("super_chat_prefs", Context.MODE_PRIVATE)
 
+        // Open fully expanded — the tips read like a sheet, swipe down to dismiss.
+        (dialog as? BottomSheetDialog)?.behavior?.apply {
+            state = BottomSheetBehavior.STATE_EXPANDED
+            skipCollapsed = true
+        }
+
         // Start the live water background animation 🌊
         (view.findViewById<View>(R.id.tipsRoot).background as? android.graphics.drawable.AnimationDrawable)?.start()
 
         view.findViewById<View>(R.id.btnTipsBack).setOnClickListener {
-            findNavController().popBackStack()
+            findNavController().navigateUp()
+        }
+
+        // "Don't show automatically again" — opts out of the auto-popup.
+        val dontShowCheck = view.findViewById<CheckBox>(R.id.cb_tips_dont_show_again)
+        viewLifecycleOwner.lifecycleScope.launch {
+            dontShowCheck.isChecked = runCatching {
+                preferencesManager.tipsDontShowAgain.first()
+            }.getOrDefault(false)
+        }
+        dontShowCheck.setOnCheckedChangeListener { _, checked ->
+            viewLifecycleOwner.lifecycleScope.launch {
+                runCatching { preferencesManager.setTipsDontShowAgain(checked) }
+            }
         }
 
         val recycler = view.findViewById<RecyclerView>(R.id.rvTips)

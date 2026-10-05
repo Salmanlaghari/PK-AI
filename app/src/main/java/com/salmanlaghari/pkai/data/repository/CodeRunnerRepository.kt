@@ -4,7 +4,10 @@ import com.salmanlaghari.pkai.BuildConfig
 import com.salmanlaghari.pkai.data.local.datastore.PreferencesManager
 import com.salmanlaghari.pkai.data.remote.HackerEarthApiService
 import com.salmanlaghari.pkai.data.remote.HackerEarthSubmissionRequest
+import com.salmanlaghari.pkai.data.remote.HackerEarthSubmissionResponse
+import android.util.Log
 import kotlinx.coroutines.delay
+import retrofit2.Response
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -28,6 +31,14 @@ sealed class CodeExecutionResult {
         val message: String
     ) : CodeExecutionResult()
 
+    /**
+     * The requested language label is not supported by the execution backend.
+     * Returned instead of silently reinterpreting unknown labels (e.g. `json`,
+     * `bash`, `sql`) as Python — the user sees an honest "not supported"
+     * message rather than a bogus Python SyntaxError.
+     */
+    data class UnsupportedLanguage(val label: String) : CodeExecutionResult()
+
     object QuotaExceeded : CodeExecutionResult()
     object NoNetwork : CodeExecutionResult()
 }
@@ -39,6 +50,96 @@ class CodeRunnerRepository @Inject constructor(
 ) {
     companion object {
         const val MAX_QUOTA = 1000
+        private const val TAG = "CodeRunnerRepository"
+
+        /**
+         * HackerEarth API v4 `lang` argument values
+         * (https://www.hackerearth.com/docs/wiki/developers/v4/).
+         */
+        private val HACKEREARTH_LANGS = setOf(
+            "C", "CPP14", "CPP17", "CLOJURE", "CSHARP", "GO", "HASKELL",
+            "JAVA8", "JAVA14", "JAVASCRIPT_NODE", "KOTLIN", "OBJECTIVEC",
+            "PASCAL", "PERL", "PHP", "PYTHON3", "PYTHON3_8",
+            "R", "RUBY", "RUST", "SCALA", "SWIFT", "TYPESCRIPT"
+        )
+
+        /**
+         * Markdown fence labels / common aliases → v4 lang argument.
+         * Keys are normalized (uppercase, punctuation folded).
+         */
+        private val LANGUAGE_ALIASES = mapOf(
+            // Python family
+            "PY" to "PYTHON3",
+            "PYTHON" to "PYTHON3", // "python" almost always means Python 3 (Python 2 is EOL)
+            "PYTHON2" to "PYTHON3", // Python 2 is EOL; v4 has no PYTHON code at all
+            "PY3" to "PYTHON3",
+            "PYTHON38" to "PYTHON3_8",
+            "PY38" to "PYTHON3_8",
+            // C++ family
+            "CPP" to "CPP17",
+            "CXX" to "CPP17",
+            "GPP" to "CPP17",
+            "CPP11" to "CPP14",
+            // Java family
+            "JAVA" to "JAVA8",
+            // Versioned codes the v4 set does not list map to the nearest
+            // supported one instead of falling through to "unsupported".
+            "JAVA17" to "JAVA14",
+            // JavaScript / TypeScript
+            "JS" to "JAVASCRIPT_NODE",
+            "NODE" to "JAVASCRIPT_NODE",
+            "NODEJS" to "JAVASCRIPT_NODE",
+            "TS" to "TYPESCRIPT",
+            // Others
+            "CS" to "CSHARP",
+            "KT" to "KOTLIN",
+            "RB" to "RUBY",
+            "RS" to "RUST",
+            "CLJ" to "CLOJURE",
+            "HS" to "HASKELL",
+            "PL" to "PERL",
+            "PAS" to "PASCAL",
+            "OBJC" to "OBJECTIVEC",
+            "OBJECTIVE_C" to "OBJECTIVEC"
+        )
+
+        /**
+         * Resolves whatever language label the UI passes (markdown fence labels
+         * like `python`, `c++`, `js`, or already-valid v4 codes like
+         * `PYTHON3_8` or `CPP17`) to a HackerEarth API v4 `lang`
+         * argument.
+         *
+         * Only labels in the known v4 set ([HACKEREARTH_LANGS]) or the defined
+         * [LANGUAGE_ALIASES] are ever forwarded. Anything else (unknown fence
+         * labels like `json`, `bash`, `sql`...) resolves to **null** so the
+         * caller can report an honest "language not supported" result —
+         * silently reinterpreting them as Python produced bogus SyntaxErrors
+         * (e.g. Java code executed as Python 3).
+         *
+         * This is the root cause of "python nahin chal raha": code blocks carry
+         * lowercase fence labels (`python`) which the v4 API rejects with HTTP
+         * 400 "Unsupported language".
+         *
+         * @return the v4 lang argument, or null when the label is unsupported.
+         */
+        fun resolveLanguageArgument(lang: String): String? {
+            val raw = lang.trim()
+            if (raw.isEmpty()) return null
+            // Already a valid v4 code — pass through untouched.
+            if (raw in HACKEREARTH_LANGS) return raw
+            val normalized = raw.uppercase()
+                .replace("+", "P") // C++ -> CPP
+                .replace("#", "SHARP") // C# -> CSHARP
+                .replace(".", "_")
+                .replace("-", "_")
+                .replace(" ", "_")
+            if (normalized in HACKEREARTH_LANGS) return normalized
+            LANGUAGE_ALIASES[normalized]?.let { return it }
+            // Unknown label (json, yaml, bash, sql, ...) — unsupported, never
+            // forwarded verbatim (the v4 API would 400) and never silently
+            // reinterpreted as another language.
+            return null
+        }
     }
 
     suspend fun executeCode(source: String, lang: String): CodeExecutionResult {
@@ -50,18 +151,78 @@ class CodeRunnerRepository @Inject constructor(
 
         val secretKey = BuildConfig.HACKEREARTH_CLIENT_SECRET.ifBlank { "fallback_test_secret" }
         val proxyUrl = BuildConfig.CODE_RUNNER_PROXY_URL
+        // The UI passes markdown fence labels ("python", "c++"); the v4 API only
+        // accepts its own uppercase lang arguments ("PYTHON3", "CPP17", ...).
+        // Unknown labels resolve to null — report them honestly instead of
+        // silently running the code as another language.
+        val resolvedLang = resolveLanguageArgument(lang)
+            ?: return CodeExecutionResult.UnsupportedLanguage(lang.trim().ifBlank { "code" })
 
         return try {
             if (proxyUrl.isNotBlank()) {
-                executeViaProxy(proxyUrl, source, lang, currentUsage)
+                executeViaProxy(proxyUrl, source, resolvedLang, currentUsage)
             } else {
-                executeDirectly(secretKey, source, lang, currentUsage)
+                executeDirectly(secretKey, source, resolvedLang, currentUsage)
             }
         } catch (e: IOException) {
             CodeExecutionResult.NoNetwork
         } catch (e: Exception) {
             CodeExecutionResult.Error("Execution error: ${e.localizedMessage ?: "Unknown error"}")
         }
+    }
+
+    /** Reads the raw error body for local diagnostics only. Never user-visible as-is. Never throws. */
+    private fun <T> readErrorBody(response: Response<T>): String =
+        runCatching { response.errorBody()?.string().orEmpty().trim() }
+            .getOrDefault("")
+
+    /**
+     * Strips HTML tags, collapses whitespace and caps length before any backend
+     * text reaches the UI — a raw HTML/JSON error body must never be shown to
+     * the user.
+     */
+    private fun sanitizedUserDetail(rawBody: String): String =
+        rawBody
+            .replace(Regex("<[^>]*>"), " ")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+            .take(120)
+
+    /**
+     * Maps an HTTP failure to a short user-friendly message. The full raw body
+     * is logged locally for diagnostics; the user only ever sees the sanitized
+     * summary. Never throws (android.util.Log is unavailable on the plain JVM
+     * used by unit tests, hence the guard).
+     */
+    private fun httpErrorMessage(errCode: Int, rawBody: String): String {
+        try {
+            Log.w(TAG, "Execution backend failed (HTTP $errCode): ${rawBody.take(1000)}")
+        } catch (t: Throwable) {
+            println("CodeRunnerRepository: execution backend failed (HTTP $errCode)")
+        }
+        return when (errCode) {
+            400 -> if (sanitizedUserDetail(rawBody).contains("unsupported", ignoreCase = true)) {
+                "The selected language is not supported by the execution backend."
+            } else {
+                "The code could not be submitted. Please check the language and try again."
+            }
+            401, 403 -> "Authentication with the execution service failed."
+            in 500..599 -> "The execution service is temporarily unavailable. Try again later."
+            else -> buildString {
+                append("Submission failed (HTTP $errCode)")
+                val detail = sanitizedUserDetail(rawBody)
+                if (detail.isNotBlank()) append(": $detail")
+            }
+        }
+    }
+
+    /** Builds a readable message from a REQUEST_FAILED submission response. */
+    private fun requestFailedMessage(body: HackerEarthSubmissionResponse): String {
+        val detail = body.message
+            ?: body.request_status?.message
+            ?: body.errors?.values?.joinToString("; ") { it.toString() }
+        return if (!detail.isNullOrBlank()) "Execution request failed: $detail"
+        else "Execution request failed (no details returned by the backend)."
     }
 
     private suspend fun executeViaProxy(
@@ -75,13 +236,20 @@ class CodeRunnerRepository @Inject constructor(
 
         if (!response.isSuccessful || response.body() == null) {
             val errCode = response.code()
-            return when (errCode) {
-                429 -> CodeExecutionResult.QuotaExceeded
-                else -> CodeExecutionResult.Error("Proxy server returned error ($errCode).")
+            if (errCode == 429) {
+                return CodeExecutionResult.QuotaExceeded
             }
+            val serverMessage = readErrorBody(response)
+            return CodeExecutionResult.Error(httpErrorMessage(errCode, serverMessage))
         }
 
         val body = response.body()!!
+        // Surface a sanitized summary of the backend error instead of silently failing.
+        val proxyError = body.error?.toString()?.takeIf { it.isNotBlank() && it != "null" }
+        if (proxyError != null) {
+            return CodeExecutionResult.Error("Execution failed: ${sanitizedUserDetail(proxyError)}")
+        }
+
         val compileStatus = body.compile_status
         if (!compileStatus.isNullOrBlank() && compileStatus != "OK" && compileStatus != "Compiling...") {
             return CodeExecutionResult.CompileError(compileStatus)
@@ -112,18 +280,19 @@ class CodeRunnerRepository @Inject constructor(
 
         if (!response.isSuccessful || response.body() == null) {
             val errCode = response.code()
-            if (errCode == 400) {
-                val errBody = response.errorBody()?.string().orEmpty()
-                if (errBody.contains("Unsupported") || errBody.contains("invalid")) {
-                    return CodeExecutionResult.Error("Language '$lang' is not supported by the execution backend.")
-                }
-            } else if (errCode == 429) {
+            if (errCode == 429) {
                 return CodeExecutionResult.QuotaExceeded
             }
-            return CodeExecutionResult.Error("Submission failed with HTTP code $errCode.")
+            return CodeExecutionResult.Error(httpErrorMessage(errCode, readErrorBody(response)))
         }
 
         val submissionBody = response.body()!!
+
+        // HTTP 200 with a failed request (e.g. bad client-secret) — surface it.
+        if (submissionBody.request_status?.code == "REQUEST_FAILED") {
+            return CodeExecutionResult.Error(requestFailedMessage(submissionBody))
+        }
+
         val heId = submissionBody.he_id
         val statusUrl = submissionBody.status_update_url
 
@@ -148,6 +317,10 @@ class CodeRunnerRepository @Inject constructor(
             if (pollRes.isSuccessful && pollRes.body() != null) {
                 statusResponse = pollRes.body()!!
             }
+        }
+
+        if (statusResponse.request_status?.code == "REQUEST_FAILED") {
+            return CodeExecutionResult.Error(requestFailedMessage(statusResponse))
         }
 
         val compileStatus = statusResponse.result?.compile_status

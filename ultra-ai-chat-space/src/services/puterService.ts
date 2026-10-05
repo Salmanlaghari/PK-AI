@@ -137,28 +137,50 @@ export function reloadPuterSDK(): Promise<any> {
 
 /** True while the native sign-in popup is on screen. */
 let puterPopupOpen = false;
-/** Settles the in-flight signInToPuter() when the user closes the popup. */
-let popupClosedReject: ((err: Error) => void) | null = null;
+/**
+ * Resolves when the native layer reports the auth popup closed. The close is
+ * NOT a failure by itself (see signInToPuter) — it only ends the wait; the
+ * live session state decides the outcome.
+ */
+let popupClosedResolve: (() => void) | null = null;
 
 if (typeof window !== "undefined") {
   // Dispatched by the native layer (AiHubFragment) when the auth popup
-  // opens/closes. The SDK's signIn() promise never rejects, so without
-  // these the UI could hang on "Connecting..." forever.
+  // opens/closes. The SDK's signIn() promise never resolves after the popup
+  // is gone, so without these the UI could hang on "Connecting..." forever.
   window.addEventListener("puter-popup-opened", () => {
     puterPopupOpen = true;
   });
   window.addEventListener("puter-popup-closed", () => {
     if (!puterPopupOpen) return;
     puterPopupOpen = false;
-    const reject = popupClosedReject;
-    popupClosedReject = null;
-    reject?.(
-      internalError(
-        "Sign-in popup band kar diya gaya. Dobara Connect dabayein aur popup mein sign-in poora karein."
-      )
-    );
+    const resolve = popupClosedResolve;
+    popupClosedResolve = null;
+    resolve?.();
   });
 }
+
+/**
+ * Stable sign-in error codes so the UI can tell "user closed the popup"
+ * from real failures without regex-sniffing message text.
+ */
+export const PUTER_ERR_POPUP_CLOSED = "PUTER_POPUP_CLOSED";
+export const PUTER_ERR_TIMEOUT = "PUTER_TIMEOUT";
+export const PUTER_ERR_SIGNIN_FAILED = "PUTER_SIGNIN_FAILED";
+
+/**
+ * Grace window after the popup closes for a late token postMessage.
+ * Used on the timeout/rejection upgrade path, where the token may still
+ * be in flight when the race already failed.
+ */
+const SESSION_SETTLE_MS = 4000;
+/**
+ * Short settle for the popup-closed path: a dismissed popup must feel
+ * instant, while a genuine token postMessage lands well within this.
+ */
+const POPUP_CLOSED_SETTLE_MS = 1500;
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 export type PuterSignInStage = "sdk" | "popup-wait";
 
@@ -173,40 +195,151 @@ export async function isPuterSignedIn(): Promise<boolean> {
 
 /**
  * One-tap sign-in via the provider's own popup. Resolves with the user.
- * The SDK promise never rejects, so it is raced against a timeout and the
- * native popup-closed event — "Connecting..." can never hang forever.
+ *
+ * The outcome is decided by the race winner, then by live session state:
+ *  - signIn() RESOLVED → the SDK only resolves it once the auth token
+ *    postMessage landed, so the session IS established: return success
+ *    directly. A resolved sign-in is never reported as a cancellation.
+ *  - popup CLOSED → after sign-up Puter closes the popup itself and the
+ *    token postMessage can still be in flight, so one short settle wait
+ *    (live session) decides before giving up as user cancellation.
+ *  - REJECTED / TIMEOUT → the token may still be landing, so the session
+ *    poll gets one chance to upgrade to success before the real error
+ *    is surfaced.
  */
 export async function signInToPuter(
   onStage?: (stage: PuterSignInStage) => void
 ): Promise<PuterUser> {
   if (!(window as any).puter) onStage?.("sdk");
   const puter = await loadPuterSDK();
-  // attempt_temp_user_creation: one-tap onboarding — auto-creates a throwaway
-  // account, no signup form. The user can convert to a full account later.
-  // (The native WebView shows the popup via onCreateWindow.)
+  // NOTE: no attempt_temp_user_creation — Puter disabled temporary/guest
+  // accounts server-side, so the flag cannot deliver its one-tap flow and
+  // only changes the popup URL. Plain signIn() shows the normal account
+  // popup (sign in / sign up with email+phone verification).
   onStage?.("popup-wait");
-  const signIn = puter.auth.signIn({ attempt_temp_user_creation: true });
+  const signIn: Promise<unknown> = puter.auth.signIn();
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(
       () =>
         reject(
-          internalError(
+          codedError(
+            PUTER_ERR_TIMEOUT,
             "Connect poora nahi ho saka (time khatam ho gaya). Popup band ho gaya ho to dobara Connect dabayein."
           )
         ),
       90000
     );
   });
-  const popupClosed = new Promise<never>((_, reject) => {
-    popupClosedReject = reject as (err: Error) => void;
+  // Settles when the native popup goes away. The close itself is not a
+  // failure: after a successful sign-up the popup closes on its own and the
+  // token postMessage can still be in flight.
+  const popupClosed = new Promise<"popup-closed">((resolve) => {
+    popupClosedResolve = () => resolve("popup-closed");
   });
+  // Tag which racer won — the bare signIn() promise's own settlement was
+  // previously discarded, which let a resolved sign-in be reported as a
+  // cancellation when the session check failed to observe it in time.
+  const signInSettled = signIn.then(
+    () => "sign-in-resolved" as const,
+    (err: unknown) => {
+      throw err;
+    }
+  );
+  let raceError: unknown = null;
   try {
-    await Promise.race([signIn, timeout, popupClosed]);
+    const winner = await Promise.race([signInSettled, timeout, popupClosed]);
+    if (winner === "sign-in-resolved") {
+      // The SDK promise itself resolved — the token postMessage landed, so
+      // the session is established. Trust the SDK, don't gamble it on the
+      // session poll.
+      return await readPuterUser();
+    }
+    // Popup closed with the SDK promise still pending: race the still-pending
+    // SDK promise against the settle window. A late token resolution upgrades
+    // to success instead of being discarded as a user cancellation; an SDK
+    // rejection during the window surfaces as the real error.
+    const settled = await Promise.race([
+      signInSettled.then(() => true as const),
+      waitForPuterSession(POPUP_CLOSED_SETTLE_MS),
+    ]);
+    if (settled) {
+      return await readPuterUser();
+    }
+  } catch (e) {
+    raceError = e;
   } finally {
     if (timer) clearTimeout(timer);
-    popupClosedReject = null;
+    popupClosedResolve = null;
   }
+
+  // The race rejected (SDK failure or 90s timeout): the token may still be
+  // landing, so the session poll gets one chance to upgrade to success
+  // before the failure is surfaced to the user.
+  if (raceError && (await waitForPuterSession(SESSION_SETTLE_MS))) {
+    return await readPuterUser();
+  }
+
+  if (raceError) throw toPuterSignInError(raceError);
+  // Popup closed with no session and the SDK promise never settled — the
+  // sign-in was dismissed before completing.
+  throw codedError(
+    PUTER_ERR_POPUP_CLOSED,
+    "Sign-in popup band kar diya gaya. Dobara Connect dabayein aur popup mein sign-in poora karein."
+  );
+}
+
+/** Internal error tagged with a stable code for the UI to switch on. */
+function codedError(code: string, message: string): Error {
+  const e = internalError(message);
+  (e as any).code = code;
+  return e;
+}
+
+/**
+ * Session probe that reads ONLY the already-loaded SDK object — it never
+ * triggers a fresh script injection (unlike isPuterSignedIn, which goes
+ * through loadPuterSDK and would pile up dead script tags and 30s timeouts
+ * if called on a tight poll loop).
+ */
+async function probePuterSession(): Promise<boolean> {
+  const puter = (window as any).puter;
+  if (!puter) return false;
+  try {
+    return !!(await puter.auth.isSignedIn());
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Poll the live SDK session briefly. The auth token postMessage can land a
+ * beat after the popup closes (or after the SDK promise settles), so the
+ * sign-in outcome waits for the real session state instead of the race.
+ *
+ * Hard-bounded to timeoutMs wall time: the absolute timeout promise wins
+ * every race, so even a hanging probe can never push the wait past the
+ * intended window.
+ */
+async function waitForPuterSession(timeoutMs: number): Promise<boolean> {
+  let done = false;
+  const expired = sleep(timeoutMs).then(() => {
+    done = true;
+    return false;
+  });
+  const probe = (async () => {
+    while (!done) {
+      if (await Promise.race([probePuterSession(), expired])) return true;
+      await Promise.race([sleep(250), expired]);
+    }
+    return false;
+  })();
+  return Promise.race([probe, expired]);
+}
+
+/** Best-effort user read + cache once a session is confirmed live. */
+async function readPuterUser(): Promise<PuterUser> {
+  const puter = await loadPuterSDK();
   let username = "AI User";
   let uuid = "";
   try {
@@ -223,6 +356,32 @@ export async function signInToPuter(
     // Private mode etc. — session still lives in the SDK.
   }
   return user;
+}
+
+/**
+ * Normalize a sign-in race failure into an Error the UI can show in-app.
+ * The SDK rejects with plain objects like {error:"auth_window_closed",
+ * msg:"..."} — a closed popup is tagged as user cancellation (the modal
+ * resets silently); real SDK failures (popup_blocked, not_available_in_app,
+ * unsupported_origin, ...) surface their own safe msg verbatim so the user
+ * sees the REAL reason, never a generic one.
+ */
+function toPuterSignInError(err: unknown): Error {
+  if ((err as any)?.isPuterInternal) return err as Error; // our own timeout etc.
+  const code = String((err as any)?.error || (err as any)?.code || "");
+  const msg = String((err as any)?.msg || (err as any)?.message || "");
+  if (code === "auth_window_closed") {
+    return codedError(
+      PUTER_ERR_POPUP_CLOSED,
+      "Sign-in popup band kar diya gaya. Dobara Connect dabayein aur popup mein sign-in poora karein."
+    );
+  }
+  if (msg) {
+    const e = new Error(msg);
+    (e as any).code = code || PUTER_ERR_SIGNIN_FAILED;
+    return e;
+  }
+  return codedError(PUTER_ERR_SIGNIN_FAILED, "Connect nahi ho saka — dobara try karein.");
 }
 
 export async function signOutFromPuter(): Promise<void> {

@@ -17,6 +17,9 @@ import javax.inject.Singleton
 
 private val Context.dataStore by preferencesDataStore(name = "pk_ai_settings")
 
+/** Cap on locally stored AI-content reports (see [PreferencesManager.recordAiContentReport]). */
+private const val MAX_STORED_AI_REPORTS = 200
+
 data class UserSession(
     val isLoggedIn: Boolean,
     val isGuest: Boolean,
@@ -250,12 +253,18 @@ class PreferencesManager @Inject constructor(
 
     /**
      * Appends one JSON report entry (see [com.salmanlaghari.pkai.util.AiContentReporter]).
+     * Keeps only the most recent [MAX_STORED_AI_REPORTS] entries so the value
+     * can never grow without bound on-device.
      */
     suspend fun recordAiContentReport(reportJson: String) {
         context.dataStore.edit { preferences ->
-            val existing = preferences[aiContentReportsKey].orEmpty()
-            preferences[aiContentReportsKey] =
-                if (existing.isBlank()) reportJson else "$existing\n$reportJson"
+            val existing = preferences[aiContentReportsKey]
+                ?.split("\n")
+                ?.map { it.trim() }
+                ?.filter { it.isNotEmpty() }
+                .orEmpty()
+            val updated = (existing + reportJson.trim()).takeLast(MAX_STORED_AI_REPORTS)
+            preferences[aiContentReportsKey] = updated.joinToString("\n")
         }
     }
 

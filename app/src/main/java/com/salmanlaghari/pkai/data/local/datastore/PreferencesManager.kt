@@ -242,6 +242,33 @@ class PreferencesManager @Inject constructor(
     }
 
     // ------------------------------------------------------------------
+    // AI-content reports (Google Play policy requirement): users can flag
+    // AI-generated images/text via the 🚩 button on any AI message. There is
+    // no backend, so reports are stored locally as newline-separated JSON
+    // entries for later review/export.
+    private val aiContentReportsKey = stringPreferencesKey("ai_content_reports")
+
+    /**
+     * Appends one JSON report entry (see [com.salmanlaghari.pkai.util.AiContentReporter]).
+     */
+    suspend fun recordAiContentReport(reportJson: String) {
+        context.dataStore.edit { preferences ->
+            val existing = preferences[aiContentReportsKey].orEmpty()
+            preferences[aiContentReportsKey] =
+                if (existing.isBlank()) reportJson else "$existing\n$reportJson"
+        }
+    }
+
+    /** Raw stored report entries (JSON, one per line), oldest first. */
+    val aiContentReports: Flow<List<String>> = context.dataStore.data.map { preferences ->
+        preferences[aiContentReportsKey]
+            ?.split("\n")
+            ?.map { it.trim() }
+            ?.filter { it.isNotEmpty() }
+            .orEmpty()
+    }
+
+    // ------------------------------------------------------------------
     // Tips auto-popup opt-out ("Don't show automatically again" checkbox)
     private val tipsDontShowAgainKey = booleanPreferencesKey("tips_dont_show_again")
 

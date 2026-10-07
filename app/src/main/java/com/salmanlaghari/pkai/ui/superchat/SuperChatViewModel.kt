@@ -74,8 +74,6 @@ class SuperChatViewModel @Inject constructor(
     private val _favorites = MutableStateFlow<Set<Int>>(emptySet())
     val favorites: StateFlow<Set<Int>> = _favorites.asStateFlow()
 
-    /** When true, use the /18+ special sticker pool instead of mood stickers. */
-    private var specialMode = false
     private var lastLanguageInstruction: String =
         com.salmanlaghari.pkai.util.LanguageDetector.Lang.ENGLISH.instruction
 
@@ -123,20 +121,6 @@ class SuperChatViewModel @Inject constructor(
         val trimmed = text.trim()
         if (trimmed.isEmpty() || _isGenerating.value) return
 
-        // Check for /18+ command — toggles special sticker mode
-        if (trimmed.equals("/18+", ignoreCase = true)) {
-            specialMode = !specialMode
-            val modeMsg = ChatMessage(
-                content = if (specialMode) "✨ Special sticker mode ON" else "Standard mode restored",
-                isUser = false,
-                timestamp = System.currentTimeMillis()
-            )
-            val stickerIdx = PoseRegistry.randomSpecialSticker()
-            _messageStickers.value = _messageStickers.value + (modeMsg.id to stickerIdx)
-            _messages.value = _messages.value + modeMsg
-            return
-        }
-
         // Keep the language from the last real user text for attachment replies.
         lastLanguageInstruction =
             com.salmanlaghari.pkai.util.LanguageDetector.detect(trimmed).instruction
@@ -156,13 +140,13 @@ class SuperChatViewModel @Inject constructor(
         if (com.salmanlaghari.pkai.util.SongSearchHelper.looksLikeBareSongTitle(trimmed) &&
             !_isGenerating.value
         ) {
-            tryBareSongTitle(trimmed, specialMode)
+            tryBareSongTitle(trimmed)
             return
         }
 
         val mood = MoodDetector.detect(trimmed)
         _currentMood.value = mood
-        val pose = if (specialMode) PoseRegistry.randomSpecialSticker() else nextPoseFor(mood)
+        val pose = nextPoseFor(mood)
         _currentSticker.value = pose
 
         val userMessage = ChatMessage(
@@ -172,7 +156,7 @@ class SuperChatViewModel @Inject constructor(
         )
         _messageStickers.value = _messageStickers.value + (userMessage.id to pose)
         _messages.value = _messages.value + userMessage
-        fetchReply(trimmed, specialMode, languageInstruction = lastLanguageInstruction)
+        fetchReply(trimmed, languageInstruction = lastLanguageInstruction)
     }
 
     /** Sends an image attachment as a user message, then fetches an AI reply. */
@@ -195,14 +179,12 @@ class SuperChatViewModel @Inject constructor(
             attachmentName = displayName
         )
         _currentMood.value = Mood.NEUTRAL
-        val pose = if (specialMode) PoseRegistry.randomSpecialSticker()
-            else nextPoseFor(Mood.NEUTRAL)
+        val pose = nextPoseFor(Mood.NEUTRAL)
         _currentSticker.value = pose
         _messageStickers.value = _messageStickers.value + (userMessage.id to pose)
         _messages.value = _messages.value + userMessage
         fetchReply(
             "The user shared an image with me. Describe only what you can actually see.",
-            specialMode,
             imageDataUri,
             languageInstruction = lastLanguageInstruction
         )
@@ -220,14 +202,12 @@ class SuperChatViewModel @Inject constructor(
             attachmentName = durationLabel
         )
         _currentMood.value = Mood.NEUTRAL
-        val pose = if (specialMode) PoseRegistry.randomSpecialSticker()
-            else nextPoseFor(Mood.NEUTRAL)
+        val pose = nextPoseFor(Mood.NEUTRAL)
         _currentSticker.value = pose
         _messageStickers.value = _messageStickers.value + (userMessage.id to pose)
         _messages.value = _messages.value + userMessage
         fetchReply(
             "The user sent a voice note, but its audio has not been transcribed. Do not pretend to hear it; ask the user to type the request if needed.",
-            specialMode,
             languageInstruction = lastLanguageInstruction
         )
     }
@@ -248,8 +228,7 @@ class SuperChatViewModel @Inject constructor(
             isUser = true,
             timestamp = System.currentTimeMillis()
         )
-        val pose = if (specialMode) PoseRegistry.randomSpecialSticker()
-            else nextPoseFor(MoodDetector.detect(originalText))
+        val pose = nextPoseFor(MoodDetector.detect(originalText))
         _currentSticker.value = pose
         _messageStickers.value = _messageStickers.value + (userMessage.id to pose)
         _messages.value = _messages.value + userMessage
@@ -278,8 +257,7 @@ class SuperChatViewModel @Inject constructor(
                     )
                 )
             }
-            val sticker = if (specialMode) PoseRegistry.randomSpecialSticker()
-                else nextPoseFor(Mood.HAPPY)
+            val sticker = nextPoseFor(Mood.HAPPY)
             replyMessages.forEach { msg ->
                 _messageStickers.value = _messageStickers.value + (msg.id to sticker)
                 _messages.value = _messages.value + msg
@@ -294,15 +272,14 @@ class SuperChatViewModel @Inject constructor(
      * otherwise the message falls through to normal AI chat via [fetchReply]
      * so ordinary short texts are never dead-ended.
      */
-    private fun tryBareSongTitle(originalText: String, specialMode: Boolean) {
+    private fun tryBareSongTitle(originalText: String) {
         if (_isGenerating.value) return
         val userMessage = ChatMessage(
             content = originalText,
             isUser = true,
             timestamp = System.currentTimeMillis()
         )
-        val pose = if (specialMode) PoseRegistry.randomSpecialSticker()
-        else nextPoseFor(MoodDetector.detect(originalText))
+        val pose = nextPoseFor(MoodDetector.detect(originalText))
         _currentSticker.value = pose
         _messageStickers.value = _messageStickers.value + (userMessage.id to pose)
         _messages.value = _messages.value + userMessage
@@ -325,8 +302,7 @@ class SuperChatViewModel @Inject constructor(
                     attachmentUri = song.audioUrl,
                     attachmentName = com.salmanlaghari.pkai.util.SongAttachment.pack(song)
                 )
-                val sticker = if (specialMode) PoseRegistry.randomSpecialSticker()
-                else nextPoseFor(Mood.HAPPY)
+                val sticker = nextPoseFor(Mood.HAPPY)
                 _messageStickers.value = _messageStickers.value + (replyMessage.id to sticker)
                 _messages.value = _messages.value + replyMessage
                 _isGenerating.value = false
@@ -336,7 +312,6 @@ class SuperChatViewModel @Inject constructor(
                 _isGenerating.value = false
                 fetchReply(
                     originalText,
-                    specialMode,
                     languageInstruction = lastLanguageInstruction
                 )
             }
@@ -367,7 +342,6 @@ class SuperChatViewModel @Inject constructor(
 
     private fun fetchReply(
         prompt: String,
-        useSpecial: Boolean = false,
         imageDataUri: String? = null,
         languageInstruction: String? = null
     ) {
@@ -385,8 +359,7 @@ class SuperChatViewModel @Inject constructor(
             )
             // React to the reply with a fresh pose too, so every exchange
             // shows its own sticker beside the message.
-            val replySticker = if (useSpecial) PoseRegistry.randomSpecialSticker()
-                else nextPoseFor(_currentMood.value)
+            val replySticker = nextPoseFor(_currentMood.value)
             _messageStickers.value = _messageStickers.value +
                 (replyMessage.id to replySticker)
             _messages.value = _messages.value + replyMessage

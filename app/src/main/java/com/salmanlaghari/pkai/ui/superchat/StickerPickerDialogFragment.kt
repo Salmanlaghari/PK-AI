@@ -51,25 +51,9 @@ class StickerPickerDialogFragment : BottomSheetDialogFragment() {
         val view = inflater.inflate(R.layout.dialog_sticker_picker, container, false)
         val recycler = view.findViewById<RecyclerView>(R.id.rvStickerGrid)
 
-        // SUPER pack: unlocked via the Tips 18+ code — special stickers first.
-        val superUnlocked = requireContext()
-            .getSharedPreferences("super_chat_prefs", android.content.Context.MODE_PRIVATE)
-            .getBoolean("super_stickers_unlocked", false)
-        view.findViewById<TextView>(R.id.tvSuperHeader).visibility =
-            if (superUnlocked) View.VISIBLE else View.GONE
-        val orderedIndices = if (superUnlocked) {
-            // SUPER pack first, then the rest WITHOUT duplicating 200..215
-            // (allStickers() already contains them).
-            PoseRegistry.specialStickers.toIntArray() +
-                indices.filter { it !in PoseRegistry.specialStickers }.toIntArray()
-        } else {
-            indices
-        }
-
         val adapter = StickerGridAdapter(
-            indices = orderedIndices,
+            indices = indices,
             isFavorite = { favorites.contains(it) },
-            isSuper = { superUnlocked && PoseRegistry.specialStickers.contains(it) },
             onPick = { index ->
                 onPick?.invoke(index)
                 dismiss()
@@ -88,7 +72,6 @@ class StickerPickerDialogFragment : BottomSheetDialogFragment() {
     private class StickerGridAdapter(
         private val indices: IntArray,
         private val isFavorite: (Int) -> Boolean,
-        private val isSuper: (Int) -> Boolean = { false },
         private val onPick: (Int) -> Unit,
         private val onToggleFavorite: (Int) -> Unit
     ) : RecyclerView.Adapter<StickerGridAdapter.StickerViewHolder>() {
@@ -109,7 +92,7 @@ class StickerPickerDialogFragment : BottomSheetDialogFragment() {
                 SpriteSheetLoader.getSticker(holder.image.context, index)
             }
             holder.image.setImageBitmap(bitmap)
-            holder.indexLabel.text = if (isSuper(index)) "⚡ SUPER" else "#${index + 1}"
+            holder.indexLabel.text = "#${index + 1}"
             holder.favBadge.text = if (isFavorite(index)) "💖" else "🤍"
             holder.image.setOnClickListener { onPick(index) }
             holder.favBadge.setOnClickListener { onToggleFavorite(index) }

@@ -33,6 +33,7 @@ import com.salmanlaghari.pkai.ui.superchat.ChatMessageActions
 import com.salmanlaghari.pkai.ui.superchat.SuperChatAdapter
 import com.salmanlaghari.pkai.ui.tips.TipsAutoPopup
 import com.salmanlaghari.pkai.ui.voice.VoiceRecognitionHelper
+import com.salmanlaghari.pkai.util.AiContentReporter
 import com.salmanlaghari.pkai.util.TtsHelper
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.combine
@@ -127,6 +128,11 @@ class HomeFragment : Fragment() {
             },
             onShare = { messageActions.share(it) },
             onImageClick = { messageActions.showFullscreenImage(it) },
+            onReport = { message ->
+                AiContentReporter.showReportDialog(
+                    requireContext(), preferencesManager, message, lifecycleScope
+                )
+            },
             onRunCode = { code, lang, onResult -> viewModel.runCode(code, lang, onResult) }
         )
         binding.rvChatMessages.adapter = chatAdapter

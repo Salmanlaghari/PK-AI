@@ -30,6 +30,9 @@
     <string name="superchat_speak">Speak</string>
     <string name="superchat_copy">Copy</string>
     <string name="superchat_share">Share</string>
+    <string name="superchat_report">Report this AI content</string>
+    <string name="superchat_report_title">🚩 Report AI content</string>
+    <string name="superchat_report_thanks">Thanks — your report has been recorded and will be reviewed.</string>
     <string name="superchat_attach">Attach image</string>
     <string name="superchat_voice">Voice note</string>
     <string name="superchat_image">Shared image</string>

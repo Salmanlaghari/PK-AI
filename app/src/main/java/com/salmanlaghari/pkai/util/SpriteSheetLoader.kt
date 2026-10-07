@@ -30,7 +30,7 @@ object SpriteSheetLoader {
      * Size of the full virtual sticker catalogue (real assets + virtual emoji
      * stickers). Used by [PoseRegistry.allStickers] so the picker covers
      * everything, including the [EXTRA_STICKER_COUNT] virtual emoji stickers
-     * sitting past the 18+ SUPER pool.
+     * sitting past index 215.
      *
      * NOTE: this is intentionally NOT used for the no-assets fallback in
      * [availableStickers] — that path needs the real asset ceiling
@@ -53,8 +53,8 @@ object SpriteSheetLoader {
      */
     const val EXTRA_STICKER_COUNT = 28
     /**
-     * First virtual (emoji) sticker index. Sits just past the 18+ SUPER pool
-     * (200..215) so existing placeholder indices keep their legacy look.
+     * First virtual (emoji) sticker index. Sits just past the bundled asset
+     * range (200..215) so existing placeholder indices keep their legacy look.
      */
     private const val VIRTUAL_STICKER_START = 216
 
@@ -110,9 +110,9 @@ object SpriteSheetLoader {
             emptyList()
         }
         val base = real.ifEmpty { IntArray(MAX_REAL_ASSET_COUNT) { it }.toList() }
-        // Virtual emoji stickers start past the real assets AND past the 18+
-        // SUPER pool (200..215), so dropping more pose_*.webp files later can
-        // never collide with them and nothing existing shifts.
+        // Virtual emoji stickers start past the real assets (and past index
+        // 215), so dropping more pose_*.webp files later can never collide
+        // with them and nothing existing shifts.
         virtualStart = maxOf((base.maxOrNull() ?: -1) + 1, VIRTUAL_STICKER_START)
         val result = base + (virtualStart until virtualStart + EXTRA_STICKER_COUNT).toList()
         catalog = result

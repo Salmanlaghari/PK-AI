@@ -4,6 +4,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.logging.HttpLoggingInterceptor
 import com.salmanlaghari.pkai.BuildConfig
+import com.salmanlaghari.pkai.util.ContentSafetyFilter
 import android.util.Log
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -38,10 +39,13 @@ class PollinationsImageRepository @Inject constructor() : ImageGenerationProvide
         val apiKey = BuildConfig.POLLINATIONS_API_KEY
         val maskedKey = if (apiKey.isNotBlank()) apiKey.take(4) + "****" else "<empty>"
         val tokenParam = if (apiKey.isNotBlank()) "&token=$apiKey" else ""
+        // safe=true: ask Pollinations to apply strict NSFW filtering server-side
+        // (it throws an error when NSFW content is detected — handled below).
+        // This is the second layer; ContentSafetyFilter runs client-side first.
         val url = if (model.isNotBlank()) {
-            "https://image.pollinations.ai/prompt/$encodedPrompt?width=$width&height=$height&nologo=true&model=$model&enhance=true$tokenParam"
+            "https://image.pollinations.ai/prompt/$encodedPrompt?width=$width&height=$height&nologo=true&model=$model&enhance=true&safe=true$tokenParam"
         } else {
-            "https://image.pollinations.ai/prompt/$encodedPrompt?width=$width&height=$height&nologo=true$tokenParam"
+            "https://image.pollinations.ai/prompt/$encodedPrompt?width=$width&height=$height&nologo=true&safe=true$tokenParam"
         }
         val maskedUrl = url.replace(apiKey, maskedKey)
         Log.d(TAG, "Built image URL (model=$model, key_present=${apiKey.isNotBlank()}): $maskedUrl")
@@ -49,6 +53,16 @@ class PollinationsImageRepository @Inject constructor() : ImageGenerationProvide
     }
 
     override suspend fun generateImage(prompt: String, width: Int, height: Int): ImageGenerationResult = withContext(Dispatchers.IO) {
+        // Play-policy choke point: STRICT client-side NSFW filter runs FIRST,
+        // before any network call. A blocked prompt never reaches the service.
+        val blockedReason = ContentSafetyFilter.blockedReason(prompt)
+        if (blockedReason != null) {
+            Log.w(TAG, "Prompt blocked by content safety filter ($blockedReason)")
+            return@withContext ImageGenerationResult.Blocked(
+                "This prompt isn't allowed. Please try something else."
+            )
+        }
+
         var attempt = 0
         var backoffMs = INITIAL_BACKOFF_MS
         var lastResult: ImageGenerationResult? = null
@@ -68,6 +82,18 @@ class PollinationsImageRepository @Inject constructor() : ImageGenerationProvide
                     val bodyBytes = resp.body?.bytes()
                     val bodySnippet = bodyBytes?.toString(Charsets.UTF_8)?.take(200) ?: "<empty body>"
                     Log.d(TAG, "Attempt $attempt: HTTP $statusCode, body: $bodySnippet")
+
+                    // With safe=true the service throws an error when it detects
+                    // NSFW content — it can surface as a non-200 or as a 200
+                    // with a non-image error payload. Map it to a friendly
+                    // "flagged" message (no retry: re-asking won't help) instead
+                    // of a generic failure or a crash.
+                    val looksLikeImage = bodyBytes != null && bodyBytes.isNotEmpty() && isValidImageBytes(bodyBytes)
+                    if (!looksLikeImage && isSafetyFlag(bodySnippet)) {
+                        return@withContext ImageGenerationResult.Blocked(
+                            "The image service flagged this prompt as unsafe. Please try a different prompt."
+                        )
+                    }
 
                     when (statusCode) {
                         200 -> {
@@ -114,6 +140,22 @@ class PollinationsImageRepository @Inject constructor() : ImageGenerationProvide
             }
         }
         return@withContext lastResult ?: ImageGenerationResult.Unavailable("Image generation failed after $MAX_ATTEMPTS attempts.")
+    }
+
+    /**
+     * True when a non-image response body looks like the image service's
+     * safety filter rejecting the prompt (used with `safe=true`). Matched
+     * loosely on purpose — the exact error shape is not contractual.
+     */
+    private fun isSafetyFlag(bodySnippet: String): Boolean {
+        val b = bodySnippet.lowercase()
+        return b.contains("nsfw") ||
+            b.contains("not safe") ||
+            b.contains("unsafe") ||
+            b.contains("inappropriate") ||
+            b.contains("content policy") ||
+            b.contains("policy violation") ||
+            b.contains("safety filter")
     }
 
     private fun isValidImageBytes(bytes: ByteArray): Boolean {

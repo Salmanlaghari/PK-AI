@@ -63,15 +63,6 @@ object PoseRegistry {
         return candidates[rotation.mod(candidates.size)]
     }
 
-    /** /18+ special sticker pool — the new stickers (201+) loaded from pose_201…pose_216. */
-    val specialStickers: List<Int> = listOf(
-        200, 201, 202, 203, 204, 205, 206, 207,
-        208, 209, 210, 211, 212, 213, 214, 215
-    )
-
     /** All sticker indices available in the picker grid. */
     fun allStickers(): IntArray = IntArray(SpriteSheetLoader.STICKER_COUNT) { it }
-
-    /** Returns a random special sticker from the 18+ pool. */
-    fun randomSpecialSticker(): Int = specialStickers.random()
 }

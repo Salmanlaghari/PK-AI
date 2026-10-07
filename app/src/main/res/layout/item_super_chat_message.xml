@@ -335,11 +335,23 @@
                             android:id="@+id/btnShare"
                             android:layout_width="34dp"
                             android:layout_height="34dp"
+                            android:layout_marginEnd="10dp"
                             android:background="@drawable/bg_action_button"
                             android:gravity="center"
                             android:text="↗️"
                             android:textSize="14sp"
                             android:contentDescription="@string/superchat_share" />
+
+                        <!-- Play-policy: visible report/flag button on every AI message -->
+                        <TextView
+                            android:id="@+id/btnReport"
+                            android:layout_width="34dp"
+                            android:layout_height="34dp"
+                            android:background="@drawable/bg_action_button"
+                            android:gravity="center"
+                            android:text="🚩"
+                            android:textSize="14sp"
+                            android:contentDescription="@string/superchat_report" />
                     </LinearLayout>
                 </LinearLayout>
             </FrameLayout>

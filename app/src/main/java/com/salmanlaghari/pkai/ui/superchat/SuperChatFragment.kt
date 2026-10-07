@@ -27,6 +27,7 @@ import com.salmanlaghari.pkai.data.local.datastore.PreferencesManager
 import com.salmanlaghari.pkai.databinding.FragmentSuperChatBinding
 import com.salmanlaghari.pkai.ui.chat.ChatAutoScroller
 import com.salmanlaghari.pkai.ui.tips.TipsAutoPopup
+import com.salmanlaghari.pkai.util.AiContentReporter
 import com.salmanlaghari.pkai.util.TtsHelper
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Job
@@ -149,7 +150,12 @@ class SuperChatFragment : Fragment() {
                 adapter.notifyDataSetChanged()
             },
             onShare = { messageActions.share(it) },
-            onImageClick = { messageActions.showFullscreenImage(it) }
+            onImageClick = { messageActions.showFullscreenImage(it) },
+            onReport = { message ->
+                AiContentReporter.showReportDialog(
+                    requireContext(), preferencesManager, message, viewLifecycleOwner.lifecycleScope
+                )
+            }
         )
         adapter.onSongPlayClicked = { toggleSongPlayback(it) }
         binding.rvSuperChat.layoutManager = LinearLayoutManager(requireContext())

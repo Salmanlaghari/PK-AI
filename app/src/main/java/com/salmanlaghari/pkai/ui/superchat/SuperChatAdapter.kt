@@ -50,6 +50,11 @@ class SuperChatAdapter(
     private val onShare: (ChatMessage) -> Unit,
     private val onImageClick: (String) -> Unit,
     /**
+     * Opens the AI-content report dialog (Play-policy requirement). Shown as a
+     * visible 🚩 button on every AI message — generated images included.
+     */
+    private val onReport: (ChatMessage) -> Unit,
+    /**
      * Runs a ```code``` snippet (Home screen). Null hides the Run button —
      * Super Chat shows code blocks with Copy only.
      */
@@ -266,6 +271,7 @@ class SuperChatAdapter(
                 itemView.findViewById<TextView>(R.id.btnCopy).setOnClickListener { onCopy(message) }
                 itemView.findViewById<TextView>(R.id.btnFav).setOnClickListener { onFavorite(message) }
                 itemView.findViewById<TextView>(R.id.btnShare).setOnClickListener { onShare(message) }
+                itemView.findViewById<TextView>(R.id.btnReport).setOnClickListener { onReport(message) }
 
                 if (isNew) {
                     animateAiCardIn(aiCard)

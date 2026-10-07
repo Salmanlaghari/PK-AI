@@ -677,6 +677,7 @@ class HomeViewModel @Inject constructor(
                         is ImageGenerationResult.AuthenticationFailed -> "🖼 Image generation authentication failed. ${result.message}"
                         is ImageGenerationResult.Unavailable -> "🖼 Image generation unavailable. ${result.message}"
                         is ImageGenerationResult.InvalidRequest -> "🖼 Invalid image request. ${result.message}"
+                        is ImageGenerationResult.Blocked -> "🚫 ${result.message}"
                         is ImageGenerationResult.NetworkError -> "🖼 Network error generating image. ${result.message}"
                     }
                 }
@@ -732,6 +733,7 @@ class HomeViewModel @Inject constructor(
                         is ImageGenerationResult.AuthenticationFailed -> "🖼 Image generation authentication failed. ${result.message}"
                         is ImageGenerationResult.Unavailable -> "🖼 Image generation unavailable. ${result.message}"
                         is ImageGenerationResult.InvalidRequest -> "🖼 Invalid image request. ${result.message}"
+                        is ImageGenerationResult.Blocked -> "🚫 ${result.message}"
                         is ImageGenerationResult.NetworkError -> "🖼 Network error generating image. ${result.message}"
                     }
                 }

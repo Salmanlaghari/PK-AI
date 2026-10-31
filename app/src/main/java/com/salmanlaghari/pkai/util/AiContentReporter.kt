@@ -1,7 +1,10 @@
 package com.salmanlaghari.pkai.util
 
 import android.app.AlertDialog
+import android.content.ActivityNotFoundException
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -16,11 +19,13 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 /**
- * Local-only reporting notes for AI-generated content. There is currently no
- * remote endpoint: reports are stored on this device and are not received or
- * reviewed by the developer.
+ * Offers a user-controlled email draft and a local-only note. There is no
+ * in-app report backend: the email app opens outside PK-AI, and nothing is sent
+ * until the user reviews the draft and taps Send.
  */
 object AiContentReporter {
+    const val SUPPORT_EMAIL = "lovefaillaghari@gmail.com"
+
     val REASONS: List<String> = listOf(
         "Sexual content",
         "Violent or harmful",
@@ -43,7 +48,23 @@ object AiContentReporter {
         .put("model", message.modelUsed)
         .toString()
 
-    /** Shows the reason picker and clearly identifies that saving is local only. */
+    /** Builds the body of an email draft; it is not transmitted by the app. */
+    fun buildEmailReportBody(
+        message: ChatMessage,
+        reason: String,
+        detail: String,
+        timestampMs: Long = System.currentTimeMillis()
+    ): String = buildString {
+        appendLine("PK-AI AI-generated content report")
+        appendLine("Reason: $reason")
+        if (detail.isNotBlank()) appendLine("User details: $detail")
+        appendLine("Model: ${message.modelUsed ?: "Unknown"}")
+        appendLine("Reported at (UTC epoch milliseconds): $timestampMs")
+        appendLine("Output preview (first 300 characters):")
+        append(message.content.take(300))
+    }
+
+    /** Shows the reason picker and explains the external email handoff. */
     fun showReportDialog(
         context: Context,
         preferencesManager: PreferencesManager,
@@ -82,26 +103,65 @@ object AiContentReporter {
 
         AlertDialog.Builder(context)
             .setTitle(context.getString(R.string.superchat_report_title))
-            .setMessage(context.getString(R.string.superchat_report_local_only))
+            .setMessage(context.getString(R.string.superchat_report_email_disclosure, SUPPORT_EMAIL))
             .setView(container)
-            .setPositiveButton(context.getString(R.string.superchat_report_save_local)) { dialog, _ ->
+            .setPositiveButton(context.getString(R.string.superchat_report_email_button)) { _, _ ->
                 val selected = radioGroup.findViewById<RadioButton>(radioGroup.checkedRadioButtonId)
                 val reason = selected?.text?.toString() ?: REASONS.first()
-                val reportJson = buildReportJson(message, reason, detailInput.text.toString().trim())
-                scope.launch {
-                    val saved = runCatching {
-                        preferencesManager.recordAiContentReport(reportJson)
-                    }.isSuccess
-                    val messageRes = if (saved) {
-                        R.string.superchat_report_thanks
-                    } else {
-                        R.string.superchat_report_save_failed
-                    }
-                    Toast.makeText(context, context.getString(messageRes), Toast.LENGTH_LONG).show()
-                }
-                dialog.dismiss()
+                openEmailDraft(context, message, reason, detailInput.text.toString().trim())
             }
-            .setNegativeButton("Cancel") { dialog, _ -> dialog.dismiss() }
+            .setNegativeButton(context.getString(R.string.superchat_report_save_local)) { _, _ ->
+                val selected = radioGroup.findViewById<RadioButton>(radioGroup.checkedRadioButtonId)
+                val reason = selected?.text?.toString() ?: REASONS.first()
+                saveLocalNote(
+                    context,
+                    preferencesManager,
+                    message,
+                    reason,
+                    detailInput.text.toString().trim(),
+                    scope
+                )
+            }
+            .setNeutralButton("Cancel") { dialog, _ -> dialog.dismiss() }
             .show()
+    }
+
+    private fun openEmailDraft(context: Context, message: ChatMessage, reason: String, detail: String) {
+        val intent = Intent(Intent.ACTION_SENDTO).apply {
+            data = Uri.fromParts("mailto", SUPPORT_EMAIL, null)
+            putExtra(Intent.EXTRA_EMAIL, arrayOf(SUPPORT_EMAIL))
+            putExtra(Intent.EXTRA_SUBJECT, "PK-AI AI content report: $reason")
+            putExtra(Intent.EXTRA_TEXT, buildEmailReportBody(message, reason, detail))
+        }
+        try {
+            context.startActivity(
+                Intent.createChooser(intent, context.getString(R.string.superchat_report_email_chooser))
+            )
+            Toast.makeText(context, R.string.superchat_report_email_draft_opened, Toast.LENGTH_LONG).show()
+        } catch (_: ActivityNotFoundException) {
+            Toast.makeText(context, R.string.superchat_report_email_unavailable, Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun saveLocalNote(
+        context: Context,
+        preferencesManager: PreferencesManager,
+        message: ChatMessage,
+        reason: String,
+        detail: String,
+        scope: CoroutineScope
+    ) {
+        val reportJson = buildReportJson(message, reason, detail)
+        scope.launch {
+            val saved = runCatching {
+                preferencesManager.recordAiContentReport(reportJson)
+            }.isSuccess
+            val messageRes = if (saved) {
+                R.string.superchat_report_thanks
+            } else {
+                R.string.superchat_report_save_failed
+            }
+            Toast.makeText(context, context.getString(messageRes), Toast.LENGTH_LONG).show()
+        }
     }
 }

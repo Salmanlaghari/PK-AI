@@ -220,8 +220,8 @@ export default function PuterAuthModal({ isOpen, onClose, onAuthSuccess }: Puter
           <div className="space-y-2.5 mb-4">
             {[
               { icon: Zap, text: "Chat — free AI models", color: "text-amber-400" },
-              { icon: Sparkles, text: "Image — free HD generation", color: "text-cyan-400" },
-              { icon: CheckCircle2, text: "Video — Google Veo generation", color: "text-emerald-400" },
+              { icon: Sparkles, text: "Image generation — paused for output safety checks", color: "text-cyan-400" },
+              { icon: CheckCircle2, text: "Video generation — paused for output safety checks", color: "text-emerald-400" },
             ].map(({ icon: Icon, text, color }) => (
               <div key={text} className="flex items-center gap-2.5 bg-slate-800/60 rounded-xl px-3 py-2.5">
                 <Icon className={`w-4.5 h-4.5 ${color} shrink-0`} />

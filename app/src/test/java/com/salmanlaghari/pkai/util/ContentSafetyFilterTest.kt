@@ -7,13 +7,11 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * Play-policy compliance tests for the client-side NSFW prompt filter.
- */
+/** Best-effort lexical safety coverage; not a substitute for semantic moderation. */
 class ContentSafetyFilterTest {
 
     @Test
-    fun `plain explicit prompts are blocked`() {
+    fun `plain sexual and profane prompts are blocked`() {
         listOf(
             "a nude woman",
             "naked man on a beach",
@@ -21,7 +19,10 @@ class ContentSafetyFilterTest {
             "sexy lingerie model",
             "erotic painting",
             "a blowjob scene",
-            "topless dancer"
+            "topless dancer",
+            "what the fuck",
+            "madarchod",
+            "nangi tasveer"
         ).forEach { prompt ->
             assertTrue("Should block: \"$prompt\"", ContentSafetyFilter.isBlocked(prompt))
         }
@@ -34,7 +35,8 @@ class ContentSafetyFilterTest {
             "n_u_d_e beach photo",
             "n u d e statue",
             "p-o-r-n video still",
-            "s.e.x.y dancer"
+            "s.e.x.y dancer",
+            "f.u.c.k this"
         ).forEach { prompt ->
             assertTrue("Should block obfuscated: \"$prompt\"", ContentSafetyFilter.isBlocked(prompt))
         }
@@ -48,7 +50,8 @@ class ContentSafetyFilterTest {
             "nud3 beach",
             "p0rn magazine",
             "7opless dancer",
-            "8oob closeup"
+            "8oob closeup",
+            "f@ggot"
         ).forEach { prompt ->
             assertTrue("Should block leetspeak: \"$prompt\"", ContentSafetyFilter.isBlocked(prompt))
         }
@@ -58,6 +61,7 @@ class ContentSafetyFilterTest {
     fun `uppercase and mixed case prompts are blocked`() {
         assertTrue(ContentSafetyFilter.isBlocked("A NUDE PORTRAIT"))
         assertTrue(ContentSafetyFilter.isBlocked("NaKeD statue"))
+        assertTrue(ContentSafetyFilter.isBlocked("FUCK THIS"))
     }
 
     @Test
@@ -75,8 +79,6 @@ class ContentSafetyFilterTest {
 
     @Test
     fun `scunthorpe guard avoids false positives on innocent words`() {
-        // "ass" in "classic", "cum" in "document", "tit" in "title",
-        // "anal" in "analysis", "shit" in "shitake" must NOT block.
         listOf(
             "a classic car",
             "an important document",
@@ -84,17 +86,28 @@ class ContentSafetyFilterTest {
             "data analysis chart",
             "shitake mushrooms",
             "cucumber salad",
-            "breaststroke swimmer"
+            "breaststroke swimmer",
+            "hello there"
         ).forEach { prompt ->
             assertFalse("False positive on: \"$prompt\"", ContentSafetyFilter.isBlocked(prompt))
         }
     }
 
     @Test
-    fun `blockedReason names the matched term`() {
+    fun `unsafe generated output is replaced before display or speech`() {
+        assertEquals(
+            ContentSafetyFilter.BLOCKED_OUTPUT_MESSAGE,
+            ContentSafetyFilter.filterAiOutput("Here is a nude portrait.")
+        )
+        assertEquals("A quiet blue ocean.", ContentSafetyFilter.filterAiOutput("A quiet blue ocean."))
+    }
+
+    @Test
+    fun `blockedReason names only the matched term`() {
         val reason = ContentSafetyFilter.blockedReason("a nude portrait")
         assertNotNull(reason)
-        assertTrue("Reason should name the term: $reason", reason!!.contains("nude"))
+        assertTrue(reason!!.contains("nude"))
+        assertFalse(reason.contains("portrait"))
     }
 
     @Test

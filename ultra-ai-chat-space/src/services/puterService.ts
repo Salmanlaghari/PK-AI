@@ -1,14 +1,13 @@
 // Puter.js Free AI Stack (https://developer.puter.com)
 // ----------------------------------------------------------------------------
-// Text, image AND video generation — free for every user via Puter's
+// Text generation — free for every user via Puter's
 // "User-Pays" model: each user covers their own AI usage through their own
 // free Puter account. The developer (PK-AI) pays nothing, no API keys are
 // hardcoded, and no tokens/cookies are ever pasted by the user.
 //
 //  - Text  : puter.ai.chat()      (GPT-4o-mini and 400+ other models)
-//  - Image : puter.ai.txt2img()   (FLUX.1-schnell)
-//  - Video : puter.video.generate() (Google Veo 3.1 Fast) — if the loaded
-//            SDK version exposes it; otherwise a clear message is shown.
+// Image and video generation are disabled until generated visual outputs can
+// be screened before display.
 //
 // Auth is one tap: puter.auth.signIn() opens Puter's own sign-in popup and
 // returns an authenticated session. Nothing leaves the device except the
@@ -17,6 +16,8 @@
 // NOTE: puter.js ships without bundled TypeScript types, so the SDK is
 // accessed via (window as any).puter with defensive shape checks.
 
+import { filterAiOutput, isUnsafeText, BLOCKED_OUTPUT_MESSAGE } from "./contentSafety.mjs";
+
 export interface PuterUser {
   username: string;
   uuid: string;
@@ -24,7 +25,6 @@ export interface PuterUser {
 
 export interface PuterProgress {
   message: string;
-  partialText?: string;
 }
 
 export interface PuterTextResult {
@@ -108,26 +108,6 @@ export function loadPuterSDK(): Promise<any> {
   const existing = (window as any).puter;
   if (existing) return Promise.resolve(existing);
   if (sdkLoad) return sdkLoad;
-  return startSdkLoad();
-}
-
-/**
- * Force a fresh SDK load. Used when the cached SDK object is stale or partial
- * (e.g. window.puter exists but ai.txt2img is missing) — one retry before the
- * user ever sees a dead-end error. Joins an already in-flight load instead of
- * injecting a duplicate script. Auth state is cookie-based, so reloading the
- * script never signs the user out.
- */
-export function reloadPuterSDK(): Promise<any> {
-  if (sdkLoad) return sdkLoad;
-  try {
-    delete (window as any).puter;
-  } catch {
-    /* non-configurable — the fresh script overwrites it on load */
-  }
-  document
-    .querySelectorAll(`script[src="${PUTER_SDK_URL}"]`)
-    .forEach((s) => s.remove());
   return startSdkLoad();
 }
 
@@ -505,6 +485,7 @@ export async function puterChat(
   prompt: string,
   onProgress?: (p: PuterProgress) => void
 ): Promise<PuterTextResult> {
+  if (isUnsafeText(prompt)) return { ok: true, text: BLOCKED_OUTPUT_MESSAGE };
   try {
     const puter = await loadPuterSDK();
     onProgress?.({ message: "AI jawab tayyar kar raha hai..." });
@@ -521,7 +502,8 @@ export async function puterChat(
         const delta = part?.text || "";
         if (delta) {
           fullText += delta;
-          onProgress?.({ message: "AI likh raha hai...", partialText: fullText });
+          // Keep generated text buffered until the complete answer is checked.
+          onProgress?.({ message: "AI likh raha hai..." });
         }
       }
     }
@@ -544,7 +526,7 @@ export async function puterChat(
     }
 
     if (!fullText.trim()) throw internalError("Khali jawab mila — dobara try karein.");
-    return { ok: true, text: fullText };
+    return { ok: true, text: filterAiOutput(fullText) };
   } catch (err) {
     const c = classifyError(err);
     return { ok: false, ...c };
@@ -552,73 +534,31 @@ export async function puterChat(
 }
 
 // ---------------------------------------------------------------------------
-// Image generation (FLUX.1-schnell via puter.ai.txt2img)
+// Visual generation (temporarily disabled pending output-safety screening)
 // ---------------------------------------------------------------------------
-
-/**
- * Resolve a puter SDK object exposing the given ai.* API. If the cached SDK
- * object is stale/partial, one fresh load is attempted first. A reload failure
- * (e.g. offline) throws its own actionable error instead of being swallowed,
- * so the user sees "internet check karein" rather than a generic message.
- */
-async function ensurePuterApi(apiName: "txt2img" | "txt2vid"): Promise<any> {
-  let puter: any = await loadPuterSDK();
-  if (typeof puter?.ai?.[apiName] !== "function") {
-    puter = await reloadPuterSDK();
-  }
-  return puter;
-}
 
 export async function puterGenerateImage(
   prompt: string,
-  onProgress?: (p: PuterProgress) => void
+  _onProgress?: (p: PuterProgress) => void
 ): Promise<PuterMediaResult> {
-  try {
-    const puter = await ensurePuterApi("txt2img");
-    if (typeof puter?.ai?.txt2img !== "function") {
-      throw internalError("Image feature tayyar nahi ho saka — app band karke dobara kholein.");
-    }
-    onProgress?.({ message: "🖼️ Image ban rahi hai..." });
-
-    // No model pinned — Puter's default image model is used.
-    const img = await puter.ai.txt2img(prompt);
-    const url = img?.src || img?.url || "";
-    if (!url) throw internalError("Image bani lekin uska URL nahi mila.");
-    return { ok: true, url };
-  } catch (err) {
-    const c = classifyError(err);
-    return { ok: false, ...c };
-  }
+  if (isUnsafeText(prompt)) return { ok: false, error: BLOCKED_OUTPUT_MESSAGE };
+  return {
+    ok: false,
+    error: "AI image generation is temporarily unavailable while image-output safety checks are added.",
+  };
 }
 
 // ---------------------------------------------------------------------------
-// Video generation (puter.ai.txt2vid — Google Veo)
+// Video generation
 // ---------------------------------------------------------------------------
 
 export async function puterGenerateVideo(
   prompt: string,
-  onProgress?: (p: PuterProgress) => void
+  _onProgress?: (p: PuterProgress) => void
 ): Promise<PuterMediaResult> {
-  try {
-    const puter = await ensurePuterApi("txt2vid");
-    if (typeof puter?.ai?.txt2vid !== "function") {
-      return {
-        ok: false,
-        error: "Video feature tayyar nahi ho saka — app band karke dobara kholein.",
-      };
-    }
-
-    onProgress?.({ message: "🎬 Video ban raha hai... (1-3 minute lag sakte hain)" });
-    // txt2vid resolves with a ready-to-play HTMLVideoElement once the
-    // server-side render finishes — no client polling needed.
-    const videoEl = await puter.ai.txt2vid(prompt, {
-      model: "google/veo-3.1",
-    });
-    const url = videoEl?.src || "";
-    if (!url) throw internalError("Video bana lekin uska URL nahi mila.");
-    return { ok: true, url };
-  } catch (err) {
-    const c = classifyError(err);
-    return { ok: false, ...c };
-  }
+  if (isUnsafeText(prompt)) return { ok: false, error: BLOCKED_OUTPUT_MESSAGE };
+  return {
+    ok: false,
+    error: "AI video generation is temporarily unavailable while visual-output safety checks are added.",
+  };
 }

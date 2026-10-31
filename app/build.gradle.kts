@@ -45,7 +45,6 @@ android {
         val hackerEarthClientId = System.getenv("HACKEREARTH_CLIENT_ID") ?: localProperties.getProperty("HACKEREARTH_CLIENT_ID") ?: ""
         val hackerEarthClientSecret = System.getenv("HACKEREARTH_CLIENT_SECRET") ?: localProperties.getProperty("HACKEREARTH_CLIENT_SECRET") ?: ""
         val codeRunnerProxyUrl = System.getenv("CODE_RUNNER_PROXY_URL") ?: localProperties.getProperty("CODE_RUNNER_PROXY_URL") ?: ""
-        val pollinationsApiKey = System.getenv("POLLINATIONS_API_KEY") ?: localProperties.getProperty("POLLINATIONS_API_KEY") ?: ""
         val puterAuthToken = System.getenv("PUTER_AUTH_TOKEN") ?: localProperties.getProperty("PUTER_AUTH_TOKEN") ?: ""
         val geminiApiKey = System.getenv("GEMINI_API_KEY") ?: localProperties.getProperty("GEMINI_API_KEY") ?: ""
         val geminiModel = (System.getenv("GEMINI_MODEL") ?: localProperties.getProperty("GEMINI_MODEL") ?: "").ifBlank { "gemini-2.0-flash" }
@@ -64,7 +63,6 @@ android {
         buildConfigField("String", "HACKEREARTH_CLIENT_ID", "\"$hackerEarthClientId\"")
         buildConfigField("String", "HACKEREARTH_CLIENT_SECRET", "\"$hackerEarthClientSecret\"")
         buildConfigField("String", "CODE_RUNNER_PROXY_URL", "\"$codeRunnerProxyUrl\"")
-        buildConfigField("String", "POLLINATIONS_API_KEY", "\"$pollinationsApiKey\"")
         buildConfigField("String", "PUTER_AUTH_TOKEN", "\"$puterAuthToken\"")
         buildConfigField("String", "GEMINI_API_KEY", "\"$geminiApiKey\"")
         buildConfigField("String", "GEMINI_MODEL", "\"$geminiModel\"")

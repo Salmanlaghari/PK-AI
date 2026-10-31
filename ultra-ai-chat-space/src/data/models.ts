@@ -38,8 +38,8 @@ export const models: AIModel[] = [
   {
     id: 'ultra-image',
     name: 'Ultra Image AI',
-    badge: 'HD',
-    description: 'Photorealistic image generation',
+    badge: 'Paused',
+    description: 'Temporarily unavailable while image-output safety checks are added',
     icon: 'Image',
     color: 'text-pink-400',
     gradient: 'from-pink-500 to-rose-600',

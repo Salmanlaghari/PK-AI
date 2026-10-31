@@ -1,21 +1,17 @@
 package com.salmanlaghari.pkai.ui.superchat
 
 import android.content.Context
-import com.salmanlaghari.pkai.util.SpriteSheetLoader
+import com.salmanlaghari.pkai.util.PoseRegistry
 
-/** Helper that resolves which sticker indices the picker grid should show. */
+/** Resolves picker indices while dropping favorites from retired character artwork. */
 internal object PoseRegistryIndices {
-
-    /**
-     * Returns the sticker indices for the picker. When [favoritesOnly] is true and
-     * [favorites] is non-empty, only those are shown; otherwise the full catalogue
-     * discovered from the bundled sticker assets.
-     */
+    @Suppress("UNUSED_PARAMETER")
     fun forPicker(context: Context, favorites: Set<Int>, favoritesOnly: Boolean): IntArray {
-        return if (favoritesOnly && favorites.isNotEmpty()) {
-            favorites.toIntArray().also { it.sort() }
+        val safeFavorites = favorites.filter(PoseRegistry::isSafeSticker).sorted()
+        return if (favoritesOnly && safeFavorites.isNotEmpty()) {
+            safeFavorites.toIntArray()
         } else {
-            SpriteSheetLoader.availableStickers(context).toIntArray()
+            PoseRegistry.allStickers()
         }
     }
 }

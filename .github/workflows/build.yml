@@ -95,6 +95,18 @@ jobs:
           cache: 'npm'
           cache-dependency-path: ultra-ai-chat-space/package-lock.json
 
+      - name: Install AI Hub dependencies
+        run: npm ci --no-audit --no-fund
+        working-directory: ultra-ai-chat-space
+
+      - name: Run AI Hub safety tests
+        run: npm test
+        working-directory: ultra-ai-chat-space
+
+      - name: Build AI Hub web bundle
+        run: npm run build
+        working-directory: ultra-ai-chat-space
+
       - name: Run Unit Tests
         run: ./gradlew testDebugUnitTest --stacktrace
         env:
@@ -106,7 +118,6 @@ jobs:
           COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
           CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
           HUGGINGFACE_API_KEY: ${{ secrets.HUGGINGFACE_API_KEY }}
-          POLLINATIONS_API_KEY: ${{ secrets.POLLINATIONS_API_KEY }}
           PUTER_AUTH_TOKEN: ${{ secrets.PUTER_AUTH_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL: ${{ secrets.GEMINI_MODEL }}
@@ -132,7 +143,6 @@ jobs:
           COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
           CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
           HUGGINGFACE_API_KEY: ${{ secrets.HUGGINGFACE_API_KEY }}
-          POLLINATIONS_API_KEY: ${{ secrets.POLLINATIONS_API_KEY }}
           PUTER_AUTH_TOKEN: ${{ secrets.PUTER_AUTH_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL: ${{ secrets.GEMINI_MODEL }}

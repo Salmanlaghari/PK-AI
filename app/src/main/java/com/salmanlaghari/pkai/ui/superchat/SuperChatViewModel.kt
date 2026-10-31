@@ -13,6 +13,7 @@ import com.salmanlaghari.pkai.util.PkAiAssistant
 import com.salmanlaghari.pkai.util.Mood
 import com.salmanlaghari.pkai.util.MoodDetector
 import com.salmanlaghari.pkai.util.PoseRegistry
+import com.salmanlaghari.pkai.util.ContentSafetyFilter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -90,10 +91,11 @@ class SuperChatViewModel @Inject constructor(
     }
 
     fun setFavorites(favorites: Set<Int>) {
-        _favorites.value = favorites
+        _favorites.value = favorites.filter(PoseRegistry::isSafeSticker).toSet()
     }
 
     fun toggleFavorite(index: Int) {
+        if (!PoseRegistry.isSafeSticker(index)) return
         _favorites.value = _favorites.value.toMutableSet().apply {
             if (!add(index)) remove(index)
         }
@@ -105,8 +107,9 @@ class SuperChatViewModel @Inject constructor(
 
     /** Shows a sticker chosen manually from the picker grid. */
     fun selectSticker(index: Int) {
-        _currentSticker.value = index
-        lastSticker = index
+        val safeIndex = PoseRegistry.sanitizeSticker(index)
+        _currentSticker.value = safeIndex
+        lastSticker = safeIndex
         _currentMood.value = Mood.NEUTRAL
     }
 
@@ -120,6 +123,24 @@ class SuperChatViewModel @Inject constructor(
     fun sendMessage(text: String) {
         val trimmed = text.trim()
         if (trimmed.isEmpty() || _isGenerating.value) return
+
+        if (ContentSafetyFilter.isBlocked(trimmed)) {
+            val userMessage = ChatMessage(
+                content = trimmed,
+                isUser = true,
+                timestamp = System.currentTimeMillis()
+            )
+            _currentMood.value = Mood.NEUTRAL
+            val userSticker = nextPoseFor(Mood.NEUTRAL)
+            _currentSticker.value = userSticker
+            _messageStickers.value = _messageStickers.value + (userMessage.id to userSticker)
+            _messages.value = _messages.value + userMessage + ChatMessage(
+                content = ContentSafetyFilter.BLOCKED_OUTPUT_MESSAGE,
+                isUser = false,
+                timestamp = System.currentTimeMillis()
+            )
+            return
+        }
 
         // Keep the language from the last real user text for attachment replies.
         lastLanguageInstruction =
@@ -347,10 +368,11 @@ class SuperChatViewModel @Inject constructor(
     ) {
         _isGenerating.value = true
         viewModelScope.launch {
-            val reply = tryRequest(prompt, imageDataUri, languageInstruction)
+            val generatedReply = tryRequest(prompt, imageDataUri, languageInstruction)
                 ?: if (!imageDataUri.isNullOrBlank()) {
                     "⚠️ Is image ko analyse nahi kiya ja saka — configured vision provider unavailable hai."
                 } else offlineReply()
+            val reply = ContentSafetyFilter.filterAiOutput(generatedReply)
             val replyMessage = ChatMessage(
                 content = reply,
                 isUser = false,

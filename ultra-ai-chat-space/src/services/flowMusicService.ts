@@ -77,6 +77,7 @@ export interface GeneratedVisualResult {
   imageUrl: string;
   creditsCost: number;
   creditsRemaining: number;
+  error?: string;
 }
 
 const STORAGE_KEY = "pkai_flowmusic_session";
@@ -364,22 +365,14 @@ export function requestFlowMusicChat(
 }
 
 // ---------------------------------------------------------------------------
-// Image generation (real, keyless — Pollinations Flux)
+// Image generation is disabled until generated outputs can be screened.
 // ---------------------------------------------------------------------------
 export function generateStrictVisual(prompt: string): GeneratedVisualResult {
-  let cleanPrompt = prompt
-    .replace(/^(please\s+)?(can\s+you\s+)?(make|generate|create|draw|paint|show|give|banao|dikhao|render)\s+(me\s+)?(an?\s+)?(image|photo|picture|pic|tasveer|wallpaper)\s+(of\s+|about\s+|ki\s+|ka\s+)?/i, "")
-    .replace(/\s+(image|photo|picture|pic|draw|tasveer|banao)\s*$/i, "")
-    .trim();
-
-  if (!cleanPrompt) cleanPrompt = prompt.trim();
-
-  const encoded = encodeURIComponent(cleanPrompt);
-  const seed = Math.floor(Math.random() * 1000000);
-  const imageUrl = `https://image.pollinations.ai/prompt/${encoded}?width=800&height=800&nologo=true&model=flux&seed=${seed}`;
-
-  const creditsCost = 2;
-  const creditsRemaining = deductFlowCredits(creditsCost);
-
-  return { prompt: cleanPrompt, imageUrl, creditsCost, creditsRemaining };
+  return {
+    prompt: prompt.trim(),
+    imageUrl: "",
+    creditsCost: 0,
+    creditsRemaining: getFlowMusicSession().dailyCreditsRemaining,
+    error: "AI image generation is temporarily unavailable while image-output safety checks are added.",
+  };
 }

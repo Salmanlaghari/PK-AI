@@ -245,16 +245,13 @@ class PreferencesManager @Inject constructor(
     }
 
     // ------------------------------------------------------------------
-    // AI-content reports (Google Play policy requirement): users can flag
-    // AI-generated images/text via the 🚩 button on any AI message. There is
-    // no backend, so reports are stored locally as newline-separated JSON
-    // entries for later review/export.
+    // AI-content report notes are stored only on this device. There is no
+    // backend, developer inbox, or remote review/export path.
     private val aiContentReportsKey = stringPreferencesKey("ai_content_reports")
 
     /**
-     * Appends one JSON report entry (see [com.salmanlaghari.pkai.util.AiContentReporter]).
-     * Keeps only the most recent [MAX_STORED_AI_REPORTS] entries so the value
-     * can never grow without bound on-device.
+     * Appends one local JSON note (see [com.salmanlaghari.pkai.util.AiContentReporter]).
+     * Keeps only the most recent [MAX_STORED_AI_REPORTS] entries on-device.
      */
     suspend fun recordAiContentReport(reportJson: String) {
         context.dataStore.edit { preferences ->

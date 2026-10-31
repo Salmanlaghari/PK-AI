@@ -31,6 +31,7 @@ import com.salmanlaghari.pkai.data.model.LlmProvider
 import com.salmanlaghari.pkai.data.remote.provider.AiProviderFactory
 import com.salmanlaghari.pkai.data.remote.provider.AiResponse
 import com.salmanlaghari.pkai.databinding.ActivityVoiceAssistantBinding
+import com.salmanlaghari.pkai.util.ContentSafetyFilter
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -344,6 +345,12 @@ class VoiceAssistantActivity : AppCompatActivity() {
     }
 
     private fun submitToAiModel(prompt: String) {
+        if (ContentSafetyFilter.isBlocked(prompt)) {
+            val refusal = ContentSafetyFilter.BLOCKED_OUTPUT_MESSAGE
+            appendTranscriptBubble(refusal, isUser = false)
+            speakResponse(refusal)
+            return
+        }
         setAssistantState(AssistantState.PROCESSING)
         binding.tvAnimatedStatus.text = "Thinking..."
 
@@ -362,7 +369,7 @@ class VoiceAssistantActivity : AppCompatActivity() {
                         }
                     }
                 }
-                val aiResponse = result.toString()
+                val aiResponse = ContentSafetyFilter.filterAiOutput(result.toString())
 
                 if (aiResponse.isNotBlank()) {
                     appendTranscriptBubble(aiResponse, isUser = false)

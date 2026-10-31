@@ -19,6 +19,7 @@ import com.salmanlaghari.pkai.data.repository.ImageGenerationResult
 import com.salmanlaghari.pkai.data.repository.PollinationsImageRepository
 import com.salmanlaghari.pkai.util.SongAttachment
 import com.salmanlaghari.pkai.util.SongSearchHelper
+import com.salmanlaghari.pkai.util.ContentSafetyFilter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import android.content.Context
@@ -52,7 +53,7 @@ class HomeViewModel @Inject constructor(
     private val chatHistoryRecorder: ChatHistoryRecorder
 ) : ViewModel() {
 
-    /** Hugging Face text-to-image model used by the dedicated Image Generation tab. */
+    /** Label used to keep the temporarily disabled image route separate in chat history. */
     private companion object {
         const val IMAGE_PROVIDER_LABEL = "PK AI Image"
         const val TAG = "HomeViewModel"
@@ -85,6 +86,23 @@ class HomeViewModel @Inject constructor(
                 }
                 else -> messages.filter {
                     !FreeAiModel.isFreeLabel(it.modelUsed) && it.modelUsed != IMAGE_PROVIDER_LABEL && !it.content.startsWith("🖼 Generate image:")
+                }
+            }
+        }
+        .map { messages ->
+            messages.mapNotNull { message ->
+                val content = message.content.trim()
+                val isLegacyGeneratedImage = !message.isUser && (
+                    content.startsWith("![Generated image]") ||
+                        content.startsWith("🖼 [Generated image]") ||
+                        (content.contains("data:image/") && content.contains(";base64,"))
+                    )
+                if (isLegacyGeneratedImage) {
+                    null // Hide legacy locally-rendered images regardless of their old model label.
+                } else if (!message.isUser) {
+                    message.copy(content = ContentSafetyFilter.filterAiOutput(message.content))
+                } else {
+                    message
                 }
             }
         }
@@ -213,8 +231,8 @@ class HomeViewModel @Inject constructor(
      * picture is forwarded so the model can actually see it. For unsupported attachments the
      * user is told clearly rather than failing silently.
      *
-     * In Image mode the text is treated as a text-to-image prompt and routed to the Hugging
-     * Face image model instead of a chat provider.
+     * In Image mode the text is routed to the native image provider, which currently fails
+     * closed until generated image outputs can be screened.
      *
      * @param imageDataUri a base64 `data:image/…` payload (already read from the file by the
      * UI) used for vision requests; null when there is no image to send.
@@ -227,6 +245,27 @@ class HomeViewModel @Inject constructor(
         imageDataUri: String? = null
     ) {
         if (content.trim().isEmpty() && attachmentUri.isNullOrBlank()) return
+
+        if (ContentSafetyFilter.isBlocked(content)) {
+            val modelLabel = when {
+                _isImageMode.value -> IMAGE_PROVIDER_LABEL
+                _isFreeMode.value -> selectedFreeModel.value.chatLabel
+                else -> null
+            }
+            viewModelScope.launch {
+                chatMessageDao.insertMessage(
+                    ChatMessage(content = content.trim(), isUser = true, modelUsed = modelLabel)
+                )
+                chatMessageDao.insertMessage(
+                    ChatMessage(
+                        content = ContentSafetyFilter.BLOCKED_OUTPUT_MESSAGE,
+                        isUser = false,
+                        modelUsed = modelLabel
+                    )
+                )
+            }
+            return
+        }
 
         // Image Generation tab handles the text as a picture prompt.
         if (_isImageMode.value) {
@@ -453,9 +492,10 @@ class HomeViewModel @Inject constructor(
                         )
                     )
                 } else {
+                    val visibleReply = ContentSafetyFilter.filterAiOutput(builder.toString())
                     chatMessageDao.insertMessage(
                         ChatMessage(
-                            content = builder.toString(),
+                            content = visibleReply,
                             isUser = false,
                             modelUsed = finalLabel
                         )
@@ -469,7 +509,7 @@ class HomeViewModel @Inject constructor(
                         historySessionId = chatHistoryRecorder.recordSession(
                             sessionId = historySessionId,
                             title = historySessionTitle ?: content.trim().take(60),
-                            preview = builder.toString().take(120)
+                            preview = visibleReply.take(120)
                         )
                     } catch (e: CancellationException) {
                         throw e
@@ -643,13 +683,7 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Generates a real image via Pollinations' key-less image endpoint (Flux), rendered
-     * inline as a Bitmap in the chat. No API key needed — works out of the box.
-     *
-     * Pollinations occasionally rate-limits bursts; we retry a few times with backoff and
-     * keep the UI in a "Generating image, please wait…" state until it succeeds or gives up.
-     */
+    /** Records the image request and displays the repository's fail-closed safety message. */
     fun generateHuggingFaceImage(prompt: String) {
         if (prompt.isBlank()) return
         viewModelScope.launch {
@@ -662,7 +696,7 @@ class HomeViewModel @Inject constructor(
             )
 
             _isGenerating.value = true
-            _generatingLabel.value = "Generating image, please wait…"
+            _generatingLabel.value = "Image generation is temporarily unavailable."
             try {
                 val markdown = withContext(Dispatchers.IO) {
                     when (val result = pollinationsImageRepository.generateImage(prompt)) {
@@ -688,8 +722,7 @@ class HomeViewModel @Inject constructor(
                 Log.e(TAG, "Error generating image", e)
                 chatMessageDao.insertMessage(
                     ChatMessage(
-                        content = "🖼 I couldn't generate that image (${e.localizedMessage ?: "unknown error"}). " +
-                            "The image service may be rate-limited — please try again shortly.",
+                        content = "AI image generation is temporarily unavailable while image-safety checks are added.",
                         isUser = false,
                         modelUsed = IMAGE_PROVIDER_LABEL
                     )
@@ -701,10 +734,7 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Generates a real image via Pollinations' key-less image endpoint (Free AI tab only).
-     * The resulting PNG is stored in internal storage so the chat renders it inline safely.
-     */
+    /** Records the Free AI image request and displays the fail-closed safety message. */
     fun generateImage(prompt: String) {
         if (prompt.trim().isEmpty()) return
         viewModelScope.launch {
@@ -744,8 +774,7 @@ class HomeViewModel @Inject constructor(
                 Log.e(TAG, "Error generating free image", e)
                 chatMessageDao.insertMessage(
                     ChatMessage(
-                        content = "🖼 I couldn't generate that image (${e.localizedMessage ?: "unknown error"}). " +
-                            "Pollinations image generation may be rate-limited — please try again shortly.",
+                        content = "AI image generation is temporarily unavailable while image-safety checks are added.",
                         isUser = false,
                         modelUsed = providerLabel
                     )

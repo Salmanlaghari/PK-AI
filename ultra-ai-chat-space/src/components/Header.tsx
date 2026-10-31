@@ -14,7 +14,7 @@ interface HeaderProps {
   onOpenSettings: () => void;
   onOpenFlowStudio: () => void;
   onOpenAuth?: () => void;
-  /** One-tap free Puter connect (text + image + video). */
+  /** One-tap Puter connect for text chat; visual generation is paused. */
   onOpenPuterAuth?: () => void;
   authUser?: { name: string; email: string; picture: string } | null;
   flowCredits?: number;

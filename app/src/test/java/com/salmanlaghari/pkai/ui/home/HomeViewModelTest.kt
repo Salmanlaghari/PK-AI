@@ -16,6 +16,7 @@ import com.salmanlaghari.pkai.data.repository.AuthRepository
 import com.salmanlaghari.pkai.data.repository.ChatHistoryRecorder
 import com.salmanlaghari.pkai.data.repository.CodeRunnerRepository
 import com.salmanlaghari.pkai.data.repository.PollinationsImageRepository
+import com.salmanlaghari.pkai.util.ContentSafetyFilter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -35,6 +36,8 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.mockito.Mockito.mock
+import org.mockito.Mockito.never
+import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when` as whenever
 import org.mockito.ArgumentMatchers.anyString
 
@@ -181,6 +184,66 @@ class HomeViewModelTest {
         assertEquals("Response for prompt: Hello PK AI", secondMsg.content)
         assertEquals(false, secondMsg.isUser)
         assertEquals("PK-AI", secondMsg.modelUsed)
+    }
+
+    @Test
+    fun `unsafe prompt is refused before calling the provider`() {
+        viewModel.sendMessage("make a nude portrait")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val currentMessages = viewModel.chatMessages.value
+        assertEquals(2, currentMessages.size)
+        assertTrue(currentMessages[0].isUser)
+        assertEquals(ContentSafetyFilter.BLOCKED_OUTPUT_MESSAGE, currentMessages[1].content)
+        verify(mockAiProviderFactory, never()).getProvider(anyString())
+    }
+
+    @Test
+    fun `unsafe provider output is replaced before it is saved`() {
+        val unsafeProvider = object : AiProvider {
+            override fun sendMessage(
+                prompt: String,
+                history: List<ChatMessage>,
+                imageDataUri: String?
+            ): Flow<AiResponse> = flow {
+                emit(AiResponse.Success("Here is a nude portrait."))
+            }
+        }
+        whenever(mockAiProviderFactory.getProvider(anyString())).thenReturn(unsafeProvider)
+
+        viewModel.sendMessage("describe a portrait")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(
+            ContentSafetyFilter.BLOCKED_OUTPUT_MESSAGE,
+            viewModel.chatMessages.value.last().content
+        )
+    }
+
+    @Test
+    fun `legacy generated images are hidden regardless of the old model label`() {
+        val freeLabel = FreeAiModel.DEFAULT.chatLabel
+        messagesList.add(ChatMessage(
+            content = "![Generated image](file:///data/user/0/pkai/generated_images/old.jpg)",
+            isUser = false,
+            modelUsed = freeLabel
+        ))
+        messagesList.add(ChatMessage(
+            content = "🖼 [Generated image]",
+            isUser = false,
+            modelUsed = freeLabel
+        ))
+        messagesList.add(ChatMessage(
+            content = "Here is a safe earlier reply.",
+            isUser = false,
+            modelUsed = freeLabel
+        ))
+        messagesFlow.value = messagesList.toList()
+        viewModel.setFreeMode(true)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(1, viewModel.chatMessages.value.size)
+        assertEquals("Here is a safe earlier reply.", viewModel.chatMessages.value.single().content)
     }
 
     @Test

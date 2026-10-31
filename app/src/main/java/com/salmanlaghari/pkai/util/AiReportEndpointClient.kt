@@ -61,7 +61,7 @@ internal class AiReportEndpointClient(
         private const val MAX_PAYLOAD_CHARS = 8_192
         private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
         private val RESPONSE_PATTERN = Regex(
-            """^\s*\{\s*"ok"\s*:\s*(true|false)(?:\s*,\s*"(code|duplicate)"\s*:\s*(?:"([A-Z_]+)"|true|false))?\s*}\s*$"""
+            """^\s*\{\s*"ok"\s*:\s*(true|false)(?:\s*,\s*"(code|duplicate)"\s*:\s*(?:"([A-Z_]+)"|true|false))?\s*\}\s*$"""
         )
 
         internal fun isHttpsEndpoint(value: String): Boolean = runCatching {

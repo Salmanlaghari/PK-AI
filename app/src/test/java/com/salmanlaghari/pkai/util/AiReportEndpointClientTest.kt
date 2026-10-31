@@ -55,6 +55,26 @@ class AiReportEndpointClientTest {
     }
 
     @Test
+    fun `client initializes and parses valid and malformed endpoint responses`() = runBlocking {
+        var responseBody = """{"ok":true}"""
+        val http = OkHttpClient.Builder().addInterceptor { chain ->
+            Response.Builder()
+                .request(chain.request())
+                .protocol(Protocol.HTTP_1_1)
+                .code(200)
+                .message("OK")
+                .body(responseBody.toResponseBody("application/json".toMediaType()))
+                .build()
+        }.build()
+        val client = AiReportEndpointClient("https://script.google.com/macros/s/test/exec", http)
+
+        assertEquals(ReportSubmissionResult.Sent, client.submit("{}"))
+
+        responseBody = """{"ok":not-json}"""
+        assertEquals(ReportSubmissionResult.Failed("INVALID_RESPONSE"), client.submit("{}"))
+    }
+
+    @Test
     fun `server rejection does not claim report was sent`() = runBlocking {
         val http = OkHttpClient.Builder().addInterceptor { chain ->
             Response.Builder()

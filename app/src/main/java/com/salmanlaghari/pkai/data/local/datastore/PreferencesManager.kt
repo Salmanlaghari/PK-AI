@@ -12,6 +12,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -245,16 +246,25 @@ class PreferencesManager @Inject constructor(
     }
 
     // ------------------------------------------------------------------
-    // AI-content reports (Google Play policy requirement): users can flag
-    // AI-generated images/text via the 🚩 button on any AI message. There is
-    // no backend, so reports are stored locally as newline-separated JSON
-    // entries for later review/export.
+    // Local report notes stay on this device; remote submission is a separate
+    // explicit action and is available only when an HTTPS endpoint is configured.
     private val aiContentReportsKey = stringPreferencesKey("ai_content_reports")
+    private val aiReportInstallationIdKey = stringPreferencesKey("ai_report_installation_id")
+
+    /** Random local identifier used only for the report endpoint's abuse cooldown. */
+    suspend fun getOrCreateAiReportInstallationId(): String {
+        var installationId = ""
+        context.dataStore.edit { preferences ->
+            installationId = preferences[aiReportInstallationIdKey]
+                ?.takeIf { it.isNotBlank() }
+                ?: UUID.randomUUID().toString().also { preferences[aiReportInstallationIdKey] = it }
+        }
+        return installationId
+    }
 
     /**
-     * Appends one JSON report entry (see [com.salmanlaghari.pkai.util.AiContentReporter]).
-     * Keeps only the most recent [MAX_STORED_AI_REPORTS] entries so the value
-     * can never grow without bound on-device.
+     * Appends one local JSON note (see [com.salmanlaghari.pkai.util.AiContentReporter]).
+     * Keeps only the most recent [MAX_STORED_AI_REPORTS] entries on-device.
      */
     suspend fun recordAiContentReport(reportJson: String) {
         context.dataStore.edit { preferences ->

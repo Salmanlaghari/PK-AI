@@ -8,12 +8,7 @@ sealed interface ImageGenerationResult {
     data class Unavailable(val message: String) : ImageGenerationResult
     data class InvalidRequest(val message: String) : ImageGenerationResult
     data class NetworkError(val message: String, val cause: Throwable? = null) : ImageGenerationResult
-    /**
-     * The prompt was refused by the client-side content-safety filter
-     * ([com.salmanlaghari.pkai.util.ContentSafetyFilter]) or flagged by the
-     * image service's own safety filter. No image was generated and — for the
-     * client-side case — no network call was made at all.
-     */
+    /** No image was returned because the request was refused or the route is disabled. */
     data class Blocked(val message: String) : ImageGenerationResult
 }
 

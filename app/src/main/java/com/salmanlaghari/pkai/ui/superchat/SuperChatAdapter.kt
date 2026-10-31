@@ -50,8 +50,8 @@ class SuperChatAdapter(
     private val onShare: (ChatMessage) -> Unit,
     private val onImageClick: (String) -> Unit,
     /**
-     * Opens the AI-content report dialog (Play-policy requirement). Shown as a
-     * visible 🚩 button on every AI message — generated images included.
+     * Opens the report dialog; it submits in-app when configured, with
+     * external-email and local-note fallbacks.
      */
     private val onReport: (ChatMessage) -> Unit,
     /**

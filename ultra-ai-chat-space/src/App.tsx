@@ -31,6 +31,7 @@ import {
   type PuterUser,
 } from "./services/puterService";
 import PuterAuthModal from "./components/PuterAuthModal";
+import { filterAiOutput, isUnsafeText, BLOCKED_OUTPUT_MESSAGE } from "./services/contentSafety.mjs";
 
 function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -44,7 +45,7 @@ function createWelcomeMessage(model: AIModel): Message {
   return {
     id: generateId(),
     sender: "ai",
-    text: `Namaste! Main ${model.name} hoon — Ultra AI 4. Header se "Connect" tap karke apna free AI account connect karein, phir mujhse text, HD image aur video — teeno free mein banwayein (aapke apne quota mein). Gaane ke liye Ultra Chat AI (Pro) connect karein.`,
+    text: `Namaste! Main ${model.name} hoon — Ultra AI 4. Header se "Connect" tap karke apna free AI account connect karein, phir mujhse text chat karein (aapke apne quota mein). AI image aur video generation visual-output safety checks tak temporarily band hai. Gaane ke liye Ultra Chat AI (Pro) connect karein.`,
     timestamp: getTimestamp(),
     modelName: `${model.name} × AI`,
   };
@@ -52,7 +53,7 @@ function createWelcomeMessage(model: AIModel): Message {
 
 const MUSIC_RE = /(song|music|audio|gana|gaana|track|beat|melody|tune|dhun|compose|instrumental|remix|vocal)/i;
 const NON_MUSIC_RE = /(image|photo|picture|pic|tasveer|wallpaper|video|clip|code|function|program)/i;
-// Puter free stack: image & video intents route to puter.ai.txt2img / video.
+// Text chat is enabled; image and video intents fail closed until visual outputs are screened.
 // Noun-first routing with a verb fallback, word-boundaried throughout so
 // substrings ("topic" -> "pic", "clipboard" -> "clip") never match. Bare nouns
 // ("photo", "tasveer") route to image gen; verbs ("draw", "paint", "sketch",
@@ -131,7 +132,7 @@ function App() {
   const [imageModal, setImageModal] = useState<{ isOpen: boolean; url: string }>({ isOpen: false, url: "" });
   const [flowUser, setFlowUser] = useState<FlowMusicUser>(() => getFlowMusicSession());
   const [flowStatus, setFlowStatus] = useState<FlowMusicStatus>(() => getFlowMusicStatus());
-  // Puter free stack (text + image + video) — one-tap connect, per-user quota.
+  // Puter text chat — one-tap connect, per-user quota.
   const [puterUser, setPuterUser] = useState<PuterUser | null>(() => getCachedPuterUser());
   const [puterAuthOpen, setPuterAuthOpen] = useState(false);
   // Transient "connect failed" notice — never overwrites flowStatus.
@@ -235,7 +236,7 @@ function App() {
   };
 
   /**
-   * Puter free stack: text + image + video. One-tap connect, per-user quota,
+   * Puter free stack: text chat. One-tap connect, per-user quota,
    * no API keys. Replaces the old simulated replies — every answer here is
    * real, generated under the user's own Puter account.
    */
@@ -296,7 +297,7 @@ function App() {
         const placeholder: Message = {
           id: placeholderId,
           sender: "ai",
-          text: "🎬 Video ban raha hai... (thoda waqt lagega)",
+          text: "AI video generation safety checks tak temporarily band hai.",
           timestamp: getTimestamp(),
           type: "real_video",
           modelName: "AI × Veo",
@@ -355,15 +356,15 @@ function App() {
         const result = await puterChat(text, (p) => {
           setMessages((prev) =>
             prev.map((m) =>
-              m.id === placeholderId ? { ...m, text: p.partialText || p.message } : m
+              m.id === placeholderId ? { ...m, text: p.message } : m
             )
           );
         });
         setMessages((prev) =>
           prev.map((m) =>
             m.id === placeholderId
-              ? result.ok && result.text
-                ? { ...m, text: result.text, modelName: "AI", isGeneratingMedia: false }
+                ? result.ok && result.text
+                  ? { ...m, text: filterAiOutput(result.text), modelName: "AI", isGeneratingMedia: false }
                 : {
                     ...m,
                     type: "text",
@@ -390,7 +391,7 @@ function App() {
     (): Message => ({
       id: generateId(),
       sender: "ai",
-      text: "👋 Free AI use karne ke liye pehle connect karein:\n\nHeader se \"Connect\" tap karein — ek tap par apna free AI account jud jayega, phir text, image aur video sab free (aapke apne quota mein).",
+      text: "👋 Free AI text chat ke liye pehle connect karein:\n\nHeader se \"Connect\" tap karein — ek tap par apna free AI account jud jayega. AI image aur video generation visual-output safety checks tak temporarily band hai.",
       timestamp: getTimestamp(),
       type: "text",
       modelName: selectedModel.name,
@@ -421,6 +422,21 @@ function App() {
       };
       setMessages((prev) => [...prev, userMessage]);
       updateSessionTitle(text);
+
+      if (isUnsafeText(text)) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: generateId(),
+            sender: "ai",
+            text: BLOCKED_OUTPUT_MESSAGE,
+            timestamp: getTimestamp(),
+            type: "text",
+            modelName: "PK AI Safety",
+          },
+        ]);
+        return;
+      }
 
       // ---- REAL Flow Music generation path -------------------------------
       if (isMusicPrompt(text)) {
@@ -490,7 +506,7 @@ function App() {
         return;
       }
 
-      // ---- Puter free stack (default): text + image + video ---------------
+      // ---- Puter free stack (default): text chat ------------------------
       // One-tap connect, per-user quota, no API keys. This is the default
       // path for every prompt — FlowMusic stays as the Pro option for songs.
       if (puterUser) {
@@ -517,11 +533,11 @@ function App() {
         // a second prompt could overlap the first and clobber its reply.
         setIsGenerating(true);
         try {
-          const result = await requestFlowMusicChat(text, (progress) => {
+          const result = await requestFlowMusicChat(text, () => {
             setMessages((prev) =>
               prev.map((m) =>
-                m.id === placeholderId
-                  ? { ...m, text: progress.message || "Ultra AI 4 jawab tayyar kar raha hai..." }
+              m.id === placeholderId
+                  ? { ...m, text: "Ultra AI 4 jawab tayyar kar raha hai..." }
                   : m
               )
             );
@@ -532,7 +548,7 @@ function App() {
                 m.id === placeholderId
                   ? {
                       ...m,
-                      text: result.text as string,
+                      text: filterAiOutput(result.text as string),
                       modelName: "Ultra AI 4",
                       isGeneratingMedia: false,
                     }
@@ -581,6 +597,21 @@ function App() {
 
     handleSend(lastUserMessage.text);
   }, [messages, handleSend]);
+
+  const handleReport = useCallback((message: Message) => {
+    const bridge = (window as Window & {
+      PKAIReportBridge?: { postMessage: (payload: string) => void };
+    }).PKAIReportBridge;
+    if (!bridge || typeof bridge.postMessage !== "function") {
+      window.alert("In-app reporting is unavailable in this WebView. Please use a native PK-AI chat report control.");
+      return;
+    }
+    bridge.postMessage(JSON.stringify({
+      type: "report_ai_content",
+      content: message.text.slice(0, 5_000),
+      model: (message.modelName || selectedModel.name || "AI Hub").slice(0, 120),
+    }));
+  }, [selectedModel.name]);
 
   const handleGenerateSongFromLyrics = useCallback(
     async (_soundPrompt: string, title: string) => {
@@ -645,7 +676,7 @@ function App() {
           const aiMessage: Message = {
             id: generateId(),
             sender: "ai",
-            text: "I can see the image you uploaded. Let me analyze it for you.",
+            text: "Image chat mein attach ho gayi, lekin is view mein image analysis available nahi hai.",
             timestamp: getTimestamp(),
             modelName: selectedModel.name,
           };
@@ -790,6 +821,7 @@ function App() {
                     ? handleRegenerate
                     : undefined
                 }
+                onReport={message.sender === "ai" ? handleReport : undefined}
                 onGenerateSongFromLyrics={handleGenerateSongFromLyrics}
               />
             ))}

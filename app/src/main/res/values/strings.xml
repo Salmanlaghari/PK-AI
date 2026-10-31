@@ -68,7 +68,7 @@
 
     <!-- About Screen -->
     <string name="title_about">About PK AI</string>
-    <string name="desc_about_app">PK AI is an AI assistant app designed to bring modern AI models, image generation, voice synthesis, and generative coding tools right to your fingertips under a single unified ecosystem.</string>
+    <string name="desc_about_app">PK AI is an assistant app that brings chat, voice assistance, and coding tools together in one place. AI image generation is temporarily unavailable while image-output safety checks are added.</string>
     <string name="lbl_developer_branding">Developed by ❤️ Admin Prince Laghari ❤️</string>
 
     <!-- Crash Diagnostics -->

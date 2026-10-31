@@ -1,68 +1,47 @@
 package com.salmanlaghari.pkai.util
 
 /**
- * Central catalogue of Super Chat avatar stickers.
- *
- * Sticker indices map 1:1 onto the sliced images loaded by [SpriteSheetLoader]
- * (pose 1 = index 0, pose 2 = index 1, …). Each mood maps to a *list* of
- * candidate poses; [stickerForMood] rotates through the list so the avatar
- * changes on every message instead of freezing on a single pose.
- *
- * Sheet 1 pose reference (indices 0-19):
- *  0 wave · 1 heart hands · 2 thumbs up · 3 pointing · 4 peace · 5 kiss ·
- *  6 hands on hips · 7 sitting · 8 jump · 9 hologram · 10 clap · 11 thinking ·
- *  12 welcome · 13 excited · 14 cheer · 15 shy · 16 arms crossed · 17 salute ·
- *  18 fist pump · 19 back view
+ * Central, explicitly allowlisted catalogue for Super Chat reaction stickers.
+ * Human pose artwork has been removed pending an image-safety review; only the
+ * built-in neutral emoji reactions below are selectable or used in rotation.
  */
 object PoseRegistry {
+    private const val FIRST_SAFE_STICKER_INDEX = 216
+    private const val SAFE_STICKER_COUNT = 28
 
-    /** The pose shown when Super Chat opens. */
-    val defaultSticker: Int = 0
+    val defaultSticker: Int = FIRST_SAFE_STICKER_INDEX
+    val safeStickerIndices: List<Int> =
+        (FIRST_SAFE_STICKER_INDEX until FIRST_SAFE_STICKER_INDEX + SAFE_STICKER_COUNT).toList()
 
-    /** Candidate poses per mood — [stickerForMood] cycles through these. */
     val moodStickers: Map<Mood, List<Int>> = mapOf(
-        Mood.GREETING to listOf(0, 12, 10, 17),          // wave, welcome, clap, salute
-        Mood.HAPPY to listOf(3, 18, 13, 4, 221, 222),    // pointing, fist pump, excited, peace, 🤣 😜
-        Mood.GRATEFUL to listOf(1, 10, 5),               // heart hands, clap, kiss
-        Mood.SAD to listOf(15, 16, 7, 226, 227, 229),    // shy, arms crossed, sitting, 😢 😭 🥺
-        Mood.LOVE to listOf(5, 1, 6, 216, 217, 218),     // kiss, heart hands, hips, 💕 😍 🥰
-        Mood.FAREWELL to listOf(0, 17, 12),              // wave, salute, welcome
-        Mood.EXCITED to listOf(8, 14, 4, 18, 234, 235, 236), // jump, cheer, peace, fist pump, 🎉 🥳 🎊
-        Mood.AGREE to listOf(2, 6, 17),                  // thumbs up, hips, salute
-        Mood.DISAGREE to listOf(16, 15, 11),             // crossed, shy, thinking
-        Mood.ANGRY to listOf(16, 15, 19, 230, 231),      // crossed, shy, back view, 😠 😡
-        Mood.THINKING to listOf(11, 15, 9),              // thinking, shy, hologram
-        Mood.NEUTRAL to listOf(
-            6, 9, 13, 19,                                 // sheet 1 variety
-            22, 27, 33, 38,                               // sheet 2
-            44, 50, 55, 59,                               // sheet 3
-            63, 70, 77,                                   // sheet 4
-            83, 90, 97,                                   // sheet 5
-            104, 111, 118,                                // sheet 6
-            125, 132, 139,                                // sheet 7
-            144, 150, 157,                                // sheet 8
-            163, 170,                                     // sheet 9
-            182, 190, 197,                                // sheet 10
-            200, 205, 210, 215,                           // sheet 11 (new)
-            239, 240, 241, 242, 243                       // Desi emoji stickers 🇵🇰 🍵 🏏 🕌 🌙
-        )
+        Mood.GREETING to listOf(216, 221, 228, 229),
+        Mood.HAPPY to listOf(221, 230, 234, 235),
+        Mood.GRATEFUL to listOf(220, 224, 225),
+        Mood.SAD to listOf(236, 237, 238, 232),
+        Mood.LOVE to listOf(217, 218, 220, 221),
+        Mood.FAREWELL to listOf(216, 229, 243),
+        Mood.EXCITED to listOf(221, 234, 235, 241),
+        Mood.AGREE to listOf(218, 219, 229),
+        Mood.DISAGREE to listOf(225, 232, 233),
+        Mood.ANGRY to listOf(239, 240, 232),
+        Mood.THINKING to listOf(223, 225, 228),
+        Mood.NEUTRAL to listOf(216, 219, 223, 225, 228, 229, 230, 242)
     )
 
-    /** Legacy single-pose map (first candidate of each mood) for quick lookups. */
     val moodSticker: Map<Mood, Int> =
-        Mood.entries.associateWith { moodStickers[it]?.first() ?: defaultSticker }
+        Mood.entries.associateWith { mood -> moodStickers[mood]?.firstOrNull() ?: defaultSticker }
 
-    /**
-     * Returns the pose for [mood], advancing a per-mood rotation counter so
-     * consecutive messages show different poses. Pass the value returned by
-     * [nextRotation] as [rotation].
-     */
+    fun isSafeSticker(index: Int): Boolean = index in safeStickerIndices
+
+    fun sanitizeSticker(index: Int): Int =
+        if (isSafeSticker(index)) index else defaultSticker
+
     fun stickerForMood(mood: Mood, rotation: Int = 0): Int {
-        val candidates = moodStickers[mood].orEmpty()
+        val candidates = moodStickers[mood].orEmpty().filter(::isSafeSticker)
         if (candidates.isEmpty()) return defaultSticker
         return candidates[rotation.mod(candidates.size)]
     }
 
-    /** All sticker indices available in the picker grid. */
-    fun allStickers(): IntArray = IntArray(SpriteSheetLoader.STICKER_COUNT) { it }
+    /** Only the allowlisted emoji reactions are exposed in the picker. */
+    fun allStickers(): IntArray = safeStickerIndices.toIntArray()
 }

@@ -43,12 +43,17 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
+import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewAssetLoader
+import androidx.webkit.WebViewFeature
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.salmanlaghari.pkai.R
+import com.salmanlaghari.pkai.data.local.datastore.PreferencesManager
+import com.salmanlaghari.pkai.data.model.ChatMessage
 import com.salmanlaghari.pkai.data.repository.AuthRepository
 import com.salmanlaghari.pkai.databinding.FragmentAiHubBinding
+import com.salmanlaghari.pkai.util.AiContentReporter
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -83,6 +88,9 @@ class AiHubFragment : Fragment() {
 
     @Inject
     lateinit var authRepository: AuthRepository
+
+    @Inject
+    lateinit var preferencesManager: PreferencesManager
 
     private val statusHandler = Handler(Looper.getMainLooper())
     private var lastStatusJson = ""
@@ -1575,6 +1583,8 @@ class AiHubFragment : Fragment() {
             "AndroidOAuth"
         )
 
+        registerAiContentReportBridge(webView)
+
         webView.setDownloadListener { url, _, _, mimetype, _ ->
             downloadMediaToDevice(url, "ultra_ai_${System.currentTimeMillis()}", mimetype ?: "*/*")
         }
@@ -1582,7 +1592,49 @@ class AiHubFragment : Fragment() {
         webView.loadUrl("https://appassets.androidplatform.net/assets/ultra-ai-chat-space/index.html")
     }
 
-    // ==========================================================================
+    /** Adds a report-only bridge restricted to the trusted AI Hub main-frame origin. */
+    private fun registerAiContentReportBridge(webView: WebView) {
+        if (!WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+            Log.w("AiHubFragment", "Secure web-message bridge unavailable; AI Hub reporting is disabled on this WebView")
+            return
+        }
+
+        WebViewCompat.addWebMessageListener(
+            webView,
+            "PKAIReportBridge",
+            setOf("https://appassets.androidplatform.net")
+        ) { _, message, sourceOrigin, isMainFrame, _ ->
+            if (!isMainFrame || sourceOrigin.scheme != "https" || sourceOrigin.host != "appassets.androidplatform.net") {
+                return@addWebMessageListener
+            }
+            val raw = message.data ?: return@addWebMessageListener
+            // JSON escaping can expand a 5,000-character output substantially;
+            // the parsed content is still capped below before the dialog opens.
+            if (raw.length > 32_000) return@addWebMessageListener
+
+            val request = try {
+                JSONObject(raw)
+            } catch (_: Exception) {
+                return@addWebMessageListener
+            }
+            if (request.optString("type") != "report_ai_content") return@addWebMessageListener
+            val content = request.optString("content").take(5_000).takeIf { it.isNotBlank() }
+                ?: return@addWebMessageListener
+            val model = request.optString("model").take(120).ifBlank { "AI Hub" }
+
+            activity?.runOnUiThread {
+                if (!isAdded || _binding == null) return@runOnUiThread
+                AiContentReporter.showReportDialog(
+                    requireContext(),
+                    preferencesManager,
+                    ChatMessage(content = content, isUser = false, modelUsed = model),
+                    viewLifecycleOwner.lifecycleScope
+                )
+            }
+        }
+    }
+
+    // ===========================================================================
     // Native Google Sign-In (app-level identity, unchanged behaviour)
     // ==========================================================================
 
@@ -1717,6 +1769,7 @@ class AiHubFragment : Fragment() {
         dismissPuterPopup()
         CookieManager.getInstance().flush()
         _binding?.webviewFlowmusicBackend?.removeJavascriptInterface("FlowMusicNative")
+        _binding?.webviewUltraAi?.let { WebViewCompat.removeWebMessageListener(it, "PKAIReportBridge") }
         super.onDestroyView()
         _binding = null
     }

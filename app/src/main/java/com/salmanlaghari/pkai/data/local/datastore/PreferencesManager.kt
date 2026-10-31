@@ -12,6 +12,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -245,9 +246,21 @@ class PreferencesManager @Inject constructor(
     }
 
     // ------------------------------------------------------------------
-    // AI-content report notes are stored only on this device. There is no
-    // backend, developer inbox, or remote review/export path.
+    // Local report notes stay on this device; remote submission is a separate
+    // explicit action and is available only when an HTTPS endpoint is configured.
     private val aiContentReportsKey = stringPreferencesKey("ai_content_reports")
+    private val aiReportInstallationIdKey = stringPreferencesKey("ai_report_installation_id")
+
+    /** Random local identifier used only for the report endpoint's abuse cooldown. */
+    suspend fun getOrCreateAiReportInstallationId(): String {
+        var installationId = ""
+        context.dataStore.edit { preferences ->
+            installationId = preferences[aiReportInstallationIdKey]
+                ?.takeIf { it.isNotBlank() }
+                ?: UUID.randomUUID().toString().also { preferences[aiReportInstallationIdKey] = it }
+        }
+        return installationId
+    }
 
     /**
      * Appends one local JSON note (see [com.salmanlaghari.pkai.util.AiContentReporter]).

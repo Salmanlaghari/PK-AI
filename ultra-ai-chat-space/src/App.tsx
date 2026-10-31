@@ -598,6 +598,21 @@ function App() {
     handleSend(lastUserMessage.text);
   }, [messages, handleSend]);
 
+  const handleReport = useCallback((message: Message) => {
+    const bridge = (window as Window & {
+      PKAIReportBridge?: { postMessage: (payload: string) => void };
+    }).PKAIReportBridge;
+    if (!bridge || typeof bridge.postMessage !== "function") {
+      window.alert("In-app reporting is unavailable in this WebView. Please use a native PK-AI chat report control.");
+      return;
+    }
+    bridge.postMessage(JSON.stringify({
+      type: "report_ai_content",
+      content: message.text.slice(0, 5_000),
+      model: (message.modelName || selectedModel.name || "AI Hub").slice(0, 120),
+    }));
+  }, [selectedModel.name]);
+
   const handleGenerateSongFromLyrics = useCallback(
     async (_soundPrompt: string, title: string) => {
       const placeholderId = generateId();
@@ -806,6 +821,7 @@ function App() {
                     ? handleRegenerate
                     : undefined
                 }
+                onReport={message.sender === "ai" ? handleReport : undefined}
                 onGenerateSongFromLyrics={handleGenerateSongFromLyrics}
               />
             ))}

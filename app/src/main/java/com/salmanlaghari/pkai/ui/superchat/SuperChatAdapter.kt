@@ -50,8 +50,8 @@ class SuperChatAdapter(
     private val onShare: (ChatMessage) -> Unit,
     private val onImageClick: (String) -> Unit,
     /**
-     * Opens the report dialog with an external email-draft handoff or a local
-     * note. This is not an in-app server reporting channel yet.
+     * Opens the report dialog; it submits in-app when configured, with
+     * external-email and local-note fallbacks.
      */
     private val onReport: (ChatMessage) -> Unit,
     /**

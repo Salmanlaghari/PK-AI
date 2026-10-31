@@ -10,6 +10,7 @@ import {
   Disc,
   Loader2,
   FileText,
+  Flag,
 } from "lucide-react";
 import type { Message } from "../types";
 
@@ -17,10 +18,11 @@ interface ChatMessageProps {
   message: Message;
   userName?: string;
   onRegenerate?: () => void;
+  onReport?: (message: Message) => void;
   onGenerateSongFromLyrics?: (soundPrompt: string, title: string) => void;
 }
 
-export default function ChatMessage({ message, userName, onRegenerate, onGenerateSongFromLyrics: _onGenerateSongFromLyrics }: ChatMessageProps) {
+export default function ChatMessage({ message, userName, onRegenerate, onReport, onGenerateSongFromLyrics: _onGenerateSongFromLyrics }: ChatMessageProps) {
   const [copied, setCopied] = useState(false);
   const [liked, setLiked] = useState(false);
 
@@ -284,7 +286,7 @@ export default function ChatMessage({ message, userName, onRegenerate, onGenerat
 
           {/* ACTION BUTTONS FOR AI */}
           {isAI && (
-            <div className="mt-3 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="mt-3 flex items-center gap-2 opacity-100 transition-opacity">
               {onRegenerate && (
                 <button
                   onClick={onRegenerate}
@@ -301,6 +303,17 @@ export default function ChatMessage({ message, userName, onRegenerate, onGenerat
                 {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                 {copied ? "Copied" : "Copy"}
               </button>
+              {onReport && (
+                <button
+                  type="button"
+                  onClick={() => onReport(message)}
+                  aria-label="Report this AI-generated content"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800/60 text-slate-300 hover:text-white border border-slate-700 text-[11px] font-medium transition-all"
+                >
+                  <Flag className="w-3.5 h-3.5 text-amber-300" />
+                  Report
+                </button>
+              )}
             </div>
           )}
         </div>

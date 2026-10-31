@@ -48,10 +48,13 @@ android {
         val puterAuthToken = System.getenv("PUTER_AUTH_TOKEN") ?: localProperties.getProperty("PUTER_AUTH_TOKEN") ?: ""
         val geminiApiKey = System.getenv("GEMINI_API_KEY") ?: localProperties.getProperty("GEMINI_API_KEY") ?: ""
         val geminiModel = (System.getenv("GEMINI_MODEL") ?: localProperties.getProperty("GEMINI_MODEL") ?: "").ifBlank { "gemini-2.0-flash" }
+        val aiReportsEndpoint = System.getenv("AI_REPORTS_ENDPOINT") ?: localProperties.getProperty("AI_REPORTS_ENDPOINT") ?: ""
+        val escapedAiReportsEndpoint = aiReportsEndpoint.replace("\\", "\\\\").replace("\"", "\\\"")
 
         buildConfigField("String", "GROQ_API_KEY", "\"$groqApiKey\"")
         buildConfigField("String", "GROQ_MODEL", "\"$groqModel\"")
         buildConfigField("String", "GROQ_VISION_MODEL", "\"$groqVisionModel\"")
+        buildConfigField("String", "AI_REPORTS_ENDPOINT", "\"$escapedAiReportsEndpoint\"")
         buildConfigField("String", "CLOUDFLARE_API_TOKEN", "\"$cloudflareApiToken\"")
         buildConfigField("String", "CLOUDFLARE_ACCOUNT_ID", "\"$cloudflareAccountId\"")
         buildConfigField("String", "LLM7_API_KEY", "\"$llm7ApiKey\"")
